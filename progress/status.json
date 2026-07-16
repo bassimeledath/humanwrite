@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-07-16T01:09:00Z",
+  "updated_at": "2026-07-16T01:15:06Z",
   "phase": "Infrastructure deployment",
   "headline": "Deploying the research environment",
   "summary": "The research scaffold, independent evaluators, storage, and provider boundaries are ready. Modal services are being deployed before M0 begins.",
@@ -11,9 +11,9 @@
     "openrouter_spend_usd": 0
   },
   "services": [
-    {"name": "GPU gateway", "detail": "Constrained launch API", "status": "deploying"},
-    {"name": "Reaper", "detail": "Five-minute independent enforcement", "status": "deploying"},
-    {"name": "Sealed evaluator", "detail": "Private Tier 2 endpoint", "status": "queued"},
+    {"name": "GPU gateway", "detail": "Constrained launch API", "status": "online"},
+    {"name": "Reaper", "detail": "Five-minute independent enforcement", "status": "online"},
+    {"name": "Sealed evaluator", "detail": "Private Tier 2 endpoint", "status": "deploying"},
     {"name": "Progress server", "detail": "Local live dashboard", "status": "online"}
   ],
   "milestones": [
@@ -25,6 +25,9 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {"at": "18:15", "title": "GPU gateway verified", "detail": "Authenticated budget and judge calls passed with the 40 dollar Modal cap enforced.", "tone": "complete"},
+    {"at": "18:14", "title": "Sealed evaluator building", "detail": "The private independent embedder image is installing and will be bootstrapped after deployment.", "tone": "active"},
+    {"at": "18:10", "title": "Reaper deployed", "detail": "The independent five-minute budget and wall-clock enforcement job is online.", "tone": "complete"},
     {"at": "18:09", "title": "Deployment started", "detail": "Provider secret detected and service bindings prepared.", "tone": "active"},
     {"at": "17:58", "title": "Operator secrets secured", "detail": "Capability tokens and sealed configuration stored in Modal and macOS Keychain.", "tone": "complete"},
     {"at": "17:46", "title": "Storage created", "detail": "Gateway state, checkpoints, sealed state, and sealed artifacts volumes are online.", "tone": "complete"},
