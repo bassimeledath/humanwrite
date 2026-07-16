@@ -1075,3 +1075,29 @@ NEXT: Freeze the 95% z value as an explicit schema constant (or remove it from
 exact identity and validate numerically), create a distinct v3 proposal, and
 prove generation plus transfer across the two actual runtimes before any
 calibration mutation.
+
+## [2026-07-16] M1 / visible-bank-calibration-transfer-v3
+HYPOTHESIS: Freezing the 95% normal critical value as the literal
+`1.959963984540054` will make the metric-specific calibration proposal and
+operator transfer reproducible across both actual Python runtimes while
+preserving the nonzero human repetition floor.
+SETUP: Integrated independent v3 harness commit `1612614`. Reproduced complete
+proposal SHA-256 `db94fb4373ae81405435cc4ff28fbaf6fa132a6888dfd17ab407c6f06559f463`
+under system Python, ran the real `uv run harness
+prepare-calibration-transfer` command under the locked Python 3.11 harness,
+reviewed the emitted object, and transferred that exact semantic object into
+`harness/calibration.json`. No generated output or Tier-1 report was read and
+no model scoring occurred before transfer.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Cross-runtime proposal | PASS | Two system-Python entrypoint runs reproduced v3 proposal SHA `db94fb43...f463`; the locked uv CLI accepted those exact reviewed bytes. |
+| Independent harness tests | PASS | Full locked harness suite passed `45/45`; focused proposal/boundary suite passed `8/8`. |
+| Repetition range | PASS | Human incidence `1/32 = 0.03125`; frozen Wilson 95% range `[0.005537860164003122,0.15744263820012558]`, so zero repetition fails as preregistered. |
+| Continuous ranges | PASS | Self-BLEU `[0.032337252870941774,0.07693087958956342]`, script rate `[0,0]`, paragraph length `[50,202]`, sentence length `[3,37]`. |
+| Immutable transfer | PASS | `harness/calibration.json` is frozen, semantically identical to the validator candidate, ready under harness checks, and has SHA-256 `4a71b081bbb05081a461d0968312aacd4472221fdeab9934d63202b2f8e6e039`. |
+DECISION: keep. Calibration is now lawful, statistically coherent for the
+observed rare incidence, directly reproducible, and bound to the frozen
+32-document visible bank. V1 and v2 remain negative results.
+NEXT: Publish this exact transfer before running only the default-sampler
+bootstrap reports needed to propose and transfer the frozen SFT baseline.
