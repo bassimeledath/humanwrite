@@ -1,14 +1,14 @@
 {
-  "updated_at": "2026-07-16T07:25:17Z",
+  "updated_at": "2026-07-16T08:07:20Z",
   "phase": "M1 — SFT baseline and calibration",
-  "headline": "M1 Tier-1 recovery is active",
-  "summary": "The completed 90-document sampler screen is now local, and a preregistered 32-document public FineWeb human bank has been materialized reproducibly with unique fingerprints and domains and zero M0 train/dev overlap. The independent harness lane is finishing external-bank validation plus the calibration and baseline/freeze ordering repair before any scoring.",
+  "headline": "M1 screen complete — current tiny SFT does not qualify",
+  "summary": "All 45 frozen-provenance Tier-1 reports completed and passed their integrity audit. The evaluation system worked as designed, but no sampler passed the human-calibrated no-collapse gate, so the mechanical freeze correctly selected nothing. This is a useful pipeline proof and a negative model result; larger-model or M2 spend is paused while a low-cost real-data pilot is prepared.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
     "modal_committed_usd": 0.683574,
     "openrouter_cap_usd": 100,
-    "openrouter_spend_usd": 0.000663
+    "openrouter_spend_usd": 0.039521
   },
   "services": [
     {"name": "GPU gateway", "detail": "Constrained launch API", "status": "online"},
@@ -19,12 +19,13 @@
   "milestones": [
     {"id": "setup", "label": "Setup", "detail": "Harness, sources, storage, and guardrails", "status": "complete"},
     {"id": "M0", "label": "M0", "detail": "Data pipeline and GPU contract smoke test", "status": "complete"},
-    {"id": "M1", "label": "M1", "detail": "SFT baseline and calibration freeze", "status": "active"},
+    {"id": "M1", "label": "M1", "detail": "Tier-1 complete; real-data recovery pilot next", "status": "active"},
     {"id": "M2", "label": "M2", "detail": "Arms A-E at 64 and 128 tokens", "status": "queued"},
     {"id": "M3", "label": "M3", "detail": "Length curriculum and LoRA staging", "status": "queued"},
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {"at": "01:07", "title": "Full Tier-1 screen failed closed", "detail": "All 45 reports are complete and hash-valid, but no sampler passed every hard gate: human-calibrated no-collapse was 0/45 and unsupported-claim non-inferiority was 18/45. The preregistered freeze selected nothing. Provider spend is 0.039521 dollars and GPU commitment remains 0.683574 dollars; no scale-up is justified.", "tone": "blocked"},
     {"at": "00:25", "title": "Independent Tier-1 human bank published", "detail": "A preregistered public FineWeb bank now provides 32 visible human documents from 32 domains, with zero overlap against every M0 train/dev fingerprint. Two complete materialization passes reproduced bank SHA ebcff5bc byte-for-byte; the hidden Tier-2 split remains sealed.", "tone": "complete"},
     {"at": "00:24", "title": "M1 boundary recovery started", "detail": "Sampler artifacts were recovered locally and the independent harness engineer is repairing external-bank precedence, calibration transfer validation, and baseline/freeze ordering without reading model outputs.", "tone": "active"},
     {"at": "00:16", "title": "M1 hard boundary recorded", "detail": "Independent milestone verification at published tip a8482acb634317b57a591b3748fd85466d91390b returned score=fail and hard_boundary=yes. Completed SFT, sampler, and proposal-only calibration evidence are preserved, but no Tier 1 eval or sampler freeze was run because the legal human-reference and immutable baseline/freeze gates cannot be bypassed.", "tone": "blocked"},
@@ -52,5 +53,5 @@
     {"at": "17:46", "title": "Storage created", "detail": "Gateway state, checkpoints, sealed state, and sealed artifacts volumes are online.", "tone": "complete"},
     {"at": "17:40", "title": "Engineering checks passed", "detail": "Harness, infrastructure, and private evaluator suites are green.", "tone": "complete"}
   ],
-  "next_action": "Finish and independently verify the harness repair, then score the already-completed sampler cells against the frozen visible bank and freeze exactly one deployment sampler under the preregistered rule."
+  "next_action": "Preregister a small, real-data training pilot that is disjoint from the visible and sealed evaluators; run it at the existing 0.6B scale and require the same Tier-1 gates to pass before synthesizing the full 20–30K brief set or increasing budget."
 }

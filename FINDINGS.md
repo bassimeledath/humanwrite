@@ -1208,3 +1208,39 @@ full standardized report.
 NEXT: Run focused tests and publish; then execute the 45 reports once, audit
 provider cost/provenance, and apply the mechanical freeze rule without manual
 sample inspection.
+
+## [2026-07-16] M1 / full-tier1-sampler-results
+HYPOTHESIS: At least one preregistered sampler setting will pass every hard
+Tier-1 gate across the three checkpoint seeds and three sampling seeds, making
+it eligible for the deterministic lowest-mean-S freeze rule.
+SETUP: Evaluated all 45 preregistered cells from published preparation commit
+`fd8ee35` with the frozen 32-document human bank, calibration SHA `4a71b081...`,
+baseline SHA `53de46c7...`, and fixed gateway judge. The first online attempt
+stopped before reports or judge calls after a Hugging Face metadata 504; the
+successful restart used the already-cached embedder in offline mode. Audited
+every report hash and provenance tuple without inspecting additional raw model
+output. Applied the published mechanical freeze command once after completion.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Completeness and provenance | PASS | Exactly 45 reports; index SHA `09840716aebb5357b355240512bb773ba5a4b21a02e605e7748aa0544d594206`; zero report-hash or bank/calibration/baseline provenance errors. |
+| Language integrity | PASS | `45/45` reports pass. |
+| Outline-fact recall | MOSTLY PASS | `44/45` reports pass; the one failure is in `warm_t1.2_p0.95`. |
+| Unsupported-claim non-inferiority | FAIL | Only `18/45` reports pass; sampler pass counts are `4,2,3,4,5` in preregistered order. |
+| Human-calibrated no-collapse | FAIL | `0/45` reports pass. Mean generated self-BLEU by sampler is `0.01230–0.01359`, below the human interval `[0.03234,0.07693]`; mean repetition is `0.27778–0.66667` versus human interval `[0.00554,0.15744]`. |
+| Aggregate hard-gate eligibility | FAIL | Every sampler has `0/9` all-gate cells; no sampler is eligible. |
+| Secondary quality judge | POSITIVE BUT NON-PROMOTING | Mean preference win rate ranges from `0.8333` to `1.0000` and mean JMQ from `1.6667` to `2.0000`; these cannot override the preregistered collapse and validity failures. |
+| Mechanical freeze | FAIL CLOSED | `freeze-sampler` exited with `M1ConfigError: no sampler settings passed every hard gate`; no least-bad sampler was selected. |
+| Spend after screen | PASS | Modal GPU committed remains `$0.683574 / $40`; provider spend is `$0.039521 / $100`. |
+DECISION: discard all five sampler settings as deployment candidates from this
+training artifact. The run is valuable evidence that the end-to-end harness,
+provenance, judge, and fail-closed selection path work, but it is not evidence
+that the current tuned model improved. Do not enter M2, Tier 2/3, 14B, or expand
+budget from this result. The most likely limiting factor is the deliberately
+minimal M0 fixture: six synthetic `.example` training documents and only 474
+training tokens per seed, which was sufficient to prove plumbing but not to
+support a scientific tuning claim.
+NEXT: Preserve this negative M1 boundary, then preregister a cheap data-scale
+recovery experiment using real, disjoint training/dev documents. Require a
+small pilot to clear the same diversity and validity gates before authorizing
+the full 20–30K-brief synthesis or any larger-model spend.
