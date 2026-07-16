@@ -421,6 +421,20 @@ def _load_checkpoint_index(config: dict[str, Any]) -> list[dict[str, Any]]:
     if not manifest_path or is_placeholder(manifest_path):
         raise M1ConfigError("sampling.checkpoints_manifest must point to a resolved checkpoint manifest")
     manifest = read_structured(resolve_repo_path(str(manifest_path)))
+    model_config = config.get("model") or {}
+    expected_base = str(model_config.get("base", ""))
+    expected_revision = require_resolved_revision(config, context="M1 checkpoint manifest")
+    manifest_base = str(manifest.get("model_base", ""))
+    manifest_revision = str(manifest.get("model_revision", ""))
+    if manifest_base != expected_base:
+        raise M1ConfigError(
+            f"checkpoint manifest model_base mismatch: expected {expected_base} but found {manifest_base}"
+        )
+    if manifest_revision != expected_revision:
+        raise M1ConfigError(
+            "checkpoint manifest model_revision mismatch: "
+            f"expected {expected_revision} but found {manifest_revision}"
+        )
     checkpoints = manifest.get("checkpoints")
     if not isinstance(checkpoints, list) or not checkpoints:
         raise M1ConfigError("checkpoint manifest must contain a non-empty checkpoints list")
@@ -445,6 +459,8 @@ def _load_sampler_grid(config: dict[str, Any]) -> dict[str, Any]:
 def _generate_outputs(
     *,
     checkpoint_dir: Path,
+    base_model: str,
+    base_revision: str,
     records: list[dict[str, Any]],
     prompt_format: str,
     max_input_tokens: int,
@@ -460,16 +476,27 @@ def _generate_outputs(
 
     model_source = str(checkpoint_dir)
     tokenizer_source = model_source
+    tokenizer_kwargs: dict[str, Any] = {"local_files_only": True, "trust_remote_code": True}
     if (checkpoint_dir / "adapter_config.json").is_file():
         peft_config = PeftConfig.from_pretrained(model_source, local_files_only=True)
-        base_source = peft_config.base_model_name_or_path
-        model = AutoModelForCausalLM.from_pretrained(base_source, local_files_only=True, trust_remote_code=True)
+        adapter_base = str(peft_config.base_model_name_or_path)
+        if adapter_base != base_model:
+            raise M1ConfigError(
+                f"adapter base model mismatch: expected {base_model} but found {adapter_base}"
+            )
+        model = AutoModelForCausalLM.from_pretrained(
+            base_model,
+            revision=base_revision,
+            local_files_only=True,
+            trust_remote_code=True,
+        )
         model = PeftModel.from_pretrained(model, model_source, local_files_only=True)
-        if not (checkpoint_dir / "tokenizer_config.json").is_file():
-            tokenizer_source = base_source
+        if not _has_tokenizer_files(checkpoint_dir):
+            tokenizer_source = base_model
+            tokenizer_kwargs["revision"] = base_revision
     else:
         model = AutoModelForCausalLM.from_pretrained(model_source, local_files_only=True, trust_remote_code=True)
-    tokenizer = AutoTokenizer.from_pretrained(tokenizer_source, local_files_only=True, trust_remote_code=True)
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_source, **tokenizer_kwargs)
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "left"
@@ -504,10 +531,26 @@ def _generate_outputs(
     return outputs
 
 
+def _has_tokenizer_files(checkpoint_dir: Path) -> bool:
+    tokenizer_files = {
+        "added_tokens.json",
+        "merges.txt",
+        "special_tokens_map.json",
+        "tokenizer.json",
+        "tokenizer_config.json",
+        "vocab.json",
+    }
+    return any((checkpoint_dir / name).is_file() for name in tokenizer_files)
+
+
 def _sample_sweep(config: dict[str, Any], run_id: str) -> dict[str, Any]:
     fixed_manifest = _load_fixed_manifest(config)
     output_dir, checkpoint_dir = build_run_paths(config, run_id)
-    require_resolved_revision(config, context="M1 sampler sweep")
+    model_config = config.get("model") or {}
+    base_model = str(model_config.get("base", ""))
+    if not base_model:
+        raise M1ConfigError("model.base is required for M1 sampler sweep")
+    base_revision = require_resolved_revision(config, context="M1 sampler sweep base load")
     checkpoints = _load_checkpoint_index(config)
     sampler_grid = _load_sampler_grid(config)
     prompt_format = str(
@@ -533,6 +576,8 @@ def _sample_sweep(config: dict[str, Any], run_id: str) -> dict[str, Any]:
             for sampling_seed in sampling_seeds:
                 outputs = _generate_outputs(
                     checkpoint_dir=checkpoint_dir_path,
+                    base_model=base_model,
+                    base_revision=base_revision,
                     records=dev_records,
                     prompt_format=prompt_format,
                     max_input_tokens=max_input_tokens,

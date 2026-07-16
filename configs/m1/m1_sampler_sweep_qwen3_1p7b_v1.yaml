@@ -11,7 +11,7 @@ compute:
   timeout_min: 120
 model:
   base: Qwen/Qwen3-1.7B
-  revision: __M1_RESOLVE_QWEN3_1P7B_REVISION__
+  revision: 70d244cc86ccca08cf5af4e1e306ecf908b1ad5e
   requested_revision: main
 data:
   train_split_hash: c59c853cdc03c7378308c8f35baa874e0f484fa035d4297948c3f3b755afa1a6
@@ -22,7 +22,7 @@ data:
   max_input_tokens: 1024
   max_new_tokens: 384
 sampling:
-  checkpoints_manifest: __M1_RESOLVE_CHECKPOINTS_MANIFEST__
+  checkpoints_manifest: /checkpoints/runs/dftr-1784180693-f3c7ab5c/checkpoints_manifest.json
   sampler_grid: configs/m1/manifests/sampler_grid_v1.json
   seeds: [101, 202, 303]
 workflow:
@@ -30,4 +30,3 @@ workflow:
   step: sample_sweep
   fixed_manifest: configs/m1/manifests/fixed_inputs_v1.json
   revision_manifest: configs/m1/manifests/revision_placeholders_v1.json
-

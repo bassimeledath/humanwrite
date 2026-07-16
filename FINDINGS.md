@@ -735,3 +735,44 @@ only after this resolution commit is published exactly.
 NEXT: Publish this resolution commit exactly before any sampler-preparation
 work. Do not treat unpublished local provenance resolution as authorization to
 prepare samples.
+
+## [2026-07-16] M1 / sampler-screen-prepare-qwen3-1p7b
+HYPOTHESIS: The M1 SFT sampler screen is valid for preregistration only if the
+sampler consumes the operator-verified three-seed SFT checkpoint manifest with
+the exact `Qwen/Qwen3-1.7B` immutable revision, rejects any manifest or adapter
+base/revision mismatch offline, pins only the two sampler YAML placeholders,
+and records the downstream Tier-1 boundaries without changing fixed inputs,
+sampler grid, inline reference behavior, compute shape, seeds, prompt format,
+or budget.
+SETUP: Preparation-only implementer batch from published sampler-readiness tip
+`56fdcda3a8f35dae62874ccb8b670310759551e3`. Read the governing M1 findings,
+sampler readiness and boundary-design memos, current mutable sampler workflow
+and config, ledger, fixed manifest hashes, and operator-materialized SFT
+manifest. Implemented only the sampler loader fix in `experiments/m1/workflow.py`:
+`_load_checkpoint_index()` now validates manifest `model_base` and
+`model_revision` against the sampler config, and PEFT adapter generation now
+loads the base model and fallback tokenizer offline with pinned revision
+`70d244cc86ccca08cf5af4e1e306ecf908b1ad5e` after validating
+`adapter_config.json` base identity. Added focused offline tests for revision
+propagation, manifest revision mismatch, and adapter base mismatch. Pinned only
+`configs/m1/m1_sampler_sweep_qwen3_1p7b_v1.yaml` `model.revision` and
+`sampling.checkpoints_manifest=/checkpoints/runs/dftr-1784180693-f3c7ab5c/checkpoints_manifest.json`.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Sampler config hash | PREREGISTERED | Canonical parsed-YAML hash is exactly `09b7c974c5a3b49ade9447fa0619af819828bcc2da15a5703c06c6cf02bb0ec9`. |
+| Checkpoint provenance | PRESERVED | Operator manifest canonical hash remains `2c255965575359ce8e92761befe0dd8db360b204b7385b924f4261194c0e2fb1`; model base/revision are `Qwen/Qwen3-1.7B` and `70d244cc86ccca08cf5af4e1e306ecf908b1ad5e`; checkpoint seeds are `[11,29,47]`. |
+| Sampler design | PRESERVED | Five grid points, sampling seeds `[101,202,303]`, checkpoint seeds `[11,29,47]`, prompt format, fixed dev data, max token settings, one `L40S`, 120-minute timeout, and `screen` budget are unchanged. |
+| Ledger preregistration | PREREGISTERED | Exactly one open prereg row was appended through `ledger/ledger.py add` for comparison `M1-sft-sampler-sweep-qwen3-1p7b`, with no run row. |
+| Expected cardinality | RECORDED | Future sampler screen is preregistered for `3 x 5 x 3 = 45` cells and `90` generated documents from fixed `dev_count=2`. |
+| Offline checks | PASS | `python -m pytest experiments/tests/test_m1_sampler_loader.py infra/tests/test_policy.py` passed `15` tests; `git diff --check` passed; fixed input and sampler-grid hashes remained `e56e9cf2573b957b8491cf7733fa384de42908a71d6b8d2c2be581fbb402808d` and `662d21f269b7a8ea8bc70da105bd6b2b8164021e2fdc510120763aa19df800ae`. |
+| Protected/fixed surfaces | PRESERVED | No `harness/`, `sources/`, fixed M0 data/manifests, `configs/m1/manifests/fixed_inputs_v1.json`, or `configs/m1/manifests/sampler_grid_v1.json` diff. |
+| Compute/evaluation activity | NOT RUN | No infra command, sampler generation, `harness eval`, Tier 2, Tier 3, M2, or 14B action occurred in this batch. |
+| Downstream human-bank boundary | EXPLICIT | Current sampler cells still write inline `reference_completion` for only the two fixed dev humans, so immutable Tier-1 harness evaluation cannot legally obtain four independent humans via `HARNESS_HUMAN_REFERENCE`; this task does not remove inline references or duplicate/train-bank humans. |
+| Downstream baseline/freeze boundary | EXPLICIT | `harness/calibration.json` and baseline/freeze artifacts remain immutable/fail-closed, and the current freeze/baseline path remains circular until operator-approved immutable artifacts exist. |
+DECISION: keep as preparation and preregistration evidence only. The sampler
+loader is now exact-revision safe, and the sampler screen is preregistered, but
+this commit does not launch sampling or claim Tier-1 executability.
+NEXT: Publish this exact preparation commit before any future sampler launch.
+Any launch must recheck budget and publication gates through the approved
+wrapper; Tier-1 analysis still requires a separate authorized boundary design.
