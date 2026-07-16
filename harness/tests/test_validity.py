@@ -72,6 +72,25 @@ def test_null_calibration_bounds_fail_closed():
     assert not language_integrity(["English"], calibration)
 
 
+def test_v2_repetition_bound_is_upper_only_without_changing_self_bleu_bounds():
+    zero_repetition = ["One sentence. Another begins. Finally done."] * 2
+    calibration = {
+        "self_bleu": {"low": 0.0, "high": 1.0},
+        "repeated_sentence_start_rate": {
+            "low": 0.005,
+            "high": 0.1575,
+            "bound_mode": "upper_only",
+        },
+    }
+    result = collapse_flags(zero_repetition, calibration)
+    assert result["repetition_rate"] == 0.0
+    assert result["repetition_in_range"] is True
+    assert result["repetition_bound_mode"] == "upper_only"
+
+    collapsed = ["Again one. Again two. Again three."] * 2
+    assert collapse_flags(collapsed, calibration)["repetition_in_range"] is False
+
+
 def test_validity_length_mismatches_raise():
     with pytest.raises(ValueError, match="equal"):
         outline_fact_recall(["x"], [])

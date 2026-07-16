@@ -60,16 +60,20 @@ def _local_sample_path(remote_path: str, materialized_root: Path, run_id: str) -
 
 
 @contextmanager
-def _evaluation_environment(bank: Path, manifest: Path, judge_mode: str):
+def _evaluation_environment(
+    bank: Path, manifest: Path, calibration: Path, judge_mode: str
+):
     names = (
         "HARNESS_HUMAN_REFERENCE",
         "HARNESS_HUMAN_REFERENCE_MANIFEST",
+        "HARNESS_CALIBRATION_PATH",
         "HARNESS_JUDGE_URL",
         "HARNESS_JUDGE_TOKEN",
     )
     previous = {name: os.environ.get(name) for name in names}
     os.environ["HARNESS_HUMAN_REFERENCE"] = str(bank)
     os.environ["HARNESS_HUMAN_REFERENCE_MANIFEST"] = str(manifest)
+    os.environ["HARNESS_CALIBRATION_PATH"] = str(calibration)
     if judge_mode == "neutral":
         os.environ.pop("HARNESS_JUDGE_URL", None)
         os.environ.pop("HARNESS_JUDGE_TOKEN", None)
@@ -139,7 +143,7 @@ def run_batch(
     output_entries = []
     run_id = str(config["sampler_run_id"])
     judge_mode = str(config.get("quality_judge_mode", "neutral"))
-    with _evaluation_environment(bank_path, manifest_path, judge_mode):
+    with _evaluation_environment(bank_path, manifest_path, calibration_path, judge_mode):
         for entry in selected:
             sample_path = _local_sample_path(str(entry["samples_path"]), materialized_root, run_id)
             if len(load_jsonl(sample_path)) < 2:

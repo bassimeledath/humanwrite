@@ -624,6 +624,15 @@ def test_checked_in_frozen_calibration_and_baseline_are_ready_and_bound():
     assert baseline["calibration_sha256"] == cli._file_sha256(cli.CALIBRATION_PATH)
 
 
+def test_checked_in_v2_calibration_is_ready_and_selected_by_environment(monkeypatch):
+    path = cli.HARNESS_DIR / "calibration_v2.json"
+    calibration = json.loads(path.read_text())
+    assert cli._calibration_ready(calibration)
+    assert calibration["repeated_sentence_start_rate"]["bound_mode"] == "upper_only"
+    monkeypatch.setenv("HARNESS_CALIBRATION_PATH", str(path))
+    assert cli._active_calibration_path() == path.resolve()
+
+
 def test_environment_judge_posts_aggregate_request_with_bearer_token(monkeypatch):
     monkeypatch.setenv("HARNESS_JUDGE_URL", "https://judge.invalid/compare")
     monkeypatch.setenv("HARNESS_JUDGE_TOKEN", "judge-secret")

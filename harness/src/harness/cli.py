@@ -544,6 +544,11 @@ def _load_json(path, default):
         return json.load(stream)
 
 
+def _active_calibration_path():
+    configured = os.environ.get("HARNESS_CALIBRATION_PATH")
+    return Path(configured).resolve() if configured else Path(CALIBRATION_PATH)
+
+
 def _baseline_value(baseline, name, field, default):
     value = baseline.get(name, default)
     if isinstance(value, dict):
@@ -582,8 +587,9 @@ def _baseline_ready(baseline):
 
 
 def _calibration_ready(calibration):
+    schema = calibration.get("artifact_schema")
     if (
-        calibration.get("artifact_schema") != "harness.calibration.v3"
+        schema not in {"harness.calibration.v3", "harness.calibration.v4"}
         or calibration.get("frozen") is not True
     ):
         return False
@@ -613,6 +619,13 @@ def _calibration_ready(calibration):
         section = calibration.get(name)
         if not isinstance(section, dict) or section.get("low") is None or section.get("high") is None:
             return False
+    repetition = calibration.get("repeated_sentence_start_rate") or {}
+    if schema == "harness.calibration.v4" and (
+        repetition.get("bound_mode") != "upper_only"
+        or calibration.get("policy_version") != "repetition-upper-only.v1"
+        or len(str(calibration.get("source_calibration_sha256") or "")) != 64
+    ):
+        return False
     return True
 
 
@@ -662,7 +675,8 @@ def evaluate(
     lexical = distribution.lexical_l2(generated, humans, {"hash_dim": 4096, "ngram_range": (1, 3)})
     structural = distribution.structural_distance(generated, humans)
 
-    calibration = _load_json(CALIBRATION_PATH, {})
+    calibration_path = _active_calibration_path()
+    calibration = _load_json(calibration_path, {})
     baseline = _load_json(BASELINE_PATH, {})
     recall = validity.outline_fact_recall(generated, outlines)
     unsupported = validity.unsupported_claim_rate(generated, outlines)
@@ -720,7 +734,7 @@ def evaluate(
         diversity_self_bleu=float(collapse["self_bleu"]),
         repetition_rate=float(collapse["repetition_rate"]),
         human_reference_bank_id=human_bank_id,
-        calibration_sha256=_file_sha256(CALIBRATION_PATH) if Path(CALIBRATION_PATH).is_file() else "missing",
+        calibration_sha256=_file_sha256(calibration_path) if calibration_path.is_file() else "missing",
         baseline_sha256=_file_sha256(BASELINE_PATH) if Path(BASELINE_PATH).is_file() else "missing",
         notes=notes,
     )

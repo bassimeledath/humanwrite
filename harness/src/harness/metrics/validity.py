@@ -95,6 +95,11 @@ def non_target_script_char_rate(text):
 def _in_range(value, bounds):
     bounds = bounds or {}
     low, high = bounds.get("low"), bounds.get("high")
+    bound_mode = str(bounds.get("bound_mode") or "two_sided")
+    if bound_mode == "upper_only":
+        return high is not None and value <= float(high)
+    if bound_mode != "two_sided":
+        return False
     # Nulls in the checked-in file are deliberately uncalibrated placeholders,
     # not infinite bounds. Hard gates fail closed until calibration is run.
     if low is None or high is None:
@@ -196,4 +201,8 @@ def collapse_flags(gen_texts, calibration):
         "self_bleu_in_range": bleu_ok,
         "repetition_in_range": repetition_ok,
         "pass": bleu_ok and repetition_ok,
+        "repetition_bound_mode": str(
+            (calibration.get("repeated_sentence_start_rate") or {}).get("bound_mode")
+            or "two_sided"
+        ),
     }
