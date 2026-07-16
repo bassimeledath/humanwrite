@@ -1,9 +1,9 @@
 {
-  "updated_at": "2026-07-16T01:22:30Z",
-  "phase": "M0 — foundation and smoke test",
-  "headline": "The research run is live",
-  "summary": "Codex 5.6-sol is executing M0 with high reasoning on the fast service tier. It is planning the fixed data pipeline, Tier 0 metrics, and constrained GPU smoke test.",
-  "run_state": "active",
+  "updated_at": "2026-07-16T02:22:46Z",
+  "phase": "M0 — awaiting human sign-off",
+  "headline": "M0 passed and parked cleanly",
+  "summary": "The deterministic data pipeline, Tier 0 metrics, experiment runner, and no-network GPU contract smoke path passed independent verification. M1 will not begin until human approval.",
+  "run_state": "parked",
   "budget": {
     "modal_cap_usd": 40,
     "modal_committed_usd": 0,
@@ -18,13 +18,15 @@
   ],
   "milestones": [
     {"id": "setup", "label": "Setup", "detail": "Harness, sources, storage, and guardrails", "status": "complete"},
-    {"id": "M0", "label": "M0", "detail": "Data pipeline and GPU contract smoke test", "status": "active"},
+    {"id": "M0", "label": "M0", "detail": "Data pipeline and GPU contract smoke test", "status": "complete"},
     {"id": "M1", "label": "M1", "detail": "SFT baseline and calibration freeze", "status": "queued"},
     {"id": "M2", "label": "M2", "detail": "Arms A-E at 64 and 128 tokens", "status": "queued"},
     {"id": "M3", "label": "M3", "detail": "Length curriculum and LoRA staging", "status": "queued"},
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {"at": "19:22", "title": "M0 parked for sign-off", "detail": "Candidate 2 passed independent offline verification with Tier 1 unchanged; the research lead stopped at the milestone boundary.", "tone": "complete"},
+    {"at": "19:18", "title": "Accounting defect corrected", "detail": "Candidate 1 omitted complete terminal accounting. Candidate 2 fixed status, time, accelerator seconds, tokens, and cost fields.", "tone": "complete"},
     {"at": "18:22", "title": "M0 Codex run started", "detail": "gpt-5.6-sol is live with high reasoning and fast service in an isolated capability-only environment.", "tone": "active"},
     {"at": "18:17", "title": "Setup merged", "detail": "The reviewed research infrastructure is now on main; the isolated M0 branch is ready.", "tone": "complete"},
     {"at": "18:17", "title": "Sealed endpoint deployed", "detail": "The private 7B independent evaluator is online and its hidden test split is being initialized.", "tone": "active"},
@@ -36,5 +38,5 @@
     {"at": "17:46", "title": "Storage created", "detail": "Gateway state, checkpoints, sealed state, and sealed artifacts volumes are online.", "tone": "complete"},
     {"at": "17:40", "title": "Engineering checks passed", "detail": "Harness, infrastructure, and private evaluator suites are green.", "tone": "complete"}
   ],
-  "next_action": "Finish deploying Modal services, verify the capability endpoints, then start the M0 Codex research run."
+  "next_action": "Review the M0 findings and approve or redirect M1. The private sealed hidden-split bootstrap is still running independently."
 }
