@@ -66,3 +66,34 @@ ASSUMPTIONS:
 - The local hidden-test boundary will be represented by metadata-only manifests
   and hashed identifiers; no hidden test completions will be materialized in
   this checkout.
+
+## [2026-07-15] M0 / local-accounting-candidate-1
+HYPOTHESIS: Candidate 1's local offline smoke accounting is acceptable if the
+local backend preserves the wrapper's terminal accounting contract closely
+enough for smoke verification: complete terminal run records, append-only
+ledger evidence, and budget accounting derived from recorded terminal spend.
+This depends on the verified wrapper contract in `infra/GPU_WRAPPER_SPEC.md`,
+the policy budget semantics in `infra/backend/policy.py`, and the tester's
+recorded failure in `.swarmy/results/m0-c1.txt`.
+SETUP: No new tests, evals, sealed submissions, network access, or external
+compute are run in this implementer pass. Evidence is limited to the tracked
+append-only smoke ledger rows already present in `ledger/ledger.jsonl` for
+comparison `M0-offline-smoke` and the existing local smoke backend event log
+at `.swarmy/local_gpu/test-m0-c1-state/events.jsonl`, which shows the same run
+reaching `completed` with recorded `accel_seconds` and `actual_cost_usd` but
+no `tokens`.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Local backend terminal schema completeness | FAIL | `cancel_local()` writes only `status`, `finished_at`, and `actual_cost_usd`; it omits `accel_seconds` and `tokens`. |
+| Completed smoke accounting completeness | FAIL | `local_worker.run_worker()` records `accel_seconds` and `actual_cost_usd` but omits generated `tokens` for completed/failed/reaped terminal records. |
+| Local budget contract test | FAIL | `infra/tests/test_local_backend.py` requires `gpu_remaining_usd < 40.0` after an immediate cancel, but policy semantics allow an exact `$40.0` remainder when terminal `actual_cost_usd` rounds to zero. |
+| Legitimate smoke evidence preserved | PASS | `ledger/ledger.jsonl` retains the preregistration and launched run rows for `M0-offline-smoke`; transient `.swarmy/` run outputs remain local-only. |
+DECISION: discard candidate 1 as the M0 accounting implementation. The local
+backend contract is incomplete for terminal records, and the local backend test
+asserts a stronger cancellation-charge invariant than the policy defines.
+NEXT: Apply the minimal contract fix: make every terminal local run write
+`status`, `finished_at`, `accel_seconds`, `tokens`, and `actual_cost_usd`, keep
+budget semantics tied to recorded terminal actual cost, and align the local
+backend test to exact terminal-record accounting rather than a positive minimum
+charge assumption.
