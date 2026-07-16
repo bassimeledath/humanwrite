@@ -1600,3 +1600,24 @@ Publish and deploy the wrapper-only correction, then retry the unchanged dev
 source/config. Existing validators remain the acceptance authority.
 NEXT: Relaunch dev synthesis; require all 64 IDs, exact schema/grounding, and
 16 empty outlines before any train synthesis.
+
+## [2026-07-16] M1 / pilot-brief-synthesis-transport-attempt-2
+HYPOTHESIS: Strict JSON Schema plus OpenRouter `require_parameters` will route
+GPT-5-mini to a provider that enforces the full response format.
+SETUP: Deployed the attempt-1 correction and relaunched the unchanged dev
+config as `dftr-1784192398-4b31eef6` at git SHA `1a2fe65`. The run resumed
+from the two valid committed rows left by attempt 1.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Routing | FAIL FAST | Every missing record returned HTTP 404 before generation because no available route satisfied the explicit `require_parameters` declaration. |
+| Stop decision | PASS | Cancelled after about 24 seconds; `$0` provider/GPU cost and `0` new records/tokens. |
+| Diagnostics | PASS | The new bounded error detail made the provider-routing failure explicit without exposing prompts, sources, or credentials. |
+| Scientific state | UNCHANGED | The two valid attempt-1 rows remain on the checkpoint volume; no malformed output was admitted and train synthesis remains closed. |
+DECISION: remove only the incompatible route-selection constraint. Preserve
+strict JSON Schema, explicit outline assignment, minimal reasoning, the larger
+completion ceiling, and post-response validation. Require a separate one-row,
+`$0.25` transport smoke before a third dev attempt.
+NEXT: Publish and run comparison
+`M1-realdata-pilot-briefs-transport-smoke-v1`; relaunch dev only if its one
+output independently satisfies the same contract.

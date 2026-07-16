@@ -483,7 +483,6 @@ def brief_synthesis_worker(run_id: str, payload: dict) -> dict:
                                 "response_format": brief_response_format(
                                     force_empty_outline=source_id in empty_outline_ids
                                 ),
-                                "provider": {"require_parameters": True},
                                 "reasoning": {"effort": "minimal", "exclude": True},
                                 "temperature": 0.2,
                                 "max_completion_tokens": 4000,
