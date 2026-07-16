@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 from pathlib import Path
@@ -17,6 +18,13 @@ if str(HARNESS_SRC) not in sys.path:
     sys.path.insert(0, str(HARNESS_SRC))
 
 from harness.metrics import validity  # noqa: E402
+
+
+def _display_path(path: Path) -> str:
+    try:
+        return str(path.relative_to(ROOT))
+    except ValueError:
+        return str(path)
 
 
 def _require_non_placeholder(value: Any, *, field_name: str) -> str:
@@ -235,14 +243,20 @@ def freeze_sampler(config_path: str) -> dict[str, Any]:
 
 
 def propose_calibration(config_path: str) -> dict[str, Any]:
-    config = read_structured(resolve_repo_path(config_path))
+    resolved_config_path = resolve_repo_path(config_path)
+    config = read_structured(resolved_config_path)
     human_split_path = resolve_repo_path(
         _require_non_placeholder(config.get("human_split_path"), field_name="human_split_path")
     )
     records = load_jsonl(human_split_path)
     texts = [str(record.get("completion", "")) for record in records]
-    if len(texts) < 2:
-        raise M1ConfigError("calibration proposal requires at least two human records")
+    minimum_records = int(config.get("minimum_human_records", 2))
+    if len(texts) < minimum_records:
+        raise M1ConfigError(
+            f"calibration proposal requires at least {minimum_records} human records"
+        )
+    if len({str(record.get("fingerprint") or "") for record in records}) != len(records):
+        raise M1ConfigError("calibration human records require unique non-empty fingerprints")
     settings = config.get("interval_settings") or {}
     confidence_level = float(settings.get("confidence_level", 0.95))
     resampling_seeds = list(settings.get("resampling_seeds") or [])
@@ -257,16 +271,47 @@ def propose_calibration(config_path: str) -> dict[str, Any]:
         high_index = min(len(ordered) - 1, max(0, int(high_q * (len(ordered) - 1))))
         return {"low": float(ordered[low_index]), "high": float(ordered[high_index])}
 
-    script_rates = [validity.non_target_script_char_rate(text) for text in texts]
-    repetition_rates = [validity.repeated_sentence_start_rate([text]) for text in texts]
-    individual_bleu = []
-    paragraph_lengths: list[int] = []
-    sentence_lengths: list[int] = []
-    for index, text in enumerate(texts):
-        others = [other for other_index, other in enumerate(texts) if other_index != index]
-        individual_bleu.append(validity.sentence_bleu(text, others))
-        paragraph_lengths.extend(len(validity._tokens(part)) for part in str(text).split("\n\n") if part.strip())
-        sentence_lengths.extend(len(validity._tokens(sentence)) for sentence in validity._sentences(text))
+    def summarize(selected_texts: list[str]) -> dict[str, Any]:
+        script_rates = [validity.non_target_script_char_rate(text) for text in selected_texts]
+        repetition_rates = [validity.repeated_sentence_start_rate([text]) for text in selected_texts]
+        individual_bleu = []
+        paragraph_lengths: list[int] = []
+        sentence_lengths: list[int] = []
+        for index, text in enumerate(selected_texts):
+            others = [
+                other
+                for other_index, other in enumerate(selected_texts)
+                if other_index != index
+            ]
+            individual_bleu.append(validity.sentence_bleu(text, others))
+            paragraph_lengths.extend(
+                len(validity._tokens(part))
+                for part in str(text).split("\n\n")
+                if part.strip()
+            )
+            sentence_lengths.extend(
+                len(validity._tokens(sentence)) for sentence in validity._sentences(text)
+            )
+        return {
+            "point_estimates": {
+                "self_bleu": float(sum(individual_bleu) / len(individual_bleu)),
+                "repeated_sentence_start_rate": float(
+                    sum(repetition_rates) / len(repetition_rates)
+                ),
+                "non_target_script_char_rate": float(sum(script_rates) / len(script_rates)),
+            },
+            "intervals": {
+                "self_bleu": interval(individual_bleu),
+                "repeated_sentence_start_rate": interval(repetition_rates),
+                "non_target_script_char_rate": interval(script_rates),
+                "paragraph_len_tokens": interval(
+                    [float(value) for value in paragraph_lengths]
+                ),
+                "sentence_len_tokens": interval([float(value) for value in sentence_lengths]),
+            },
+        }
+
+    full_summary = summarize(texts)
 
     subset_fraction = float(settings.get("subset_fraction", 0.8))
     subset_size = max(2, min(len(records), int(math.ceil(len(records) * subset_fraction))))
@@ -275,37 +320,74 @@ def propose_calibration(config_path: str) -> dict[str, Any]:
         chooser = random.Random(int(seed))
         chosen = sorted(chooser.sample(range(len(records)), k=subset_size))
         subset = [records[index] for index in chosen]
+        subset_summary = summarize([texts[index] for index in chosen])
         fingerprints = [str(record.get("fingerprint") or record.get("fineweb_id")) for record in subset]
+        subset_payload = "".join(
+            json.dumps(record, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n"
+            for record in subset
+        ).encode("utf-8")
         sensitivity.append(
             {
                 "seed": int(seed),
                 "subset_size": subset_size,
                 "fingerprints": fingerprints,
-                "subset_hash": file_sha256(human_split_path) if subset_size == len(records) else None,
+                "subset_hash": hashlib.sha256(subset_payload).hexdigest(),
+                "subset_point_estimates": subset_summary["point_estimates"],
+                "subset_intervals": subset_summary["intervals"],
             }
         )
 
+    human_split_sha256 = file_sha256(human_split_path)
+    manifest_fields: dict[str, Any] = {}
+    raw_manifest_path = config.get("human_manifest_path")
+    if raw_manifest_path:
+        human_manifest_path = resolve_repo_path(
+            _require_non_placeholder(raw_manifest_path, field_name="human_manifest_path")
+        )
+        manifest = read_structured(human_manifest_path)
+        if manifest.get("bank_sha256") != human_split_sha256:
+            raise M1ConfigError("human calibration bank does not match its manifest hash")
+        if int((manifest.get("counts") or {}).get("bank_size", 0)) != len(records):
+            raise M1ConfigError("human calibration bank count does not match its manifest")
+        if [str(record["fingerprint"]) for record in records] != [
+            str(value) for value in manifest.get("fingerprints") or []
+        ]:
+            raise M1ConfigError("human calibration bank fingerprints do not match its manifest")
+        manifest_fields = {
+            "human_manifest_path": _display_path(human_manifest_path),
+            "human_manifest_sha256": file_sha256(human_manifest_path),
+            "human_bank_source": manifest.get("source"),
+        }
+
+    subset_hashes = sorted({item["subset_hash"] for item in sensitivity})
     proposal = {
-        "point_estimates": {
-            "self_bleu": float(sum(individual_bleu) / len(individual_bleu)),
-            "repeated_sentence_start_rate": float(sum(repetition_rates) / len(repetition_rates)),
-            "non_target_script_char_rate": float(sum(script_rates) / len(script_rates)),
-        },
-        "intervals": {
-            "self_bleu": interval(individual_bleu),
-            "repeated_sentence_start_rate": interval(repetition_rates),
-            "non_target_script_char_rate": interval(script_rates),
-            "paragraph_len_tokens": interval([float(value) for value in paragraph_lengths]),
-            "sentence_len_tokens": interval([float(value) for value in sentence_lengths]),
-        },
+        "analysis_entrypoint": (
+            "python -m experiments.m1.analysis calibration-proposal --config "
+            + _display_path(resolved_config_path)
+        ),
+        "artifact_schema": "m1.calibration_proposal.review.v1",
+        "config_path": _display_path(resolved_config_path),
+        "config_sha256": file_sha256(resolved_config_path),
+        "human_split_path": _display_path(human_split_path),
+        "human_split_sha256": human_split_sha256,
+        "point_estimates": full_summary["point_estimates"],
+        "intervals": full_summary["intervals"],
         "interval_method": "deterministic central quantile interval",
         "confidence_level": confidence_level,
         "sample_count": len(records),
         "split_hashes": load_fixed_split_hashes(),
         "resampling_seeds": [int(seed) for seed in resampling_seeds],
         "sensitivity": sensitivity,
-        "provenance_note": "Visible M0 fixture size is a provenance limitation only.",
+        "sensitivity_summary": {
+            "subset_fraction": subset_fraction,
+            "computed_subset_size": subset_size,
+            "unique_subset_count": len(subset_hashes),
+            "unique_subset_hashes": subset_hashes,
+        },
+        "provenance_note": str(config.get("provenance_note") or ""),
+        "review_limitations": list(config.get("review_limitations") or []),
     }
+    proposal.update(manifest_fields)
     output_path = resolve_repo_path(_require_non_placeholder(config.get("output_path"), field_name="output_path"))
     write_json(output_path, proposal)
     proposal["output_path"] = str(output_path.resolve())

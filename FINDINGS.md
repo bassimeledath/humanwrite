@@ -997,3 +997,29 @@ decision rule, but it is part of the scientific record.
 NEXT: Complete harness verification, construct report paths without printing
 sample contents, run the full fixed evaluation, and accept only the mechanical
 freeze result.
+
+## [2026-07-16] M1 / visible-bank-calibration-preregistration
+HYPOTHESIS: Human-calibrated intervals computed from the frozen 32-document
+visible FineWeb bank will be more defensible than transferring the earlier
+two-document descriptive proposal, while remaining independent of model
+outputs and directly reproducible by one checked-in entrypoint.
+SETUP: Preparation-only batch after bank commit `2407add` and harness-boundary
+commit `8922ea4`. Reused the already published confidence level 0.95,
+resampling seeds `[404,505,606]`, subset fraction 0.8, and deterministic
+central-quantile method. The new config binds the bank and manifest; the
+analysis entrypoint now emits its schema, config/source hashes, full intervals,
+point estimates, actual subset hashes and metrics, sensitivity summary, and
+review limitations without manual enrichment. No calibration was computed or
+transferred in this batch, and no raw sampler output, harness report, compute,
+Tier 2/3, or M2 action occurred.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Human source | PREREGISTERED | Exact visible bank SHA `ebcff5bca1e6c75ab482aa831453a79986ffd700ee4a729de57fc8c496c6dc68`, 32 independent documents. |
+| Procedure | PREREGISTERED | Same pre-existing 95% central-quantile method, seeds, and 80% subsets; no output-informed choice. |
+| Direct reproduction | PREREGISTERED | One entrypoint must reproduce the complete review artifact byte-for-byte without post-hoc enrichment. |
+| Transfer boundary | PRESERVED | Proposal remains inactive until exact SHA-validated operator transfer into immutable `harness/calibration.json`. |
+DECISION: keep as preparation only. The prior two-document proposal remains
+valid descriptive history but will not be activated for Tier-1 selection.
+NEXT: Run focused tests, publish this preparation commit, produce and rerun the
+32-human proposal, then transfer only its exact reviewed bytes.
