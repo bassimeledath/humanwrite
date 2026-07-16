@@ -126,3 +126,108 @@ append-only ledger delta exactly as produced by the passing tester, append this
 milestone result, and park for human sign-off.
 NEXT: Wait for human sign-off before any M1 work. Do not extend claims past
 offline M0 evidence or rewrite prior ledger/findings history.
+
+## [2026-07-15] M1 / milestone-plan
+HYPOTHESIS: A reproducible Qwen3-1.7B SFT baseline, evaluated across a
+preregistered sampler sweep and independent sampling seeds, will reproduce a
+measurable SFT-to-human distributional gap while preserving the fixed validity
+gates. Freezing the sampler from the joint distributional/quality evidence,
+rather than from any single detector or reward representation, will make the
+M1 baseline a defensible control for M2. This relies on the verified Qwen3
+instruct-family setup and fixed-sampler observation in `RESEARCH_CONTEXT.md`;
+it makes no claim of human indistinguishability.
+SETUP: M0 has human sign-off. M1 is bounded to SFT baseline reproduction,
+sampler selection, and calibration estimation. `harness/` (including metric
+definitions and `harness/calibration.json`), fixed data splits/manifests,
+source snapshots, prior `FINDINGS.md` entries, and prior ledger rows are
+immutable. No Tier-2 sealed submission, Tier-3 evaluation, external provider,
+direct accelerator, hidden data, or route outside the documented infra
+contract may be used. Qwen3-0.6B is allowed only for a single plumbing smoke;
+all evidentiary baseline results must come from Qwen3-1.7B. The execution order
+is preregistered as follows:
+1. Run a read-only explorer pass to inventory the checked-in M1-capable
+   training/sampling configs, fixed split hashes, M0 contract evidence, budget
+   state, harness CLI interface, and current git/ledger state. Record gaps or
+   any extra compute/evaluation route as an append-only finding; do not use
+   such a route. Establish a dedicated M1 research branch and preserve any
+   pre-existing user changes.
+2. Have a separate implementer add only the minimal mutable M1 configs and
+   orchestration needed outside `harness/`. Pin the Qwen3 instruct checkpoint,
+   data-manifest hashes, optimizer/LoRA settings, seeds, maximum lengths,
+   sampler grid, artifact schema, and software/config hashes. Use the existing
+   fixed M0 data; do not regenerate or alter splits. The sampler grid must vary
+   only decoding controls exposed by the constrained wrapper, include the
+   existing/default setting, and hold prompt schema, weights, examples, and
+   output token budget fixed within each controlled comparison.
+3. Before every launch, call `ledger/ledger.py add` with hypothesis,
+   comparison, config hash, seed, and budget class. First check
+   `infra/gpu budget`; then run at most one registered Qwen3-0.6B plumbing job
+   under `smoke` if the remote M1 path has not already been demonstrated.
+   Submit, inspect, and account for it only through `infra/gpu
+   submit|status|logs|cancel`. A plumbing failure is a stop condition for
+   evidentiary training, not permission to bypass the wrapper.
+4. Train the Qwen3-1.7B SFT baseline through registered `screen` jobs. Use the
+   preregistered training seeds selected in the checked-in config; retain each
+   checkpoint/config hash and terminal accelerator-seconds/generated-token
+   accounting. If the available budget cannot support the preregistered
+   baseline set, record the shortfall and park rather than reducing the design
+   after seeing results.
+5. Generate the sampler-sweep samples only through registered wrapper jobs.
+   For every eligible SFT checkpoint, evaluate the same fixed dev prompts at
+   every sampler-grid point using preregistered sampling seeds. Run only
+   `harness eval <ckpt_or_samples>` for Tier-1 screening. Report the fixed
+   primary endpoint as delta versus SFT/default and versus the independently
+   computed human-vs-human finite-sample floor, plus every hard gate, quality
+   preference, authorship probe, diversity/repetition, and length statistic
+   exposed by the immutable harness. Keep training-seed variance separate from
+   sampling-seed variance and never cite Tier-0 reward as evidence.
+6. Freeze exactly one deployment sampler using a preregistered rule: among
+   settings that pass every hard validity gate and all existing immutable
+   calibration constraints, choose the lowest mean primary gap; break a tie
+   inside uncertainty in favor of the existing/default sampler, then lower KL
+   drift, then the simpler/lower-temperature setting. Do not select on
+   Rosmine-exact JMQ, a detector, an authorship probe, or the training
+   representation alone. Commit the frozen sampler and hashes as an M1
+   artifact; do not modify it after inspecting future M2 outcomes.
+7. Compute proposed human-calibrated intervals from independent human dev
+   subsets with fixed resampling seeds and checked-in code outside `harness/`.
+   Produce a review artifact containing point estimates, interval method,
+   confidence level, sample counts, split hashes, resampling seeds, and
+   sensitivity to subset draw. These are proposals for the human to transfer
+   into `harness/calibration.json`; the agent must not write that immutable
+   file.
+8. Dispatch an independent tester with no implementation rationale. The tester
+   must verify config/ledger hash agreement, preregistration-before-launch,
+   budget/accounting completeness, checkpoint provenance, fixed-split
+   integrity, absence of `harness/` changes, sampler-sweep completeness,
+   independent sampling, metric provenance, calibration reproducibility, and
+   the frozen-sampler decision rule. Raw logs go under `.swarmy/logs/`; the
+   concise verdict goes under `.swarmy/results/` with
+   `score=pass|fail` and explicit failed checks.
+9. After each experiment batch, append hypothesis -> setup -> full results ->
+   decision -> next to this file, including negative results. Record structured
+   `[dftr] i=<N> arm=SFT score=<...> status=<...>` commits as the scientific
+   narrative while retaining `ledger/ledger.jsonl` as the compute registry.
+   Finish with an M1 milestone summary and park for human sign-off; do not
+   start Arms A-E, length-curriculum comparisons, LoRA staging ablations,
+   sealed validation, or any M2 work.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| M0 human sign-off | PASS | Explicitly supplied by the user for this turn. |
+| M1 plan recorded before implementation/compute | PASS | This append-only entry is the first M1 mutation. |
+| Evidentiary acceptance criterion | PREREGISTERED | Independent tester passes all provenance, immutability, accounting, completeness, and reproducibility checks; 1.7B SFT-vs-human gaps and uncertainty are reported without overclaiming; one sampler is frozen; calibration proposals are ready for human transfer. |
+| Milestone stop condition | PREREGISTERED | Park after the M1 summary for human sign-off, whether M1 passes or is blocked. |
+DECISION: keep. Execute the bounded M1 plan through independently verified
+evidence, subject to the wrapper budget and immutable boundaries.
+NEXT: Dispatch the read-only M1 explorer, then implement and execute only the
+preregistered M1 surfaces if the explorer confirms the constrained path.
+ASSUMPTIONS:
+- The checked-in repository contains or can support the M1 training and
+  sampling schema without changing Tier 1; otherwise record a blocker instead
+  of inventing an unapproved route.
+- Exact seed values, model revision, sampler-grid values, maximum lengths, and
+  interval procedure must be pinned in versioned configs before their first
+  associated launch. They may be chosen from existing repository conventions
+  during the read-only explorer/implementer pass, but not adapted after seeing
+  experimental outcomes.
