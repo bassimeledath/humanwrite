@@ -1,12 +1,12 @@
 {
-  "updated_at": "2026-07-16T04:43:16Z",
+  "updated_at": "2026-07-16T06:03:59Z",
   "phase": "M1 — SFT baseline and calibration",
-  "headline": "M1 research is live",
-  "summary": "Codex 5.6-sol is planning the 1.7B SFT baseline, sampler sweep, deployment-sampler freeze, and human calibration intervals under the constrained compute contract.",
+  "headline": "Three-seed SFT completed; sampler readiness is under review",
+  "summary": "The preregistered Qwen3-1.7B SFT screen completed successfully across seeds 11, 29, and 47. Checkpoint provenance is independently verified and published; Codex 5.6-sol is now auditing the exact sampler-screen launch path before generation.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
-    "modal_committed_usd": 0,
+    "modal_committed_usd": 0.038333,
     "openrouter_cap_usd": 100,
     "openrouter_spend_usd": 0
   },
@@ -25,6 +25,9 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {"at": "23:03", "title": "Sampler readiness audit started", "detail": "The published SFT pass is clean and the research lead is validating the exact three-checkpoint sampler configuration, reservation, and Tier 1 handoff before launch.", "tone": "active"},
+    {"at": "23:02", "title": "SFT provenance verified and published", "detail": "The attested checkpoint manifest passed independent validation for all three seeds, 474 training tokens per seed, and distinct adapter hashes. Resolution tip fb4439d is live on origin/agent/m1.", "tone": "complete"},
+    {"at": "22:48", "title": "Three-seed SFT completed", "detail": "One L40S run produced three checkpoints for seeds 11, 29, and 47 in 36.292 accelerator-seconds for 0.023604 dollars.", "tone": "complete"},
     {"at": "21:43", "title": "M1 automatically resumed", "detail": "The operator published the exact research commit and the lead resumed at the preregistered 0.6B resolver smoke.", "tone": "active"},
     {"at": "19:31", "title": "Sealed evaluator ready", "detail": "The private FineWeb hidden split finished bootstrapping and remains outside the research agent environment.", "tone": "complete"},
     {"at": "19:30", "title": "M1 Codex run started", "detail": "The approved milestone is live on gpt-5.6-sol with high reasoning and fast service.", "tone": "active"},
@@ -43,5 +46,5 @@
     {"at": "17:46", "title": "Storage created", "detail": "Gateway state, checkpoints, sealed state, and sealed artifacts volumes are online.", "tone": "complete"},
     {"at": "17:40", "title": "Engineering checks passed", "detail": "Harness, infrastructure, and private evaluator suites are green.", "tone": "complete"}
   ],
-  "next_action": "Run the preregistered resolver smoke, pin exact model revisions, then proceed through the 1.7B SFT baseline and sampler sweep if every gate passes."
+  "next_action": "Finish the read-only sampler readiness audit, pin and preregister the exact three-checkpoint sweep, publish its launch tip, then run generation and Tier 1 scoring if every gate passes."
 }
