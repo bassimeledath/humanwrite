@@ -231,3 +231,34 @@ ASSUMPTIONS:
   associated launch. They may be chosen from existing repository conventions
   during the read-only explorer/implementer pass, but not adapted after seeing
   experimental outcomes.
+
+## [2026-07-15] M1 / repository-readiness
+HYPOTHESIS: The signed-off M0 checkout contains enough constrained surfaces to
+instantiate M1 without touching Tier 1, and any missing M1-specific artifacts
+can be added outside `harness/` before preregistered compute.
+SETUP: A role-separated read-only explorer inspected the directly relevant
+contracts and ran only `infra/gpu budget`. It did not train, submit, test,
+evaluate, access providers directly, change git state, or modify any protected
+surface. Fixed visible split hashes were independently read as
+train=`c59c853cdc03c7378308c8f35baa874e0f484fa035d4297948c3f3b755afa1a6`
+and dev=`69dded207ccb2a7753666752ebcbdaee0e00260bf9848817979e50427bb2cf8b`.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Approved budget route | PASS | `infra/gpu budget` reports GPU `$40.0` remaining and API `$99.999337` remaining. |
+| Successful remote M1 plumbing evidence | FAIL | Only local M0 smoke evidence exists; the sole tracked non-M0 remote run is `launch_failed`. |
+| Executable checked-in M1 configs | FAIL | No 0.6B plumbing, 1.7B SFT, sampler-sweep, seed-grid, or independent-verification config is checked in. |
+| Model revision provenance | FAIL | Current examples pin only `model.base`; remote `snapshot_download` resolves an unrecorded live revision. |
+| Tier-1 readiness without mutation | FAIL | `harness/baseline_stats.json` is absent, while immutable `harness/calibration.json` and `harness/deployment_sampler.json` remain fail-closed placeholders. |
+| Fixed data boundary | PASS | M0 manifests and hashes are present; hidden completions remain unmaterialized. Visible fixture counts are train=6 and dev=2, which must be reported as a limitation of any M1 estimate. |
+| Extra route concern | WARN | The approved remote wrapper clones live GitHub at the ledger `git_sha`; this is inside the wrapper but creates availability/provenance dependence on the commit being pushed. Do not bypass it. |
+DECISION: keep the legal path but do not claim the checkout is already M1-ready.
+Add minimal mutable M1 runner/config/provenance artifacts, resolve the model
+revision through a registered wrapper task before evidentiary training, and
+generate samples outside Tier 1 for `harness eval`. Because the immutable
+calibration and deployment sampler files are intentionally fail-closed, the
+agent may only produce proposed baseline/calibration/frozen-sampler artifacts
+for human transfer; it may not make the harness accept them during M1.
+NEXT: Dispatch a separate implementer to create and preregister the bounded M1
+surfaces without launching or evaluating. Review and commit exact seeds, grid,
+revision-resolution flow, and config hashes before the first wrapper submit.
