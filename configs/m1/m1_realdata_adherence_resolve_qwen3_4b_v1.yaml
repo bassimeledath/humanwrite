@@ -1,0 +1,25 @@
+run:
+  comparison_id: M1-realdata-adherence-resolve-qwen3-4b-v1
+  arm: resolver-4B
+  budget_class: smoke
+  task_kind: experiment
+  command: [python, -m, experiments.runner]
+  seeds: [11]
+compute:
+  gpu: L4
+  gpus: 1
+  timeout_min: 20
+model:
+  base: Qwen/Qwen3-4B
+  revision: __M1_RESOLVE_QWEN3_4B_REVISION__
+  requested_revision: main
+data:
+  train_split_hash: 833b2c259a8e68c110d4668121213f3f98b47dac5f70f26047d69cbd2cca932e
+  dev_split_hash: 849f4e5bcbf1e78330f9d6f0e812b9d359d638ee5ed1a422e9d01c54b69e9722
+  train_path: /checkpoints/data/m1-realdata-adherence-v1/train_briefs.jsonl
+  dev_path: /checkpoints/data/m1-realdata-adherence-v1/dev_briefs.jsonl
+workflow:
+  protocol_version: m1.realdata-adherence.v1
+  step: resolve_revision
+  fixed_manifest: configs/m1/manifests/m1_realdata_adherence_fixed_inputs_v1.json
+  fixed_manifest_sha256: a2e15653a0eb2f06c7ed33b86a97d27d42fe86dcb46f68e78d4c98117d4e9684

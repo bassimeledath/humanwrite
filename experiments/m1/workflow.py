@@ -29,6 +29,10 @@ from .contracts import (
 
 REALDATA_PROTOCOLS = {"m1.realdata-pilot.v1", "m1.realdata-adherence.v1"}
 FULL_BRIEF_SCHEMA = "dft.full-brief.v1"
+REALDATA_ARTIFACT_SCHEMAS = {
+    "dftr.realdata_pilot_fixed_inputs.v1",
+    "dftr.realdata_adherence_fixed_inputs.v1",
+}
 
 
 def run_m1(config: dict[str, Any], run_id: str) -> dict[str, Any]:
@@ -55,7 +59,12 @@ def _load_fixed_manifest(config: dict[str, Any]) -> dict[str, Any]:
         expected_manifest_sha = str(workflow.get("fixed_manifest_sha256") or "")
         if file_sha256(resolved_manifest) != expected_manifest_sha:
             raise M1ConfigError("real-data fixed manifest SHA-256 mismatch")
-        if manifest.get("artifact_schema") != "dftr.realdata_pilot_fixed_inputs.v1":
+        expected_schema = (
+            "dftr.realdata_adherence_fixed_inputs.v1"
+            if protocol_version == "m1.realdata-adherence.v1"
+            else "dftr.realdata_pilot_fixed_inputs.v1"
+        )
+        if manifest.get("artifact_schema") != expected_schema:
             raise M1ConfigError("unexpected real-data fixed manifest schema")
         if int(manifest.get("train_count", 0)) != 256 or int(manifest.get("dev_count", 0)) != 64:
             raise M1ConfigError("real-data pilot fixed manifest must contain train=256/dev=64")
@@ -229,7 +238,7 @@ def _load_training_records(config: dict[str, Any], fixed_manifest: dict[str, Any
     if not train_path.is_file() or not dev_path.is_file():
         raise M1ConfigError("canonical M0 train/dev JSONL paths are required")
     train_records, dev_records = load_jsonl(train_path), load_jsonl(dev_path)
-    if fixed_manifest.get("artifact_schema") == "dftr.realdata_pilot_fixed_inputs.v1":
+    if fixed_manifest.get("artifact_schema") in REALDATA_ARTIFACT_SCHEMAS:
         for split, path, records in (
             ("train", train_path, train_records),
             ("dev", dev_path, dev_records),

@@ -96,6 +96,25 @@ def test_realdata_protocol_rejects_mutated_brief_bytes(tmp_path):
         _load_training_records(config, fixed)
 
 
+def test_adherence_protocol_requires_adherence_manifest_schema(tmp_path):
+    config, _ = _config(tmp_path)
+    manifest_path = Path(config["workflow"]["fixed_manifest"])
+    manifest = json.loads(manifest_path.read_text())
+    manifest["artifact_schema"] = "dftr.realdata_adherence_fixed_inputs.v1"
+    manifest["prompt_schema_version"] = FULL_BRIEF_SCHEMA
+    manifest["prompt_format"] = "USER:\n{brief}\nASSISTANT:"
+    manifest_path.write_text(json.dumps(manifest, sort_keys=True) + "\n")
+    config["workflow"]["protocol_version"] = "m1.realdata-adherence.v1"
+    config["workflow"]["fixed_manifest_sha256"] = file_sha256(manifest_path)
+    assert _load_fixed_manifest(config)["prompt_schema_version"] == FULL_BRIEF_SCHEMA
+
+    manifest["artifact_schema"] = "dftr.realdata_pilot_fixed_inputs.v1"
+    manifest_path.write_text(json.dumps(manifest, sort_keys=True) + "\n")
+    config["workflow"]["fixed_manifest_sha256"] = file_sha256(manifest_path)
+    with pytest.raises(M1ConfigError, match="manifest schema"):
+        _load_fixed_manifest(config)
+
+
 def test_directional_pilot_allows_only_one_default_sampler(tmp_path):
     grid = {
         "default_sampler_id": "default_t1.0_p1.0",

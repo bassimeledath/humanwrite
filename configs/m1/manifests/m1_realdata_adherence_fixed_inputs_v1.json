@@ -1,0 +1,29 @@
+{
+  "artifact_schema": "dftr.realdata_adherence_fixed_inputs.v1",
+  "dev_briefs_sha256": "78014ab7dd9e3ae1b96dac196001ab5ecbb65e534e90b7c8e9a971edb1acd4c2",
+  "dev_count": 64,
+  "dev_path": "/checkpoints/data/m1-realdata-adherence-v1/dev_briefs.jsonl",
+  "dev_split_hash": "849f4e5bcbf1e78330f9d6f0e812b9d359d638ee5ed1a422e9d01c54b69e9722",
+  "max_input_tokens": 1024,
+  "max_new_tokens": 384,
+  "prompt_format": "USER:\n{brief}\nASSISTANT:",
+  "prompt_schema_version": "dft.full-brief.v1",
+  "provenance_note": "Prompt-only recovery over the frozen 256/64 real-FineWeb pilot. Every non-prompt field is value-identical to the original corpus. This is directional recovery evidence, not promotion evidence.",
+  "sampling_seeds": [101, 202, 303],
+  "source_manifest_sha256": "6b264d07d18309201604ad800bbfd4b5650c5b1dc452bb1dfd5355457f7fe89b",
+  "train_briefs_sha256": "4ac15ea8a56a89e4f5b24841e3581c68de607359823e5851d585542c2d7562da",
+  "train_count": 256,
+  "train_path": "/checkpoints/data/m1-realdata-adherence-v1/train_briefs.jsonl",
+  "train_split_hash": "833b2c259a8e68c110d4668121213f3f98b47dac5f70f26047d69cbd2cca932e",
+  "training_seeds": [11],
+  "validation": {
+    "dev_only_user_prompt_changed": true,
+    "dev_unique_prompt_count": 64,
+    "max_completion_tokens": 321,
+    "max_prompt_tokens": 1017,
+    "tokenizer_base": "Qwen/Qwen3-1.7B",
+    "tokenizer_revision": "70d244cc86ccca08cf5af4e1e306ecf908b1ad5e",
+    "train_only_user_prompt_changed": true,
+    "train_unique_prompt_count": 256
+  }
+}
