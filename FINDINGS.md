@@ -1944,3 +1944,32 @@ repetition gate before treating it as a promotion criterion.
 NEXT: Publish the result, then choose between a bounded 4B sealed evaluation
 and the next M2 experimental arm. Require explicit evidence before any 14B
 budget expansion.
+
+## [2026-07-16] M1 / prospective-repetition-evaluator-v2-audit
+HYPOTHESIS: Recasting repeated sentence starts as an upper-bound-only collapse
+signal will remove the reviewer's counterintuitive penalty for zero repetition
+without weakening the existing high-repetition rejection or changing any other
+metric.
+SETUP: Preserved all v1 reports, preregistered the change, and rescored the
+same immutable 144 outputs from source-index SHA `0b4fd3e4...` with calibration
+v2 SHA `b84783c3...`. Self-BLEU remains two-sided; the repetition upper bound
+remains exactly `0.15744263820012558`.
+RESULTS:
+| item | result | audit |
+| --- | ---: | --- |
+| Outline / unsupported / language gates | 9/9 each | identical to v1 |
+| No-collapse gate | 8/9 | identical for this 4B evidence |
+| Mean self-BLEU / repetition | 0.04505 / 0.12500 | identical to v1 |
+| Deterministic report fields | 9/9 identical | excludes calibration metadata and secondary judge |
+| Secondary quality preference | 1.00000 | stochastic rerun; not a decision input |
+
+REVIEWER AUDIT: The evaluator defect was real, but it did not inflate this
+4B confirmation: its only failing cell remains seed 11 / sampling 202 at
+repetition `0.1875`, above the unchanged upper bound. The corrected rule now
+also behaves sensibly on the audited zero-repetition case while preserving
+the high-repetition failure. Unknown bound modes fail closed.
+DECISION: accept evaluator v2 prospectively and retain the 4B directional
+pass. Preserve v1 byte-for-byte. This audit authorizes one bounded sealed 4B
+submission, not an automatic promotion or scale-up.
+NEXT: Publish the v2 audit, preregister the exact sealed comparison, and use
+the aggregate hidden-split verdict to select M2 work and the 14B evidence gate.

@@ -1,0 +1,30 @@
+{
+  "checkpoint_id": "a3c278d37a585d52",
+  "harness_version": "0.1.0",
+  "S": -1.279105841513656,
+  "semantic_mmd": -0.001369574283976105,
+  "semantic_mmd_delta_vs_human_floor": -0.05767368646878505,
+  "lexical_l2": 0.016399397921139622,
+  "structural_dist": 0.13825435668879615,
+  "gate_outline_fact_recall": true,
+  "gate_unsupported_claim_rate": true,
+  "gate_language_integrity": true,
+  "gate_no_collapse": true,
+  "quality_pref_winrate": 1.0,
+  "jmq": 2.0,
+  "authorship_auc": 0.51953125,
+  "authorship_auc_ci": [
+    0.349609375,
+    0.691455078125
+  ],
+  "diversity_self_bleu": 0.043182925786270684,
+  "repetition_rate": 0.125,
+  "human_reference_bank_id": "92a0366c313d007c5d602cc8758c148a775b94d5c927416dd668121bcf447ae1",
+  "calibration_sha256": "b84783c37d9b71339ec080cbe4044b66e22cc04a3d802c80cd7cbb5f49295e14",
+  "baseline_sha256": "53de46c79b31a63262cc6c2329bb6acec81ae0a5e5ed77af1df2408b76f262fc",
+  "notes": [
+    "human-floor 95% CI: [0.0381321, 0.0898469]",
+    "quality preference is secondary and may exhibit judge self-preference",
+    "authorship AUC uses a fresh deterministic character n-gram out-of-fold probe"
+  ]
+}

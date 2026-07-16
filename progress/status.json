@@ -1,9 +1,9 @@
 {
-  "updated_at": "2026-07-16T16:34:02Z",
-  "phase": "M1 — adherence recovery screen",
-  "headline": "Corrected 4B factual control reproduced across three training seeds",
-  "summary": "The 144-output confirmation passed: outline, unsupported-claim, and language gates were 9 of 9; no-collapse was 8 of 9 against a required 6 of 9. Mean outline recall is 0.790 and unsupported claims on non-empty grounded briefs are 3.1%. This supports a bounded next-stage evaluation, but does not yet justify 14B.",
-  "run_state": "complete",
+  "updated_at": "2026-07-16T17:35:17Z",
+  "phase": "M2 — sealed 4B validation",
+  "headline": "Reviewer correction audited; sealed 4B validation is next",
+  "summary": "Evaluator v2 rescored the exact frozen 144 outputs. All deterministic fields match v1, the 4B result remains an 8-of-9 no-collapse pass, and the lone high-repetition failure remains rejected. The corrected reviewer rule is now prospective and one sealed 4B submission is authorized.",
+  "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
     "modal_committed_usd": 3.993719,
@@ -20,11 +20,17 @@
     {"id": "setup", "label": "Setup", "detail": "Harness, sources, storage, and guardrails", "status": "complete"},
     {"id": "M0", "label": "M0", "detail": "Data pipeline and GPU contract smoke test", "status": "complete"},
     {"id": "M1", "label": "M1", "detail": "4B three-seed directional confirmation passed", "status": "complete"},
-    {"id": "M2", "label": "M2", "detail": "Next bounded arm or sealed 4B evaluation awaiting decision", "status": "active"},
+    {"id": "M2", "label": "M2", "detail": "Exact 4B sealed comparison being preregistered", "status": "active"},
     {"id": "M3", "label": "M3", "detail": "Length curriculum and LoRA staging", "status": "queued"},
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "10:35",
+      "title": "Reviewer correction passed prospective audit",
+      "detail": "The exact frozen 144 outputs were rescored with repetition as an upper-bound-only collapse signal. All deterministic metrics match v1, the 4B result remains 8 of 9 on no-collapse, and the lone 0.1875 high-repetition cell still fails.",
+      "tone": "complete"
+    },
     {"at": "09:34", "title": "Three-seed 4B confirmation passed", "detail": "All nine cells passed outline, unsupported-claim, and language gates; eight passed no-collapse against a required six. Mean outline recall was 0.78963 and grounded unsupported rate was 0.03083.", "tone": "complete"},
     {"at": "09:26", "title": "Confirmation generation completed", "detail": "Run dftr-1784217143-f01137b4 produced exactly 144 documents and 20,809 tokens in 1,966.832 L40S-seconds for 1.279227 dollars. Nine immutable cells were then scored with frozen evaluator provenance.", "tone": "complete"},
     {"at": "08:51", "title": "Three-seed 4B training completed", "detail": "Seeds 11, 29, and 47 trained for 46,732 tokens each with losses 0.6972, 0.7009, and 0.6960. Total training cost was 0.320890 dollars.", "tone": "complete"},
@@ -84,5 +90,5 @@
     {"at": "17:46", "title": "Storage created", "detail": "Gateway state, checkpoints, sealed state, and sealed artifacts volumes are online.", "tone": "complete"},
     {"at": "17:40", "title": "Engineering checks passed", "detail": "Harness, infrastructure, and private evaluator suites are green.", "tone": "complete"}
   ],
-  "next_action": "Keep Qwen3-4B as the winning size, repair the discrete repetition-gate design before promotion, and select a bounded 4B sealed evaluation or the next M2 arm. Do not scale to 14B without new evidence and explicit approval."
+  "next_action": "Preregister and submit the exact winning 4B checkpoint to the aggregate-only sealed evaluator, then select bounded M2 work and the approved 14B scale-up only if the evidence gate passes."
 }
