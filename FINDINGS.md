@@ -97,3 +97,32 @@ NEXT: Apply the minimal contract fix: make every terminal local run write
 budget semantics tied to recorded terminal actual cost, and align the local
 backend test to exact terminal-record accounting rather than a positive minimum
 charge assumption.
+
+## [2026-07-15] M0 / milestone-result
+HYPOTHESIS: M0 is complete if the append-only record shows the offline repo
+scaffold requirements are satisfied without mutating Tier 1, candidate 1's
+accounting defect is explicitly rejected, candidate 2's offline tester pass is
+preserved as the acceptance result, and the remaining limitations are recorded
+instead of being blurred into a stronger claim. This relies on the immutable
+Tier-1 boundary in `CLAUDE.md`, the offline-only milestone scope already
+documented for M0, and the tester artifacts in `.swarmy/results/m0-c1.txt`,
+`.swarmy/results/m0-c2.txt`, and `.swarmy/logs/test-m0-c2.log`.
+SETUP: Recorder pass only. No tests, evals, remote judge calls, network,
+compute submission, or sealed validation are run in this turn. Evidence is
+limited to the existing append-only records already present in the checkout:
+prior M0 findings, the tracked `ledger/ledger.jsonl` delta produced by the
+passing tester, and the tester's offline verification log showing candidate 2
+passing with `harness/` unchanged.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Candidate 1 accounting acceptance | FAIL | `.swarmy/results/m0-c1.txt` records the local backend accounting mismatch: cancel-path spend stayed at `$40.0` remaining, so candidate 1 is not the M0 milestone result. |
+| Candidate 2 milestone acceptance | PASS | `.swarmy/results/m0-c2.txt` records `score=pass`; `.swarmy/logs/test-m0-c2.log` shows offline smoke-path acceptance evidence and leaves only append-only `ledger/ledger.jsonl` rows as tracked delta. |
+| Tier-1 immutability | PASS | Tester evidence shows no M0 `harness/` diff and keeps Tier 1 as an immutable boundary rather than part of the implementation surface. |
+| Offline-only recorder scope | PASS | This recorder turn adds only documentation/finalization artifacts and preserves the tester's ledger rows without running tests, evals, network, compute, remote judge, or sealed-submit. |
+| Remaining limitations | PASS | M0 remains an offline local scaffold milestone only: no remote GPU execution, no Tier-2 sealed validation, and no claim beyond the checked-in smoke/backend/data-contract evidence. |
+DECISION: keep and record M0 as passed on candidate 2. Preserve the existing
+append-only ledger delta exactly as produced by the passing tester, append this
+milestone result, and park for human sign-off.
+NEXT: Wait for human sign-off before any M1 work. Do not extend claims past
+offline M0 evidence or rewrite prior ledger/findings history.
