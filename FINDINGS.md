@@ -624,3 +624,80 @@ RESULTS:
 DECISION: resume M1 from a newly published clean record tip. Require a fresh
 independent publication/config/preregistration/budget check on that exact tip
 before the single three-seed SFT submit; do not bypass or reuse a stale verdict.
+
+## [2026-07-16] M1 / sft-terminal-qwen3-1p7b
+HYPOTHESIS: The exact preregistered single three-seed Qwen3-1.7B SFT screen
+can complete from published source tip
+`0531711c1a008325a2095c2a2ec9c9e2e87ef8f0` through the constrained wrapper
+only if the approved surfaces expose complete terminal accounting and valid
+per-seed checkpoint provenance.
+SETUP: Read `CLAUDE.md`, `RESEARCH_CONTEXT.md`, all append-only M1 entries in
+`FINDINGS.md`, `configs/m1/m1_sft_qwen3_1p7b_v1.yaml`,
+`configs/m1/manifests/fixed_inputs_v1.json`,
+`configs/m1/manifests/sampler_grid_v1.json`,
+`configs/m1/manifests/revision_placeholders_v1.json`, `ledger/ledger.py`,
+`ledger/ledger.jsonl`, `infra/gpu`, and only the terse independent verdict
+`.swarmy/results/m1-sft-resume-gate.txt`. Verified local `HEAD`, local
+upstream, and live `origin/agent/m1` all matched published tip
+`0531711c1a008325a2095c2a2ec9c9e2e87ef8f0`; verified canonical SFT config hash
+`e213ed59e70ece4815b4b467b84df30eb6fccec8fb64c507d6699100df1575e8`,
+immutable model revision `70d244cc86ccca08cf5af4e1e306ecf908b1ad5e`, and fixed
+manifest hashes `e56e9cf2573b957b8491cf7733fa384de42908a71d6b8d2c2be581fbb402808d`
+and `662d21f269b7a8ea8bc70da105bd6b2b8164021e2fdc510120763aa19df800ae`.
+Observed that the single allowed SFT submit had already been consumed by run
+`dftr-1784180693-f3c7ab5c` from that exact published tip, so no duplicate
+submit was attempted. Monitored only with `infra/gpu status` and
+`infra/gpu logs`, then preserved terminal accounting append-only through the
+ledger CLI.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Fresh resume gate | PASS | `.swarmy/results/m1-sft-resume-gate.txt` reports `score=pass`, `failed_checks=none`, and `published_tip=0531711c1a008325a2095c2a2ec9c9e2e87ef8f0`. |
+| Published-tip equality | PASS | `git rev-parse HEAD`, `git rev-parse @{upstream}`, and `git ls-remote --heads origin agent/m1` all resolved to `0531711c1a008325a2095c2a2ec9c9e2e87ef8f0`. |
+| Config and fixed-manifest provenance | PASS | Canonical YAML hash matched `e213ed59e70ece4815b4b467b84df30eb6fccec8fb64c507d6699100df1575e8`; fixed manifest hashes matched the preregistered values; model revision remained `70d244cc86ccca08cf5af4e1e306ecf908b1ad5e`. |
+| Single-run cardinality boundary | PASS | The only SFT run row for `M1-sft-baseline-qwen3-1p7b` is `dftr-1784180693-f3c7ab5c` at git SHA `0531711c1a008325a2095c2a2ec9c9e2e87ef8f0`; no second submit was attempted. |
+| Budget reservation and terminal wrapper status | PASS | `infra/gpu status dftr-1784180693-f3c7ab5c` reported `reserved_cost_usd=4.68288`, `status=completed`, `return_code=0`, `gpu=L40S`, `timeout_seconds=7200`, `accel_seconds=36.292`, `actual_cost_usd=0.023604`, and `tokens=1422`. |
+| Three-seed SFT completion | PASS | `infra/gpu logs` showed three completed training blocks for seeds `[11,29,47]`; terminal run JSON reported `checkpoint_count=3`, `training_seeds=[11,29,47]`, `train_tokens=1422`, `generated_tokens=0`, and `total_tokens=1422`. |
+| Per-seed checkpoint paths | PASS | Wrapper workflow fixes seed checkpoint directories to `/checkpoints/runs/dftr-1784180693-f3c7ab5c/seed-11`, `/checkpoints/runs/dftr-1784180693-f3c7ab5c/seed-29`, and `/checkpoints/runs/dftr-1784180693-f3c7ab5c/seed-47`; terminal logs exposed remote manifest pointer `/__modal/volumes/vo-EY2fT0CaoNDuXGLZLNZcGg/runs/dftr-1784180693-f3c7ab5c/checkpoints_manifest.json`. |
+| Per-seed checkpoint hash retrieval | FAIL | Neither the host-resolved path `/__modal/volumes/vo-EY2fT0CaoNDuXGLZLNZcGg/runs/dftr-1784180693-f3c7ab5c/checkpoints_manifest.json` nor the in-container paths under `/checkpoints/runs/dftr-1784180693-f3c7ab5c/` were mounted locally in this executor, so the exact per-seed `checkpoint_files` hash maps could not be read from the approved surfaces. |
+| Append-only ledger accounting | PASS | `ledger/ledger.jsonl` contains the launched run row plus completed `run_update` rows with matching `status=completed`, `cost=0.023604`, `accel_seconds=36.292`, `tokens=1422`, and identical manifest pointer `metrics_ptr=/__modal/volumes/vo-EY2fT0CaoNDuXGLZLNZcGg/runs/dftr-1784180693-f3c7ab5c/checkpoints_manifest.json`. The earlier completed row predates the explicit reconciliation append by 15.265519 seconds, so this is recorded as idempotent accounting duplication, not as a new scientific or infrastructure gate failure. |
+DECISION: stop at the M1 SFT terminal evidence boundary. The exact
+preregistered three-seed Qwen3-1.7B SFT run completed once from the required
+published tip, but this executor cannot honestly close M1 as a terminal
+`keep/pass` because the approved surfaces did not expose the per-seed
+checkpoint hash payload required for valid checkpoint provenance. Do not begin
+sampler work, Tier 1/2/3, M2, or 14B work from this state.
+NEXT: Wait for an approved read path or operator-materialized copy of the
+remote `checkpoints_manifest.json` or seed `provenance.json` payloads for run
+`dftr-1784180693-f3c7ab5c`; do not resubmit or rerun the SFT screen.
+
+## [2026-07-16] M1 / sft-checkpoint-provenance-boundary
+HYPOTHESIS: The SFT terminal boundary can be recorded as `blocked/keep` if an
+independent recorder verifies the operator-materialized checkpoint manifest
+offline while preserving the earlier `legal_read_path=no` contract finding,
+the immutable terminal ledger rows, and all protected surfaces.
+SETUP: Recorder-only pass. Read the uncommitted SFT terminal finding above,
+the SFT ledger rows, `.swarmy/explore-m1-sft-manifest.md`,
+`.dispatch/tasks/m1-sft-manifest-explorer/output.md`, and the read-only
+operator materialization at
+`.swarmy/operator-materialized/dftr-1784180693-f3c7ab5c/`. Ran only offline
+manifest, diff, and ledger hygiene checks; no `infra/gpu`, sampling,
+evaluation, Tier 2/3, M2, 14B, protected-surface edit, alternate publication
+path, or new ledger append was used.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Historical constrained-read boundary | BLOCKED | The explorer remains `legal_read_path=no`: status/logs/ledger exposed only terminal metadata, stdout, and an opaque manifest pointer, not artifact bytes. |
+| Operator materialization | PASS | Attestation says the existing Modal `checkpoints_manifest.json` was read-only materialized; canonical sorted compact JSON SHA-256 independently recomputed as `2c255965575359ce8e92761befe0dd8db360b204b7385b924f4261194c0e2fb1`. |
+| Manifest identity | PASS | `protocol_version=m1.checkpoints.v1`, `model_base=Qwen/Qwen3-1.7B`, and `model_revision=70d244cc86ccca08cf5af4e1e306ecf908b1ad5e`. |
+| Seed/token provenance | PASS | Exactly three checkpoint entries for seeds `[11,29,47]`, each with `train_tokens=474` for total ledger tokens `1422`. |
+| Distinct adapter hashes | PASS | Per-seed `adapter_model.safetensors` hashes are distinct: seed 11 `714876d1ca760a4f8013b3377cd104297971bf0ef45c41425b44e427712e86fd`; seed 29 `e1fc8e1ee9069d3bb18c3dfe21196d223c3fb254989755a248e1798d7e357588`; seed 47 `d5665c4caa7e13eefc7e0c665292b433d25c38e3dbd0b9020556e402f0c34d8f`. |
+| Ledger immutability | PASS | Preserved the run row plus both identical completed terminal updates as append-only idempotent duplication: same `status=completed`, `cost=0.023604`, `accel_seconds=36.292`, `tokens=1422`, and manifest pointer. |
+DECISION: keep the completed SFT checkpoint-provenance record, but keep the
+milestone parked as a boundary checkpoint rather than a pass. The operator
+bytes verify the manifest contents; the constrained self-service contract still
+does not expose those artifact bytes, and this recorder does not authorize
+sampler, evaluation, Tier 2/3, M2, or 14B work.
+NEXT: Wait for human direction on whether the operator materialization becomes
+the approved durable read path or whether a read-only gateway/CLI artifact
+surface should be added; do not resubmit the SFT screen.
