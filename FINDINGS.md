@@ -969,3 +969,31 @@ published.
 NEXT: Publish the exact bank artifacts, finish and independently verify the
 external-bank/calibration/baseline/freeze harness repair, then evaluate the
 already-completed sampler cells without inspecting or regenerating outputs.
+
+## [2026-07-16] M1 / operator-sampler-exposure-incident
+HYPOTHESIS: An accidental limited output exposure does not invalidate the
+sampler comparison if it occurred after the data bank and decision rule were
+published, is disclosed before scoring, and no human judgment or rule change
+is permitted to affect the mechanical freeze decision.
+SETUP: While locating the operator-materialized sampler tree, a diagnostic
+command selected the alphabetically first sample JSONL and printed its first
+four lines. That file contained the two documents for checkpoint seed 11,
+sampler `cool_narrow_t0.8_p0.95`, sampling seed 101. The exposure occurred
+after visible-bank preparation commit `283170f` and materialization commit
+`2407add` were published, and after the sampler freeze rule had been
+preregistered in the M1 plan. No other sample file was opened, no metric or
+report had been computed, and no config, bank, calibration, gate, score,
+tie-break, or sampler decision was changed.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Exposure scope | DISCLOSED | Exactly one two-row sampler cell was printed during path discovery. |
+| Selection timing | PRESERVED | Visible human bank and freeze decision rule were already immutable and published. |
+| Human selection influence | PROHIBITED | Final selection remains exclusively the preregistered all-gates/lowest-mean-S/tie-break algorithm; the exposed cell may not be manually favored or rejected. |
+| Follow-on handling | LOCKED | Do not inspect further raw sampler completions before the complete mechanical Tier-1 report set and frozen decision artifact exist. |
+DECISION: retain the comparison with this explicit caveat. The limited
+post-preregistration exposure is not used as evidence and cannot change the
+decision rule, but it is part of the scientific record.
+NEXT: Complete harness verification, construct report paths without printing
+sample contents, run the full fixed evaluation, and accept only the mechanical
+freeze result.
