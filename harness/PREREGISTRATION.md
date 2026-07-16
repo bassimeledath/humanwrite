@@ -42,8 +42,10 @@ S = w1*z(semantic_MMD) + w2*z(lexical_L2) + w3*z(structural_dist)
   case-insensitive (Rosmine-disclosed definition; ~0.174 in its human corpus).
 - Calibration intervals are metric-specific (frozen 2026-07-16). For
   repeated_sentence_start_rate, each document is one Bernoulli trial and the
-  two-sided 95% Wilson score interval is used. With p_hat=x/n,
-  z=Phi^-1(0.975), denominator d=1+z^2/n, center
+  two-sided 95% Wilson score interval is used. The cross-runtime contract
+  freezes z to the explicit decimal `1.959963984540054`; it must not be
+  recomputed from a runtime-specific inverse-normal implementation. With
+  p_hat=x/n, denominator d=1+z^2/n, center
   c=(p_hat+z^2/(2n))/d, and half-width
   h=(z/d)*sqrt(p_hat*(1-p_hat)/n+z^2/(4n^2)); bounds are
   [max(0,c-h), min(1,c+h)]. Self-BLEU, per-document non-target-script rate,

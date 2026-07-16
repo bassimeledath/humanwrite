@@ -151,9 +151,10 @@ def test_evaluate_offline_with_inline_references(tmp_path, monkeypatch):
     calibration.write_text(
         json.dumps(
             {
-                "artifact_schema": "harness.calibration.v2",
+                "artifact_schema": "harness.calibration.v3",
                 "frozen": True,
                 "interval_methods": cli._calibration_interval_methods(0.95),
+                "confidence_level": 0.95,
                 "self_bleu": {"low": 0.0, "high": 1.0},
                 "repeated_sentence_start_rate": {"low": 0.0, "high": 1.0},
                 "non_target_script_char_rate": {"low": 0.0, "high": 0.1},
@@ -199,9 +200,10 @@ def test_evaluate_builds_fresh_probe_when_none_is_injected(tmp_path, monkeypatch
     calibration.write_text(
         json.dumps(
             {
-                "artifact_schema": "harness.calibration.v2",
+                "artifact_schema": "harness.calibration.v3",
                 "frozen": True,
                 "interval_methods": cli._calibration_interval_methods(0.95),
+                "confidence_level": 0.95,
                 "self_bleu": {"low": 0.0, "high": 1.0},
                 "repeated_sentence_start_rate": {"low": 0.0, "high": 1.0},
                 "non_target_script_char_rate": {"low": 0.0, "high": 1.0},
@@ -263,9 +265,10 @@ def test_checkpoint_generation_uses_frozen_canonical_prompt_bank(tmp_path, monke
     calibration.write_text(
         json.dumps(
             {
-                "artifact_schema": "harness.calibration.v2",
+                "artifact_schema": "harness.calibration.v3",
                 "frozen": True,
                 "interval_methods": cli._calibration_interval_methods(0.95),
+                "confidence_level": 0.95,
                 "self_bleu": {"low": 0.0, "high": 1.0},
                 "repeated_sentence_start_rate": {"low": 0.0, "high": 1.0},
                 "non_target_script_char_rate": {"low": 0.0, "high": 1.0},
@@ -350,9 +353,10 @@ def test_checkpoint_prefers_existing_samples_over_generator(tmp_path, monkeypatc
     calibration.write_text(
         json.dumps(
             {
-                "artifact_schema": "harness.calibration.v2",
+                "artifact_schema": "harness.calibration.v3",
                 "frozen": True,
                 "interval_methods": cli._calibration_interval_methods(0.95),
+                "confidence_level": 0.95,
                 "self_bleu": {"low": 0.0, "high": 1.0},
                 "repeated_sentence_start_rate": {"low": 0.0, "high": 1.0},
                 "non_target_script_char_rate": {"low": 0.0, "high": 1.0},
@@ -502,10 +506,19 @@ def test_rejected_v1_calibration_proposal_cannot_transfer():
         cli.prepare_calibration_transfer(proposal, expected)
 
 
-def test_v2_calibration_transfer_preserves_metric_methods_and_wilson_evidence(tmp_path):
+def test_rejected_v2_calibration_proposal_cannot_transfer():
+    root = Path(__file__).resolve().parents[2]
+    proposal = root / "experiments" / "m1" / "calibration_proposal_visible_bank_v2.json"
+    expected = "06e3a8ee5f4038c26161fcc43e6baa2959c1db50a9991fcfe48875afd07de420"
+    with pytest.raises(ValueError, match="unsupported"):
+        cli.prepare_calibration_transfer(proposal, expected)
+
+
+def test_v3_calibration_transfer_preserves_metric_methods_and_wilson_evidence(tmp_path):
+    assert cli.CALIBRATION_Z_95 == 1.959963984540054
     repetition_interval = cli._wilson_interval(1, 32, 0.95)
     proposal_value = {
-        "artifact_schema": "m1.calibration_proposal.review.v2",
+        "artifact_schema": "m1.calibration_proposal.review.v3",
         "human_split_sha256": "human-bank-sha",
         "sample_count": 32,
         "point_estimates": {"repeated_sentence_start_rate": 1 / 32},
@@ -525,11 +538,11 @@ def test_v2_calibration_transfer_preserves_metric_methods_and_wilson_evidence(tm
         "resampling_seeds": [404, 505, 606],
         "review_limitations": ["visible-bank limitation"],
     }
-    proposal = tmp_path / "proposal-v2.json"
+    proposal = tmp_path / "proposal-v3.json"
     proposal.write_text(json.dumps(proposal_value))
     target = cli.prepare_calibration_transfer(proposal, cli._file_sha256(proposal))
     assert target["frozen"] is True
-    assert target["artifact_schema"] == "harness.calibration.v2"
+    assert target["artifact_schema"] == "harness.calibration.v3"
     assert target["interval_methods"] == proposal_value["interval_methods"]
     assert target["metric_counts"] == proposal_value["metric_counts"]
     for name in (
@@ -542,9 +555,9 @@ def test_v2_calibration_transfer_preserves_metric_methods_and_wilson_evidence(tm
         assert target[name] == proposal_value["intervals"][name]
 
 
-def test_v2_calibration_transfer_rejects_old_zero_width_repetition_interval(tmp_path):
+def test_v3_calibration_transfer_rejects_old_zero_width_repetition_interval(tmp_path):
     proposal = {
-        "artifact_schema": "m1.calibration_proposal.review.v2",
+        "artifact_schema": "m1.calibration_proposal.review.v3",
         "human_split_sha256": "human-bank-sha",
         "sample_count": 32,
         "point_estimates": {"repeated_sentence_start_rate": 1 / 32},

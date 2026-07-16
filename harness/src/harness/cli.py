@@ -9,7 +9,6 @@ import os
 import re
 import string
 import sys
-from statistics import NormalDist
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Optional
@@ -30,6 +29,7 @@ DEV_EMBEDDER_ID = "BAAI/bge-small-en-v1.5"
 WEIGHTS = (0.50, 0.25, 0.25)
 NON_INFERIORITY_MARGIN = 0.05
 CALIBRATION_CONFIDENCE_LEVEL = 0.95
+CALIBRATION_Z_95 = 1.959963984540054
 CONTINUOUS_INTERVAL_METHOD = "deterministic central order-statistic interval"
 REPETITION_INTERVAL_METHOD = "Wilson score interval for binomial proportion"
 _CONFIG_NAMES = ("train_config.yaml", "train_config.yml", "train_config.json", "config.yaml", "config.yml", "config.json")
@@ -583,7 +583,7 @@ def _baseline_ready(baseline):
 
 def _calibration_ready(calibration):
     if (
-        calibration.get("artifact_schema") != "harness.calibration.v2"
+        calibration.get("artifact_schema") != "harness.calibration.v3"
         or calibration.get("frozen") is not True
     ):
         return False
@@ -601,6 +601,12 @@ def _calibration_ready(calibration):
     if (
         (methods.get("repeated_sentence_start_rate") or {}).get("method")
         != REPETITION_INTERVAL_METHOD
+    ):
+        return False
+    if (
+        (methods.get("repeated_sentence_start_rate") or {}).get("z")
+        != CALIBRATION_Z_95
+        or calibration.get("confidence_level") != CALIBRATION_CONFIDENCE_LEVEL
     ):
         return False
     for name in ("self_bleu", "repeated_sentence_start_rate", "non_target_script_char_rate"):
@@ -756,7 +762,7 @@ def calibrate(human_split_jsonl: str) -> dict:
         return interval(values)
 
     result = {
-        "artifact_schema": "harness.calibration.v2",
+        "artifact_schema": "harness.calibration.v3",
         "frozen": True,
         "_comment": "Human-calibrated ranges from the supplied canonical human split.",
         "self_bleu": interval(individual_bleu),
@@ -791,9 +797,9 @@ def _validated_interval(value, field_name):
 def _wilson_interval(successes: int, trials: int, confidence_level: float) -> dict[str, float]:
     if trials <= 0 or successes < 0 or successes > trials:
         raise ValueError("Wilson interval requires 0 <= successes <= positive trials")
-    if not 0.0 < confidence_level < 1.0:
-        raise ValueError("Wilson interval confidence level must lie in (0, 1)")
-    z = NormalDist().inv_cdf(0.5 + confidence_level / 2.0)
+    if confidence_level != CALIBRATION_CONFIDENCE_LEVEL:
+        raise ValueError("Wilson interval confidence level must be the frozen 0.95")
+    z = CALIBRATION_Z_95
     proportion = successes / trials
     z_squared = z * z
     denominator = 1.0 + z_squared / trials
@@ -806,11 +812,13 @@ def _wilson_interval(successes: int, trials: int, confidence_level: float) -> di
 
 
 def _calibration_interval_methods(confidence_level):
+    if confidence_level != CALIBRATION_CONFIDENCE_LEVEL:
+        raise ValueError("calibration interval methods require the frozen 0.95 confidence")
     return {
         "self_bleu": {"method": CONTINUOUS_INTERVAL_METHOD},
         "repeated_sentence_start_rate": {
             "method": REPETITION_INTERVAL_METHOD,
-            "z": NormalDist().inv_cdf(0.5 + confidence_level / 2.0),
+            "z": CALIBRATION_Z_95,
         },
         "non_target_script_char_rate": {"method": CONTINUOUS_INTERVAL_METHOD},
         "paragraph_len_tokens": {"method": CONTINUOUS_INTERVAL_METHOD},
@@ -825,7 +833,7 @@ def prepare_calibration_transfer(proposal_path: str, expected_sha256: str) -> di
     if actual_sha256 != str(expected_sha256):
         raise ValueError("calibration proposal SHA-256 does not match operator-reviewed bytes")
     proposal = _read_structured(path)
-    if proposal.get("artifact_schema") != "m1.calibration_proposal.review.v2":
+    if proposal.get("artifact_schema") != "m1.calibration_proposal.review.v3":
         raise ValueError("unsupported calibration proposal schema")
     required = {
         "artifact_schema",
@@ -885,7 +893,7 @@ def prepare_calibration_transfer(proposal_path: str, expected_sha256: str) -> di
         "sentence_len_tokens",
     )
     target = {
-        "artifact_schema": "harness.calibration.v2",
+        "artifact_schema": "harness.calibration.v3",
         "frozen": True,
         "source_proposal_sha256": actual_sha256,
         "source_human_split_sha256": str(proposal["human_split_sha256"]),

@@ -80,23 +80,25 @@ The harness never copies review artifacts automatically. It validates exact
 operator-reviewed source bytes and emits the only accepted target shape:
 
 ```bash
-harness prepare-calibration-transfer experiments/m1/calibration_proposal_visible_bank_v2.json \
+harness prepare-calibration-transfer experiments/m1/calibration_proposal_visible_bank_v3.json \
   --expected-sha256 <reviewed-proposal-sha256> > /tmp/calibration.candidate.json
 harness prepare-baseline-transfer experiments/m1/baseline_stats_v1.json \
   --expected-sha256 <reviewed-proposal-sha256> > /tmp/baseline.candidate.json
 ```
 
-Only `m1.calibration_proposal.review.v2` is transferable. It must carry exact
+Only `m1.calibration_proposal.review.v3` is transferable. It must carry exact
 per-metric `interval_methods`, repetition `{successes,trials}`, the matching
-point estimate, and the matching Wilson interval. A v1 proposal or a v2
-proposal that relabels the old `[0,0]` repetition interval is rejected.
+point estimate, and the matching Wilson interval. The 95% Wilson z value is
+the schema constant `1.959963984540054`; neither proposal generation nor
+transfer validation derives it from the host runtime. Historical v1 and v2
+proposals are rejected.
 
 The operator reviews the candidate, removes no provenance fields, replaces
 the corresponding immutable harness JSON with exactly that object, and
 commits its SHA-256. The calibration mapping is exact: each accepted proposal
 `intervals.<metric>.{low,high}` becomes the identically named harness interval;
 `interval_methods` and repetition counts are copied into
-`harness.calibration.v2`, and no percentile is inferred. Repetition uses the
+`harness.calibration.v3`, and no percentile is inferred. Repetition uses the
 two-sided 95% Wilson score interval over document-level incidence; self-BLEU,
 script rate, and length use deterministic central order-statistic intervals.
 The two-human M0 calibration proposal remains a

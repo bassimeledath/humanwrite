@@ -6,7 +6,6 @@ import json
 import math
 from pathlib import Path
 import random
-from statistics import NormalDist
 import sys
 from typing import Any
 
@@ -23,14 +22,16 @@ from harness.metrics import validity  # noqa: E402
 
 CONTINUOUS_INTERVAL_METHOD = "deterministic central order-statistic interval"
 REPETITION_INTERVAL_METHOD = "Wilson score interval for binomial proportion"
+CALIBRATION_CONFIDENCE_LEVEL = 0.95
+CALIBRATION_Z_95 = 1.959963984540054
 
 
 def _wilson_interval(successes: int, trials: int, confidence_level: float) -> dict[str, float]:
     if trials <= 0 or successes < 0 or successes > trials:
         raise M1ConfigError("Wilson interval requires 0 <= successes <= positive trials")
-    if not 0.0 < confidence_level < 1.0:
-        raise M1ConfigError("Wilson interval confidence level must lie in (0, 1)")
-    z = NormalDist().inv_cdf(0.5 + confidence_level / 2.0)
+    if confidence_level != CALIBRATION_CONFIDENCE_LEVEL:
+        raise M1ConfigError("Wilson interval confidence level must be the frozen 0.95")
+    z = CALIBRATION_Z_95
     proportion = successes / trials
     z_squared = z * z
     denominator = 1.0 + z_squared / trials
@@ -281,6 +282,8 @@ def propose_calibration(config_path: str) -> dict[str, Any]:
         raise M1ConfigError("calibration human records require unique non-empty fingerprints")
     settings = config.get("interval_settings") or {}
     confidence_level = float(settings.get("confidence_level", 0.95))
+    if confidence_level != CALIBRATION_CONFIDENCE_LEVEL:
+        raise M1ConfigError("interval_settings.confidence_level must be the frozen 0.95")
     resampling_seeds = list(settings.get("resampling_seeds") or [])
     if not resampling_seeds:
         raise M1ConfigError("interval_settings.resampling_seeds is required")
@@ -404,7 +407,7 @@ def propose_calibration(config_path: str) -> dict[str, Any]:
             "python -m experiments.m1.analysis calibration-proposal --config "
             + _display_path(resolved_config_path)
         ),
-        "artifact_schema": "m1.calibration_proposal.review.v2",
+        "artifact_schema": "m1.calibration_proposal.review.v3",
         "config_path": _display_path(resolved_config_path),
         "config_sha256": file_sha256(resolved_config_path),
         "human_split_path": _display_path(human_split_path),
@@ -416,7 +419,7 @@ def propose_calibration(config_path: str) -> dict[str, Any]:
             "self_bleu": {"method": CONTINUOUS_INTERVAL_METHOD},
             "repeated_sentence_start_rate": {
                 "method": REPETITION_INTERVAL_METHOD,
-                "z": NormalDist().inv_cdf(0.5 + confidence_level / 2.0),
+                "z": CALIBRATION_Z_95,
             },
             "non_target_script_char_rate": {"method": CONTINUOUS_INTERVAL_METHOD},
             "paragraph_len_tokens": {"method": CONTINUOUS_INTERVAL_METHOD},

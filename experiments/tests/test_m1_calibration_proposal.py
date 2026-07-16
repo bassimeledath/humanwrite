@@ -3,7 +3,7 @@ import json
 
 import pytest
 
-from experiments.m1.analysis import propose_calibration
+from experiments.m1.analysis import CALIBRATION_Z_95, propose_calibration
 from experiments.m1.contracts import M1ConfigError
 
 
@@ -15,6 +15,7 @@ def _write_jsonl(path, rows):
 
 
 def test_calibration_proposal_is_complete_and_byte_reproducible(tmp_path):
+    assert CALIBRATION_Z_95 == 1.959963984540054
     rows = []
     for index in range(32):
         completion = f"Human document {index}. A distinct sentence follows here."
@@ -54,7 +55,7 @@ def test_calibration_proposal_is_complete_and_byte_reproducible(tmp_path):
 
     assert first_hash == second_hash
     assert first == second
-    assert first["artifact_schema"] == "m1.calibration_proposal.review.v2"
+    assert first["artifact_schema"] == "m1.calibration_proposal.review.v3"
     assert first["sample_count"] == 32
     assert first["human_split_sha256"] == hashlib.sha256(human_path.read_bytes()).hexdigest()
     assert first["review_limitations"] == ["test limitation"]
@@ -69,6 +70,9 @@ def test_calibration_proposal_is_complete_and_byte_reproducible(tmp_path):
     assert repetition_interval["high"] == pytest.approx(0.15744263820012558)
     assert first["interval_methods"]["repeated_sentence_start_rate"]["method"] == (
         "Wilson score interval for binomial proportion"
+    )
+    assert first["interval_methods"]["repeated_sentence_start_rate"]["z"] == (
+        CALIBRATION_Z_95
     )
 
 
