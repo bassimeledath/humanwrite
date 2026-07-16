@@ -450,3 +450,42 @@ not complete M1.
 NEXT: Publish this accepted resolver batch. Only after successful publication,
 prepare and separately preregister the exact Qwen3-1.7B resolver derivative;
 do not launch it in this preparation batch.
+
+## [2026-07-16] M1 / resolver-prepare-qwen3-1p7b
+HYPOTHESIS: The separately preregistered Qwen3-1.7B resolver preparation is
+valid if it adds the exact non-evidentiary resolver derivative for
+`Qwen/Qwen3-1.7B`, preserves the fixed M1 data boundary, and records an
+append-only preregistration that pins canonical hash
+`c3cb91e5fa1c2f854f3e9307ec18c3129df15ab8963ee8de50cf04587608b0e9`,
+`smoke`, seeds `[11,29,47]`, requested revision `main`, and the rule that only
+the returned immutable 1.7B revision may unlock later SFT preparation. This
+depends on the accepted 0.6B resolver batch already being published and on the
+explorer memo's exact-derivative requirement.
+SETUP: Implementer-only preparation batch. Starting branch state was clean at
+published `491abffc1795834eded47f9b16c651f6c185153d`, matching local `HEAD`
+and `origin/agent/m1`. Added
+`configs/m1/m1_plumbing_revision_resolve_qwen3_1p7b_v1.yaml` as the exact
+derivative of `configs/m1/m1_plumbing_revision_resolve_qwen3_0p6b_v1.yaml`
+with only comparison ID, model base, and resolver placeholder changed.
+Canonical parsed-YAML hash was recomputed offline as
+`c3cb91e5fa1c2f854f3e9307ec18c3129df15ab8963ee8de50cf04587608b0e9`.
+Append-only preregistration was added through `ledger/ledger.py add` for
+comparison `M1-plumbing-revision-resolve-qwen3-1p7b`, embedding the exact hash,
+budget `smoke`, zero-token/non-evidentiary resolver scope, fixed train hash
+`c59c853cdc03c7378308c8f35baa874e0f484fa035d4297948c3f3b755afa1a6`, fixed dev
+hash `69dded207ccb2a7753666752ebcbdaee0e00260bf9848817979e50427bb2cf8b`,
+requested revision `main`, and the Qwen3-1.7B model boundary. No compute,
+`harness eval`, Tier 2, Tier 3, M2, or alternate route was used.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Exact 1.7B resolver derivative | PREPARED | New YAML changes only comparison ID, model base, and resolver placeholder from the accepted 0.6B resolver config. |
+| Canonical config hash | PREREGISTERED | Offline recomputation matched the required hash `c3cb91e5fa1c2f854f3e9307ec18c3129df15ab8963ee8de50cf04587608b0e9`. |
+| Unique preregistration row | PREREGISTERED | `ledger/ledger.py query --comparison M1-plumbing-revision-resolve-qwen3-1p7b` returns one open prereg row and no run rows. |
+| Compute and evaluation activity | NOT RUN | This batch submitted no job and ran no Tier-1/Tier-3 action. |
+| Protected and fixed surfaces | PRESERVED | No `harness/`, `sources/`, fixed data/manifests, sampler grid, or deployment/calibration files were mutated. |
+DECISION: keep this as a preparation-only append. It does not claim scientific
+acceptance, does not create a pass verdict, and does not authorize submission
+by itself.
+NEXT: Independent published-tip/hash/prereg verification before a single
+submit of `configs/m1/m1_plumbing_revision_resolve_qwen3_1p7b_v1.yaml`.

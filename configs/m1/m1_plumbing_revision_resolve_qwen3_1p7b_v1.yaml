@@ -1,0 +1,23 @@
+run:
+  comparison_id: M1-plumbing-revision-resolve-qwen3-1p7b
+  arm: SFT
+  budget_class: smoke
+  task_kind: experiment
+  command: [python, -m, experiments.runner]
+  seeds: [11, 29, 47]
+compute:
+  gpu: L4
+  gpus: 1
+  timeout_min: 20
+model:
+  base: Qwen/Qwen3-1.7B
+  revision: __M1_RESOLVE_QWEN3_1P7B_REVISION__
+  requested_revision: main
+data:
+  train_split_hash: c59c853cdc03c7378308c8f35baa874e0f484fa035d4297948c3f3b755afa1a6
+  dev_split_hash: 69dded207ccb2a7753666752ebcbdaee0e00260bf9848817979e50427bb2cf8b
+workflow:
+  protocol_version: m1.v1
+  step: resolve_revision
+  fixed_manifest: configs/m1/manifests/fixed_inputs_v1.json
+  revision_manifest: configs/m1/manifests/revision_placeholders_v1.json
