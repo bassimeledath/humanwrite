@@ -1,0 +1,35 @@
+{
+  "exclude_manifests": [
+    "data/artifacts/m0/train_manifest.json",
+    "data/artifacts/m0/dev_manifest.json",
+    "data/artifacts/m1/tier1_human_bank_v1.manifest.json"
+  ],
+  "output": {
+    "dev_source_path": ".swarmy/operator-materialized/m1-realdata-pilot-v1/dev_source.jsonl",
+    "manifest_path": "data/artifacts/m1/realdata_pilot_source_v1.manifest.json",
+    "train_source_path": ".swarmy/operator-materialized/m1-realdata-pilot-v1/train_source.jsonl"
+  },
+  "policy": {
+    "agent_visible_train_dev": true,
+    "hidden_test_materialized": false,
+    "purpose": "Low-cost M1 recovery pilot only; not promotion evidence",
+    "tier1_visible_bank_excluded_by_fingerprint_and_domain": true
+  },
+  "selection": {
+    "corpus_size": 320,
+    "dev_count": 64,
+    "eligible_pool_size": 1600,
+    "max_non_latin_letter_ratio": 0.02,
+    "max_word_count": 220,
+    "min_word_count": 80,
+    "selection_seed": "dftr-m1-realdata-pilot-selection-v1",
+    "split_seed": "dftr-m1-realdata-pilot-split-v1",
+    "stream_scan_limit": 50000
+  },
+  "source": {
+    "dataset_config": "CC-MAIN-2024-10",
+    "dataset_id": "HuggingFaceFW/fineweb",
+    "revision": "9bb295ddab0e05d785b879661af7260fed5140fc",
+    "split": "train"
+  }
+}

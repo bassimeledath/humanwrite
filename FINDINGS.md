@@ -1244,3 +1244,32 @@ NEXT: Preserve this negative M1 boundary, then preregister a cheap data-scale
 recovery experiment using real, disjoint training/dev documents. Require a
 small pilot to clear the same diversity and validity gates before authorizing
 the full 20–30K-brief synthesis or any larger-model spend.
+
+## [2026-07-16] M1 / realdata-pilot-source-preregistration
+HYPOTHESIS: Replacing the six-document synthetic fixture with a modest,
+domain-diverse real-FineWeb corpus will test whether data scale and realism,
+rather than sampler choice, caused the failed M1 SFT screen.
+SETUP: Preparation only. Preregistered a deterministic 320-document source
+selection from immutable FineWeb revision `9bb295dd...`, split into 256 train
+and 64 dev documents. Selection requires distinct domains, 80–220 words,
+target-script integrity, and fixed selection/split seeds. It excludes every
+M0 and visible Tier-1 bank fingerprint and also excludes their domains. The
+sealed evaluator remains a different domain/time slice and is not read or
+materialized. Source documents are staged outside Git and will be stored on
+the constrained Modal volume; only their hash-bound manifest is published.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Source config | PREREGISTERED | SHA `6ad65d3d40c52132fa326ed64a7a1ec4a5031abc6a93eafd320958f1edf7a776`; exact dataset/config/revision/split frozen. |
+| Selection cardinality | PREREGISTERED | 320 documents, 256 train / 64 dev, all domains distinct. |
+| Test-wall protection | PREREGISTERED | M0 and Tier-1 visible fingerprints/domains excluded; hidden Tier-2 data remains unavailable. |
+| Evidence scope | PREREGISTERED | Recovery pilot only; not promotion evidence and no detector/Tier-2 claim. |
+| Scale policy | PREREGISTERED | Qwen3-1.7B is required for the eventual pilot because the protocol marks 0.6B as plumbing-only. No 4B/14B or budget expansion. |
+| Verification | PASS | Seven focused source-selection/Tier-1-bank tests pass; deterministic split, exclusion, hash binding, and fail-closed domain scarcity are covered. |
+DECISION: keep this exact source selection and publish it before streaming any
+candidate records. Materialization does not authorize provider calls or GPU
+training; those receive separate hash-bound preregistrations after the source
+manifest exists.
+NEXT: Publish this preparation commit, materialize twice to prove byte-level
+reproducibility, upload the two source splits to the constrained volume, then
+preregister capped brief-synthesis jobs.
