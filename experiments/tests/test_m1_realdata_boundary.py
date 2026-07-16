@@ -7,7 +7,12 @@ from pathlib import Path
 import pytest
 
 from experiments.m1.contracts import M1ConfigError, file_sha256
-from experiments.m1.workflow import _load_fixed_manifest, _load_training_records
+from experiments.m1.workflow import (
+    _directional_dev_subset,
+    _load_fixed_manifest,
+    _load_sampler_grid,
+    _load_training_records,
+)
 
 
 def _write_jsonl(path: Path, rows: list[dict]) -> str:
@@ -87,3 +92,39 @@ def test_realdata_protocol_rejects_mutated_brief_bytes(tmp_path):
     train_path.write_text(train_path.read_text() + "\n", encoding="utf-8")
     with pytest.raises(M1ConfigError, match="briefs SHA-256"):
         _load_training_records(config, fixed)
+
+
+def test_directional_pilot_allows_only_one_default_sampler(tmp_path):
+    grid = {
+        "default_sampler_id": "default_t1.0_p1.0",
+        "points": [
+            {"id": "default_t1.0_p1.0", "temperature": 1.0, "top_p": 1.0, "do_sample": True}
+        ],
+    }
+    grid_path = tmp_path / "grid.json"
+    grid_path.write_text(json.dumps(grid), encoding="utf-8")
+    config = {
+        "workflow": {"protocol_version": "m1.realdata-pilot.v1"},
+        "sampling": {"stage": "directional_default", "sampler_grid": str(grid_path)},
+    }
+    assert _load_sampler_grid(config)["default_sampler_id"] == "default_t1.0_p1.0"
+
+    config["sampling"]["stage"] = "full"
+    with pytest.raises(M1ConfigError, match="exactly 5"):
+        _load_sampler_grid(config)
+
+
+def test_directional_pilot_binds_exact_16_record_subset():
+    records = [{"fingerprint": f"dev-{index:02}"} for index in range(64)]
+    fingerprints = [record["fingerprint"] for record in records[:16]]
+    subset_hash = hashlib.sha256("\n".join(sorted(fingerprints)).encode()).hexdigest()
+    config = {
+        "sampling": {
+            "dev_subset_fingerprints": fingerprints,
+            "dev_subset_hash": subset_hash,
+        }
+    }
+    assert _directional_dev_subset(config, records) == records[:16]
+    config["sampling"]["dev_subset_hash"] = "0" * 64
+    with pytest.raises(M1ConfigError, match="subset hash"):
+        _directional_dev_subset(config, records)

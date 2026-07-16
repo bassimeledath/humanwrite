@@ -466,7 +466,15 @@ def _load_checkpoint_index(config: dict[str, Any]) -> list[dict[str, Any]]:
     manifest_path = sampling.get("checkpoints_manifest")
     if not manifest_path or is_placeholder(manifest_path):
         raise M1ConfigError("sampling.checkpoints_manifest must point to a resolved checkpoint manifest")
-    manifest = read_structured(resolve_repo_path(str(manifest_path)))
+    resolved_manifest = resolve_repo_path(str(manifest_path))
+    manifest = read_structured(resolved_manifest)
+    realdata_pilot = str((config.get("workflow") or {}).get("protocol_version")) == "m1.realdata-pilot.v1"
+    if realdata_pilot:
+        ensure_fixed_hash(
+            file_sha256(resolved_manifest),
+            expected=str(sampling.get("checkpoints_manifest_sha256") or ""),
+            field_name="real-data checkpoint manifest SHA-256",
+        )
     model_config = config.get("model") or {}
     expected_base = str(model_config.get("base", ""))
     expected_revision = require_resolved_revision(config, context="M1 checkpoint manifest")
@@ -484,6 +492,17 @@ def _load_checkpoint_index(config: dict[str, Any]) -> list[dict[str, Any]]:
     checkpoints = manifest.get("checkpoints")
     if not isinstance(checkpoints, list) or not checkpoints:
         raise M1ConfigError("checkpoint manifest must contain a non-empty checkpoints list")
+    if realdata_pilot:
+        if [int(row.get("seed", -1)) for row in checkpoints] != [11, 29, 47]:
+            raise M1ConfigError("real-data checkpoint seeds must be [11, 29, 47]")
+        adapter_hashes = [
+            str((row.get("checkpoint_files") or {}).get("adapter_model.safetensors") or "")
+            for row in checkpoints
+        ]
+        if any(len(value) != 64 for value in adapter_hashes) or len(set(adapter_hashes)) != 3:
+            raise M1ConfigError("real-data checkpoint adapter hashes must be present and distinct")
+        if any(int(row.get("train_tokens", 0)) <= 0 for row in checkpoints):
+            raise M1ConfigError("real-data checkpoints require positive train_tokens")
     return checkpoints
 
 
@@ -494,8 +513,15 @@ def _load_sampler_grid(config: dict[str, Any]) -> dict[str, Any]:
         raise M1ConfigError("sampling.sampler_grid is required")
     manifest = read_structured(resolve_repo_path(str(grid_path)))
     points = manifest.get("points")
-    if not isinstance(points, list) or len(points) != 5:
-        raise M1ConfigError("sampler grid must contain exactly five points")
+    workflow = config.get("workflow") or {}
+    sampling_stage = str(sampling.get("stage") or "")
+    directional_pilot = (
+        workflow.get("protocol_version") == "m1.realdata-pilot.v1"
+        and sampling_stage == "directional_default"
+    )
+    expected_points = 1 if directional_pilot else 5
+    if not isinstance(points, list) or len(points) != expected_points:
+        raise M1ConfigError(f"sampler grid must contain exactly {expected_points} points")
     default_points = [point for point in points if float(point.get("temperature", -1)) == 1.0 and float(point.get("top_p", -1)) == 1.0]
     if len(default_points) != 1:
         raise M1ConfigError("sampler grid must contain exactly one default point at temperature=1.0, top_p=1.0")
@@ -589,6 +615,31 @@ def _has_tokenizer_files(checkpoint_dir: Path) -> bool:
     return any((checkpoint_dir / name).is_file() for name in tokenizer_files)
 
 
+def _directional_dev_subset(
+    config: dict[str, Any], dev_records: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    requested_fingerprints = list(
+        (config.get("sampling") or {}).get("dev_subset_fingerprints") or []
+    )
+    if len(requested_fingerprints) != 16 or len(set(requested_fingerprints)) != 16:
+        raise M1ConfigError("directional pilot requires exactly 16 unique dev fingerprints")
+    dev_index = {str(record.get("fingerprint") or ""): record for record in dev_records}
+    if any(fingerprint not in dev_index for fingerprint in requested_fingerprints):
+        raise M1ConfigError("directional pilot fingerprint is absent from fixed dev briefs")
+    observed_subset_hash = hashlib.sha256(
+        "\n".join(sorted(requested_fingerprints)).encode("utf-8")
+    ).hexdigest()
+    ensure_fixed_hash(
+        observed_subset_hash,
+        expected=str((config.get("sampling") or {}).get("dev_subset_hash") or ""),
+        field_name="directional pilot dev subset hash",
+    )
+    requested = set(requested_fingerprints)
+    return [
+        record for record in dev_records if str(record.get("fingerprint") or "") in requested
+    ]
+
+
 def _sample_sweep(config: dict[str, Any], run_id: str) -> dict[str, Any]:
     fixed_manifest = _load_fixed_manifest(config)
     output_dir, checkpoint_dir = build_run_paths(config, run_id)
@@ -612,6 +663,11 @@ def _sample_sweep(config: dict[str, Any], run_id: str) -> dict[str, Any]:
     if sampling_seeds != [101, 202, 303]:
         raise M1ConfigError(f"M1 sampling seeds must be [101, 202, 303], found {sampling_seeds}")
     _, dev_records = _load_training_records(config, fixed_manifest)
+    if (
+        str((config.get("workflow") or {}).get("protocol_version")) == "m1.realdata-pilot.v1"
+        and str((config.get("sampling") or {}).get("stage")) == "directional_default"
+    ):
+        dev_records = _directional_dev_subset(config, dev_records)
     index_rows = []
     total_generated_tokens = 0
     for checkpoint in checkpoints:

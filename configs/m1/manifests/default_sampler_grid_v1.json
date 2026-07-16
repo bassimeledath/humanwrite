@@ -1,0 +1,12 @@
+{
+  "default_sampler_id": "default_t1.0_p1.0",
+  "points": [
+    {
+      "do_sample": true,
+      "id": "default_t1.0_p1.0",
+      "temperature": 1.0,
+      "top_p": 1.0
+    }
+  ],
+  "protocol_version": "m1.directional_default_sampler_grid.v1"
+}

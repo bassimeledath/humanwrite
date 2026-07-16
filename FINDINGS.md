@@ -1481,3 +1481,31 @@ DECISION: keep as the mandatory mechanical bridge to SFT. Do not generate or
 publish a concrete config until the real source and brief validator passes.
 NEXT: Continue host recovery monitoring; after dev/train synthesis validation,
 generate, publish, preregister, and budget-check this exact SFT config.
+
+## [2026-07-16] M1 / directional-sampler-preparation
+HYPOTHESIS: Before spending on a complete five-sampler sweep over 64 dev
+records, a default-sampler directional screen over a fixed 16-record subset
+can test whether real-data SFT improved the hard-gate failure while preserving
+all three training and three sampling seeds.
+SETUP: Preparation only. Added a one-point default sampler grid admitted only
+for `m1.realdata-pilot.v1` stage `directional_default`. The mechanical builder
+validates the eventual three-seed checkpoint manifest, distinct adapter hashes,
+positive train tokens, model revision, fixed dev brief SHA, and exactly 64 dev
+records; it then rank-selects and publishes 16 fixed fingerprints and emits a
+hash-bound sampler config. The GPU worker independently rechecks checkpoint
+manifest SHA/seeds/adapters/tokens and exact subset membership/hash.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Directional design | PREREGISTERED STRUCTURE | `3` training seeds × `3` sampling seeds × `1` default sampler × `16` docs = `144` generated documents. |
+| Cost containment | PASS | Avoids the premature `3×3×5×64 = 2,880`-document full sweep; full sampler selection remains conditional on directional evidence. |
+| Seed evidence | PASS | Training-seed and independent sampling-seed variance are both retained. |
+| Legacy/full grid | UNCHANGED | All non-directional paths still require exactly five sampler points. |
+| Worker provenance | PASS | Checkpoint manifest bytes, seeds, distinct adapters, train tokens, dev membership, and subset hash are revalidated before generation. |
+| Verification | PASS | Combined data and experiment suite passes `35/35`. |
+DECISION: keep as the first post-SFT evidence run. It is directional screening,
+not deployment sampler freeze, Tier-2 evidence, or promotion. Advance to the
+five-point screen only if the default sampler shows meaningful hard-gate and
+distributional improvement versus the failed tiny-data baseline.
+NEXT: Continue source recovery; later generate this config mechanically from
+the real validated briefs and completed checkpoint manifest.
