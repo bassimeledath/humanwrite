@@ -40,6 +40,17 @@ S = w1*z(semantic_MMD) + w2*z(lexical_L2) + w3*z(structural_dist)
 - repeated_sentence_start_rate is the fraction of documents containing at
   least three consecutive sentences whose first lexical word is identical,
   case-insensitive (Rosmine-disclosed definition; ~0.174 in its human corpus).
+- Calibration intervals are metric-specific (frozen 2026-07-16). For
+  repeated_sentence_start_rate, each document is one Bernoulli trial and the
+  two-sided 95% Wilson score interval is used. With p_hat=x/n,
+  z=Phi^-1(0.975), denominator d=1+z^2/n, center
+  c=(p_hat+z^2/(2n))/d, and half-width
+  h=(z/d)*sqrt(p_hat*(1-p_hat)/n+z^2/(4n^2)); bounds are
+  [max(0,c-h), min(1,c+h)]. Self-BLEU, per-document non-target-script rate,
+  and pooled paragraph/sentence token lengths retain deterministic central
+  order-statistic intervals at 95% confidence. A model repetition rate below
+  the Wilson human lower bound fails; zero is not treated as automatically
+  desirable.
 
 ## Secondary (report, do not gate on point values)
 - quality_pref: judge win rate vs human, non-inferiority framing, order

@@ -6,6 +6,7 @@ import json
 import math
 from pathlib import Path
 import random
+from statistics import NormalDist
 import sys
 from typing import Any
 
@@ -18,6 +19,27 @@ if str(HARNESS_SRC) not in sys.path:
     sys.path.insert(0, str(HARNESS_SRC))
 
 from harness.metrics import validity  # noqa: E402
+
+
+CONTINUOUS_INTERVAL_METHOD = "deterministic central order-statistic interval"
+REPETITION_INTERVAL_METHOD = "Wilson score interval for binomial proportion"
+
+
+def _wilson_interval(successes: int, trials: int, confidence_level: float) -> dict[str, float]:
+    if trials <= 0 or successes < 0 or successes > trials:
+        raise M1ConfigError("Wilson interval requires 0 <= successes <= positive trials")
+    if not 0.0 < confidence_level < 1.0:
+        raise M1ConfigError("Wilson interval confidence level must lie in (0, 1)")
+    z = NormalDist().inv_cdf(0.5 + confidence_level / 2.0)
+    proportion = successes / trials
+    z_squared = z * z
+    denominator = 1.0 + z_squared / trials
+    center = (proportion + z_squared / (2.0 * trials)) / denominator
+    half_width = (z / denominator) * math.sqrt(
+        proportion * (1.0 - proportion) / trials
+        + z_squared / (4.0 * trials * trials)
+    )
+    return {"low": max(0.0, center - half_width), "high": min(1.0, center + half_width)}
 
 
 def _display_path(path: Path) -> str:
@@ -262,6 +284,13 @@ def propose_calibration(config_path: str) -> dict[str, Any]:
     resampling_seeds = list(settings.get("resampling_seeds") or [])
     if not resampling_seeds:
         raise M1ConfigError("interval_settings.resampling_seeds is required")
+    configured_methods = settings.get("metric_methods") or {}
+    expected_methods = {
+        "continuous": CONTINUOUS_INTERVAL_METHOD,
+        "repeated_sentence_start_rate": REPETITION_INTERVAL_METHOD,
+    }
+    if configured_methods != expected_methods:
+        raise M1ConfigError("interval_settings.metric_methods does not match frozen methods")
 
     def interval(values: list[float]) -> dict[str, float]:
         ordered = sorted(values)
@@ -274,6 +303,7 @@ def propose_calibration(config_path: str) -> dict[str, Any]:
     def summarize(selected_texts: list[str]) -> dict[str, Any]:
         script_rates = [validity.non_target_script_char_rate(text) for text in selected_texts]
         repetition_rates = [validity.repeated_sentence_start_rate([text]) for text in selected_texts]
+        repetition_successes = int(sum(repetition_rates))
         individual_bleu = []
         paragraph_lengths: list[int] = []
         sentence_lengths: list[int] = []
@@ -302,12 +332,20 @@ def propose_calibration(config_path: str) -> dict[str, Any]:
             },
             "intervals": {
                 "self_bleu": interval(individual_bleu),
-                "repeated_sentence_start_rate": interval(repetition_rates),
+                "repeated_sentence_start_rate": _wilson_interval(
+                    repetition_successes, len(repetition_rates), confidence_level
+                ),
                 "non_target_script_char_rate": interval(script_rates),
                 "paragraph_len_tokens": interval(
                     [float(value) for value in paragraph_lengths]
                 ),
                 "sentence_len_tokens": interval([float(value) for value in sentence_lengths]),
+            },
+            "metric_counts": {
+                "repeated_sentence_start_rate": {
+                    "successes": repetition_successes,
+                    "trials": len(repetition_rates),
+                }
             },
         }
 
@@ -334,6 +372,7 @@ def propose_calibration(config_path: str) -> dict[str, Any]:
                 "subset_hash": hashlib.sha256(subset_payload).hexdigest(),
                 "subset_point_estimates": subset_summary["point_estimates"],
                 "subset_intervals": subset_summary["intervals"],
+                "subset_metric_counts": subset_summary["metric_counts"],
             }
         )
 
@@ -365,14 +404,24 @@ def propose_calibration(config_path: str) -> dict[str, Any]:
             "python -m experiments.m1.analysis calibration-proposal --config "
             + _display_path(resolved_config_path)
         ),
-        "artifact_schema": "m1.calibration_proposal.review.v1",
+        "artifact_schema": "m1.calibration_proposal.review.v2",
         "config_path": _display_path(resolved_config_path),
         "config_sha256": file_sha256(resolved_config_path),
         "human_split_path": _display_path(human_split_path),
         "human_split_sha256": human_split_sha256,
         "point_estimates": full_summary["point_estimates"],
         "intervals": full_summary["intervals"],
-        "interval_method": "deterministic central quantile interval",
+        "metric_counts": full_summary["metric_counts"],
+        "interval_methods": {
+            "self_bleu": {"method": CONTINUOUS_INTERVAL_METHOD},
+            "repeated_sentence_start_rate": {
+                "method": REPETITION_INTERVAL_METHOD,
+                "z": NormalDist().inv_cdf(0.5 + confidence_level / 2.0),
+            },
+            "non_target_script_char_rate": {"method": CONTINUOUS_INTERVAL_METHOD},
+            "paragraph_len_tokens": {"method": CONTINUOUS_INTERVAL_METHOD},
+            "sentence_len_tokens": {"method": CONTINUOUS_INTERVAL_METHOD},
+        },
         "confidence_level": confidence_level,
         "sample_count": len(records),
         "split_hashes": load_fixed_split_hashes(),

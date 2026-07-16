@@ -1,10 +1,19 @@
 {
-  "artifact_schema": "harness.calibration.v1",
+  "artifact_schema": "harness.calibration.v2",
   "frozen": false,
   "_comment": "Human-calibrated RANGES from real human FineWeb subsets. Built in M1 via `harness calibrate`. Targets are intervals; below the floor is failure, not success.",
   "self_bleu": {"low": null, "high": null},
   "repeated_sentence_start_rate": {"low": null, "high": null, "note": "~0.174 in Rosmine human corpus"},
   "non_target_script_char_rate": {"low": 0.0, "high": null},
   "paragraph_len_tokens": {"low": null, "high": null},
-  "sentence_len_tokens": {"low": null, "high": null}
+  "sentence_len_tokens": {"low": null, "high": null},
+  "metric_counts": {"repeated_sentence_start_rate": {"successes": null, "trials": null}},
+  "interval_methods": {
+    "self_bleu": {"method": "deterministic central order-statistic interval"},
+    "repeated_sentence_start_rate": {"method": "Wilson score interval for binomial proportion", "z": 1.9599639845400536},
+    "non_target_script_char_rate": {"method": "deterministic central order-statistic interval"},
+    "paragraph_len_tokens": {"method": "deterministic central order-statistic interval"},
+    "sentence_len_tokens": {"method": "deterministic central order-statistic interval"}
+  },
+  "confidence_level": 0.95
 }

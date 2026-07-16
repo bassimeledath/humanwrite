@@ -9,6 +9,7 @@ import os
 import re
 import string
 import sys
+from statistics import NormalDist
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Optional
@@ -28,6 +29,9 @@ DEPLOYMENT_SAMPLER_PATH = HARNESS_DIR / "deployment_sampler.json"
 DEV_EMBEDDER_ID = "BAAI/bge-small-en-v1.5"
 WEIGHTS = (0.50, 0.25, 0.25)
 NON_INFERIORITY_MARGIN = 0.05
+CALIBRATION_CONFIDENCE_LEVEL = 0.95
+CONTINUOUS_INTERVAL_METHOD = "deterministic central order-statistic interval"
+REPETITION_INTERVAL_METHOD = "Wilson score interval for binomial proportion"
 _CONFIG_NAMES = ("train_config.yaml", "train_config.yml", "train_config.json", "config.yaml", "config.yml", "config.json")
 _TEXT_KEYS = ("generated_completion", "generated_text", "output", "text", "completion")
 
@@ -578,7 +582,26 @@ def _baseline_ready(baseline):
 
 
 def _calibration_ready(calibration):
-    if calibration.get("frozen") is not True:
+    if (
+        calibration.get("artifact_schema") != "harness.calibration.v2"
+        or calibration.get("frozen") is not True
+    ):
+        return False
+    methods = calibration.get("interval_methods") or {}
+    if any(
+        (methods.get(name) or {}).get("method") != CONTINUOUS_INTERVAL_METHOD
+        for name in (
+            "self_bleu",
+            "non_target_script_char_rate",
+            "paragraph_len_tokens",
+            "sentence_len_tokens",
+        )
+    ):
+        return False
+    if (
+        (methods.get("repeated_sentence_start_rate") or {}).get("method")
+        != REPETITION_INTERVAL_METHOD
+    ):
         return False
     for name in ("self_bleu", "repeated_sentence_start_rate", "non_target_script_char_rate"):
         section = calibration.get(name)
@@ -720,7 +743,12 @@ def calibrate(human_split_jsonl: str) -> dict:
         sentence_lengths.extend(len(validity._tokens(sentence)) for sentence in validity._sentences(text))
 
     def interval(values):
-        return {"low": float(np.quantile(values, 0.025)), "high": float(np.quantile(values, 0.975))}
+        ordered = sorted(float(value) for value in values)
+        low_q = (1.0 - CALIBRATION_CONFIDENCE_LEVEL) / 2.0
+        high_q = 1.0 - low_q
+        low_index = min(len(ordered) - 1, max(0, int(low_q * (len(ordered) - 1))))
+        high_index = min(len(ordered) - 1, max(0, int(high_q * (len(ordered) - 1))))
+        return {"low": ordered[low_index], "high": ordered[high_index]}
 
     def length_interval(values):
         if not values:
@@ -728,14 +756,24 @@ def calibrate(human_split_jsonl: str) -> dict:
         return interval(values)
 
     result = {
-        "artifact_schema": "harness.calibration.v1",
+        "artifact_schema": "harness.calibration.v2",
         "frozen": True,
         "_comment": "Human-calibrated ranges from the supplied canonical human split.",
         "self_bleu": interval(individual_bleu),
-        "repeated_sentence_start_rate": interval(repetition_rates),
+        "repeated_sentence_start_rate": _wilson_interval(
+            int(sum(repetition_rates)), len(repetition_rates), CALIBRATION_CONFIDENCE_LEVEL
+        ),
         "non_target_script_char_rate": interval(script_rates),
         "paragraph_len_tokens": length_interval(paragraph_lengths),
         "sentence_len_tokens": length_interval(sentence_lengths),
+        "metric_counts": {
+            "repeated_sentence_start_rate": {
+                "successes": int(sum(repetition_rates)),
+                "trials": len(repetition_rates),
+            }
+        },
+        "interval_methods": _calibration_interval_methods(CALIBRATION_CONFIDENCE_LEVEL),
+        "confidence_level": CALIBRATION_CONFIDENCE_LEVEL,
     }
     CALIBRATION_PATH.write_text(json.dumps(result, indent=2, allow_nan=False) + "\n", encoding="utf-8")
     return result
@@ -750,6 +788,36 @@ def _validated_interval(value, field_name):
     return {"low": low, "high": high}
 
 
+def _wilson_interval(successes: int, trials: int, confidence_level: float) -> dict[str, float]:
+    if trials <= 0 or successes < 0 or successes > trials:
+        raise ValueError("Wilson interval requires 0 <= successes <= positive trials")
+    if not 0.0 < confidence_level < 1.0:
+        raise ValueError("Wilson interval confidence level must lie in (0, 1)")
+    z = NormalDist().inv_cdf(0.5 + confidence_level / 2.0)
+    proportion = successes / trials
+    z_squared = z * z
+    denominator = 1.0 + z_squared / trials
+    center = (proportion + z_squared / (2.0 * trials)) / denominator
+    half_width = (z / denominator) * math.sqrt(
+        proportion * (1.0 - proportion) / trials
+        + z_squared / (4.0 * trials * trials)
+    )
+    return {"low": max(0.0, center - half_width), "high": min(1.0, center + half_width)}
+
+
+def _calibration_interval_methods(confidence_level):
+    return {
+        "self_bleu": {"method": CONTINUOUS_INTERVAL_METHOD},
+        "repeated_sentence_start_rate": {
+            "method": REPETITION_INTERVAL_METHOD,
+            "z": NormalDist().inv_cdf(0.5 + confidence_level / 2.0),
+        },
+        "non_target_script_char_rate": {"method": CONTINUOUS_INTERVAL_METHOD},
+        "paragraph_len_tokens": {"method": CONTINUOUS_INTERVAL_METHOD},
+        "sentence_len_tokens": {"method": CONTINUOUS_INTERVAL_METHOD},
+    }
+
+
 def prepare_calibration_transfer(proposal_path: str, expected_sha256: str) -> dict:
     """Validate a reviewed M1 proposal and emit exact immutable harness bytes."""
     path = Path(proposal_path)
@@ -757,11 +825,15 @@ def prepare_calibration_transfer(proposal_path: str, expected_sha256: str) -> di
     if actual_sha256 != str(expected_sha256):
         raise ValueError("calibration proposal SHA-256 does not match operator-reviewed bytes")
     proposal = _read_structured(path)
+    if proposal.get("artifact_schema") != "m1.calibration_proposal.review.v2":
+        raise ValueError("unsupported calibration proposal schema")
     required = {
         "artifact_schema",
         "human_split_sha256",
         "sample_count",
-        "interval_method",
+        "point_estimates",
+        "interval_methods",
+        "metric_counts",
         "confidence_level",
         "intervals",
         "split_hashes",
@@ -770,17 +842,41 @@ def prepare_calibration_transfer(proposal_path: str, expected_sha256: str) -> di
     }
     if not required.issubset(proposal):
         raise ValueError("calibration proposal is missing transfer-contract fields")
-    if proposal["artifact_schema"] != "m1.calibration_proposal.review.v1":
-        raise ValueError("unsupported calibration proposal schema")
     if int(proposal["sample_count"]) < 2:
         raise ValueError("calibration proposal requires at least two unique human documents")
-    if proposal["interval_method"] != "deterministic central quantile interval":
-        raise ValueError("calibration proposal interval method is not preregistered")
-    if float(proposal["confidence_level"]) != 0.95:
+    if float(proposal["confidence_level"]) != CALIBRATION_CONFIDENCE_LEVEL:
         raise ValueError("calibration proposal confidence level must be 0.95")
     if not proposal["resampling_seeds"] or not proposal["review_limitations"]:
         raise ValueError("calibration proposal lacks reproducibility/limitation evidence")
     intervals = proposal["intervals"]
+    expected_methods = _calibration_interval_methods(CALIBRATION_CONFIDENCE_LEVEL)
+    if proposal["interval_methods"] != expected_methods:
+        raise ValueError("calibration proposal metric-specific interval methods are invalid")
+    repetition_counts = (proposal.get("metric_counts") or {}).get(
+        "repeated_sentence_start_rate"
+    ) or {}
+    successes, trials = repetition_counts.get("successes"), repetition_counts.get("trials")
+    if isinstance(successes, bool) or isinstance(trials, bool):
+        raise ValueError("calibration proposal repetition counts must be integers")
+    if not isinstance(successes, int) or not isinstance(trials, int):
+        raise ValueError("calibration proposal repetition counts must be integers")
+    if trials != int(proposal["sample_count"]):
+        raise ValueError("calibration proposal repetition trial count must equal sample_count")
+    point = float((proposal.get("point_estimates") or {}).get("repeated_sentence_start_rate"))
+    if not math.isclose(point, successes / trials, rel_tol=0.0, abs_tol=1e-15):
+        raise ValueError("calibration proposal repetition point estimate disagrees with counts")
+    expected_repetition_interval = _wilson_interval(
+        successes, trials, CALIBRATION_CONFIDENCE_LEVEL
+    )
+    actual_repetition_interval = _validated_interval(
+        intervals.get("repeated_sentence_start_rate"),
+        "intervals.repeated_sentence_start_rate",
+    )
+    if any(
+        not math.isclose(actual_repetition_interval[key], expected_repetition_interval[key], rel_tol=0.0, abs_tol=1e-15)
+        for key in ("low", "high")
+    ):
+        raise ValueError("calibration proposal repetition interval is not the Wilson interval")
     names = (
         "self_bleu",
         "repeated_sentence_start_rate",
@@ -789,12 +885,13 @@ def prepare_calibration_transfer(proposal_path: str, expected_sha256: str) -> di
         "sentence_len_tokens",
     )
     target = {
-        "artifact_schema": "harness.calibration.v1",
+        "artifact_schema": "harness.calibration.v2",
         "frozen": True,
         "source_proposal_sha256": actual_sha256,
         "source_human_split_sha256": str(proposal["human_split_sha256"]),
         "source_sample_count": int(proposal["sample_count"]),
-        "interval_method": proposal["interval_method"],
+        "interval_methods": expected_methods,
+        "metric_counts": proposal["metric_counts"],
         "confidence_level": float(proposal["confidence_level"]),
         "split_hashes": proposal["split_hashes"],
         "resampling_seeds": [int(seed) for seed in proposal["resampling_seeds"]],

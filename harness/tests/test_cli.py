@@ -151,7 +151,9 @@ def test_evaluate_offline_with_inline_references(tmp_path, monkeypatch):
     calibration.write_text(
         json.dumps(
             {
+                "artifact_schema": "harness.calibration.v2",
                 "frozen": True,
+                "interval_methods": cli._calibration_interval_methods(0.95),
                 "self_bleu": {"low": 0.0, "high": 1.0},
                 "repeated_sentence_start_rate": {"low": 0.0, "high": 1.0},
                 "non_target_script_char_rate": {"low": 0.0, "high": 0.1},
@@ -197,7 +199,9 @@ def test_evaluate_builds_fresh_probe_when_none_is_injected(tmp_path, monkeypatch
     calibration.write_text(
         json.dumps(
             {
+                "artifact_schema": "harness.calibration.v2",
                 "frozen": True,
+                "interval_methods": cli._calibration_interval_methods(0.95),
                 "self_bleu": {"low": 0.0, "high": 1.0},
                 "repeated_sentence_start_rate": {"low": 0.0, "high": 1.0},
                 "non_target_script_char_rate": {"low": 0.0, "high": 1.0},
@@ -259,7 +263,9 @@ def test_checkpoint_generation_uses_frozen_canonical_prompt_bank(tmp_path, monke
     calibration.write_text(
         json.dumps(
             {
+                "artifact_schema": "harness.calibration.v2",
                 "frozen": True,
+                "interval_methods": cli._calibration_interval_methods(0.95),
                 "self_bleu": {"low": 0.0, "high": 1.0},
                 "repeated_sentence_start_rate": {"low": 0.0, "high": 1.0},
                 "non_target_script_char_rate": {"low": 0.0, "high": 1.0},
@@ -344,7 +350,9 @@ def test_checkpoint_prefers_existing_samples_over_generator(tmp_path, monkeypatc
     calibration.write_text(
         json.dumps(
             {
+                "artifact_schema": "harness.calibration.v2",
                 "frozen": True,
+                "interval_methods": cli._calibration_interval_methods(0.95),
                 "self_bleu": {"low": 0.0, "high": 1.0},
                 "repeated_sentence_start_rate": {"low": 0.0, "high": 1.0},
                 "non_target_script_char_rate": {"low": 0.0, "high": 1.0},
@@ -486,14 +494,44 @@ def test_inline_two_human_rows_fail_with_precise_external_bank_gate(monkeypatch)
         cli._human_records(rows)
 
 
-def test_current_m1_calibration_proposal_has_exact_operator_transfer():
+def test_rejected_v1_calibration_proposal_cannot_transfer():
     root = Path(__file__).resolve().parents[2]
     proposal = root / "experiments" / "m1" / "calibration_proposal_v1.json"
     expected = "d8cfe3bdc1825f8c03717ceb78bb79efd022d9dc1a7a3ce706039cc4da2f3c48"
-    target = cli.prepare_calibration_transfer(proposal, expected)
-    source = json.loads(proposal.read_text())
+    with pytest.raises(ValueError, match="unsupported"):
+        cli.prepare_calibration_transfer(proposal, expected)
+
+
+def test_v2_calibration_transfer_preserves_metric_methods_and_wilson_evidence(tmp_path):
+    repetition_interval = cli._wilson_interval(1, 32, 0.95)
+    proposal_value = {
+        "artifact_schema": "m1.calibration_proposal.review.v2",
+        "human_split_sha256": "human-bank-sha",
+        "sample_count": 32,
+        "point_estimates": {"repeated_sentence_start_rate": 1 / 32},
+        "interval_methods": cli._calibration_interval_methods(0.95),
+        "metric_counts": {
+            "repeated_sentence_start_rate": {"successes": 1, "trials": 32}
+        },
+        "confidence_level": 0.95,
+        "intervals": {
+            "self_bleu": {"low": 0.01, "high": 0.2},
+            "repeated_sentence_start_rate": repetition_interval,
+            "non_target_script_char_rate": {"low": 0.0, "high": 0.01},
+            "paragraph_len_tokens": {"low": 3.0, "high": 80.0},
+            "sentence_len_tokens": {"low": 2.0, "high": 30.0},
+        },
+        "split_hashes": {"train": "train", "dev": "dev"},
+        "resampling_seeds": [404, 505, 606],
+        "review_limitations": ["visible-bank limitation"],
+    }
+    proposal = tmp_path / "proposal-v2.json"
+    proposal.write_text(json.dumps(proposal_value))
+    target = cli.prepare_calibration_transfer(proposal, cli._file_sha256(proposal))
     assert target["frozen"] is True
-    assert target["source_proposal_sha256"] == expected
+    assert target["artifact_schema"] == "harness.calibration.v2"
+    assert target["interval_methods"] == proposal_value["interval_methods"]
+    assert target["metric_counts"] == proposal_value["metric_counts"]
     for name in (
         "self_bleu",
         "repeated_sentence_start_rate",
@@ -501,7 +539,35 @@ def test_current_m1_calibration_proposal_has_exact_operator_transfer():
         "paragraph_len_tokens",
         "sentence_len_tokens",
     ):
-        assert target[name] == source["intervals"][name]
+        assert target[name] == proposal_value["intervals"][name]
+
+
+def test_v2_calibration_transfer_rejects_old_zero_width_repetition_interval(tmp_path):
+    proposal = {
+        "artifact_schema": "m1.calibration_proposal.review.v2",
+        "human_split_sha256": "human-bank-sha",
+        "sample_count": 32,
+        "point_estimates": {"repeated_sentence_start_rate": 1 / 32},
+        "interval_methods": cli._calibration_interval_methods(0.95),
+        "metric_counts": {
+            "repeated_sentence_start_rate": {"successes": 1, "trials": 32}
+        },
+        "confidence_level": 0.95,
+        "intervals": {
+            "self_bleu": {"low": 0.01, "high": 0.2},
+            "repeated_sentence_start_rate": {"low": 0.0, "high": 0.0},
+            "non_target_script_char_rate": {"low": 0.0, "high": 0.01},
+            "paragraph_len_tokens": {"low": 3.0, "high": 80.0},
+            "sentence_len_tokens": {"low": 2.0, "high": 30.0},
+        },
+        "split_hashes": {"train": "train", "dev": "dev"},
+        "resampling_seeds": [404, 505, 606],
+        "review_limitations": ["visible-bank limitation"],
+    }
+    path = tmp_path / "bad-proposal.json"
+    path.write_text(json.dumps(proposal))
+    with pytest.raises(ValueError, match="Wilson"):
+        cli.prepare_calibration_transfer(path, cli._file_sha256(path))
 
 
 def test_calibration_transfer_rejects_unreviewed_bytes(tmp_path):

@@ -1,0 +1,26 @@
+{
+  "human_split_path": "data/artifacts/m1/tier1_human_bank_v1.jsonl",
+  "human_manifest_path": "data/artifacts/m1/tier1_human_bank_v1.manifest.json",
+  "minimum_human_records": 4,
+  "interval_settings": {
+    "confidence_level": 0.95,
+    "resampling_seeds": [
+      404,
+      505,
+      606
+    ],
+    "subset_fraction": 0.8,
+    "metric_methods": {
+      "continuous": "deterministic central order-statistic interval",
+      "repeated_sentence_start_rate": "Wilson score interval for binomial proportion"
+    }
+  },
+  "output_path": "experiments/m1/calibration_proposal_visible_bank_v2.json",
+  "provenance_note": "Visible public FineWeb Tier-1 human bank only; no generated outputs or hidden-test data.",
+  "review_limitations": [
+    "This calibration proposal describes the frozen visible Tier-1 human bank and is not a population-level estimate.",
+    "The 32-document bank is domain-diverse but selected from one pinned Common Crawl snapshot.",
+    "Repetition incidence uses a 95% Wilson binomial interval; continuous metrics use deterministic central order-statistic intervals.",
+    "Values are not active until separately reviewed and transferred into immutable harness/calibration.json."
+  ]
+}
