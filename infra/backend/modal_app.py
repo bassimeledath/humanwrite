@@ -30,7 +30,12 @@ from .policy import (
     validate_launch,
 )
 from .source_materializer import materialize_rows
-from .brief_contract import exact_empty_outline_ids, record_id, validate_brief
+from .brief_contract import (
+    brief_response_format,
+    exact_empty_outline_ids,
+    record_id,
+    validate_brief,
+)
 from .volume_paths import checkpoint_volume_path
 
 
@@ -356,14 +361,22 @@ def source_materialization_worker(run_id: str, payload: dict) -> dict:
         return {"run_id": run_id, "status": status, "records_processed": 0}
 
 
-def _brief_prompt(source_text: str) -> str:
+def _brief_prompt(source_text: str, *, force_empty_outline: bool) -> str:
+    outline_instruction = (
+        "For this record, outline must be the empty list []. "
+        if force_empty_outline
+        else "For this record, outline must contain at least one section. "
+    )
     return (
         "Convert the supplied human web document into the disclosed DFT training brief. "
         "Return one JSON object only with keys user_prompt, use_case, style_kind, style, "
         "detail_mode, target_length, em_dashes_allowed, and outline. outline is a list of "
         "objects with section, supported_facts, and quotations. Every fact and quote must "
         "be traceable to the document; do not invent facts. target_length is an integer token "
-        "estimate. detail_mode must be strict or creative.\n\nDOCUMENT:\n" + source_text
+        "estimate. detail_mode must be strict or creative. "
+        + outline_instruction
+        + "Return no prose or Markdown outside the JSON object.\n\nDOCUMENT:\n"
+        + source_text
     )
 
 
@@ -460,10 +473,20 @@ def brief_synthesis_worker(run_id: str, payload: dict) -> dict:
                             },
                             json={
                                 "model": model,
-                                "messages": [{"role": "user", "content": _brief_prompt(text[:120_000])}],
-                                "response_format": {"type": "json_object"},
+                                "messages": [{
+                                    "role": "user",
+                                    "content": _brief_prompt(
+                                        text[:120_000],
+                                        force_empty_outline=source_id in empty_outline_ids,
+                                    ),
+                                }],
+                                "response_format": brief_response_format(
+                                    force_empty_outline=source_id in empty_outline_ids
+                                ),
+                                "provider": {"require_parameters": True},
+                                "reasoning": {"effort": "minimal", "exclude": True},
                                 "temperature": 0.2,
-                                "max_tokens": 1800,
+                                "max_completion_tokens": 4000,
                             },
                             timeout=180,
                         )
@@ -475,7 +498,14 @@ def brief_synthesis_worker(run_id: str, payload: dict) -> dict:
                                 "OpenRouter response omitted usage.cost; refusing unmetered call"
                             )
                         spent += float(usage_cost)
-                        content = body["choices"][0]["message"]["content"].strip()
+                        choice = body["choices"][0]
+                        finish_reason = str(choice.get("finish_reason") or "unknown")
+                        if finish_reason != "stop":
+                            raise RuntimeError(f"provider finish_reason={finish_reason}")
+                        content_value = choice["message"].get("content")
+                        if not isinstance(content_value, str):
+                            raise TypeError("provider message content was not a string")
+                        content = content_value.strip()
                         if content.startswith("```"):
                             content = content.split("\n", 1)[1].rsplit("```", 1)[0]
                         brief = validate_brief(
@@ -488,9 +518,11 @@ def brief_synthesis_worker(run_id: str, payload: dict) -> dict:
                         last_error = exc
                 if brief is None:
                     failed_records += 1
+                    error_detail = re.sub(r"\s+", " ", str(last_error or "unknown"))[:160]
                     with log_path.open("a", encoding="utf-8") as logs:
                         logs.write(
-                            f"record failure id={source_id} error={type(last_error).__name__}\n"
+                            f"record failure id={source_id} error={type(last_error).__name__} "
+                            f"detail={error_detail}\n"
                         )
                     continue
                 emitted = dict(record)
@@ -655,7 +687,10 @@ def gateway():
             return {"run_id": run_id, "status": state["status"]}
         call_id = state.get("function_call_id")
         if call_id:
-            modal.FunctionCall.from_id(call_id).cancel(terminate_containers=True)
+            # Current Modal call cancellation requires non-forced cancellation.
+            # These workers are single-use containers, so the cancelled call still
+            # owns no reusable execution state after it exits.
+            modal.FunctionCall.from_id(call_id).cancel(terminate_containers=False)
         elapsed = max(0.0, time.time() - float(state.get("started_at") or time.time()))
         timeout = max(1.0, float(state.get("timeout_seconds") or 1.0))
         reserved = float(state.get("reserved_cost_usd") or 0.0)

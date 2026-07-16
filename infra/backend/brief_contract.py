@@ -27,6 +27,57 @@ def exact_empty_outline_ids(records: Iterable[dict[str, Any]]) -> set[str]:
     return set(ranked[: len(ranked) // 4])
 
 
+def brief_response_format(*, force_empty_outline: bool) -> dict[str, Any]:
+    """Return the strict provider-side schema for one disclosed DFT brief."""
+    outline_schema: dict[str, Any] = {
+        "type": "array",
+        "items": {
+            "type": "object",
+            "properties": {
+                "section": {"type": "string"},
+                "supported_facts": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                },
+                "quotations": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                },
+            },
+            "required": ["section", "supported_facts", "quotations"],
+            "additionalProperties": False,
+        },
+    }
+    outline_schema["description"] = (
+        "Return exactly the empty list for this record."
+        if force_empty_outline
+        else "Return one or more source-grounded sections for this record."
+    )
+    properties = {
+        "user_prompt": {"type": "string"},
+        "use_case": {"type": "string"},
+        "style_kind": {"type": "string"},
+        "style": {"type": "string"},
+        "detail_mode": {"type": "string", "enum": ["strict", "creative"]},
+        "target_length": {"type": "integer"},
+        "em_dashes_allowed": {"type": "boolean"},
+        "outline": outline_schema,
+    }
+    return {
+        "type": "json_schema",
+        "json_schema": {
+            "name": "dft_training_brief",
+            "strict": True,
+            "schema": {
+                "type": "object",
+                "properties": properties,
+                "required": list(properties),
+                "additionalProperties": False,
+            },
+        },
+    }
+
+
 def _nonempty_string(value: Any, field: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise BriefContractError(f"{field} must be a non-empty string")

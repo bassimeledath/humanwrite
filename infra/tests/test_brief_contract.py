@@ -2,7 +2,12 @@ from __future__ import annotations
 
 import pytest
 
-from backend.brief_contract import BriefContractError, exact_empty_outline_ids, validate_brief
+from backend.brief_contract import (
+    BriefContractError,
+    brief_response_format,
+    exact_empty_outline_ids,
+    validate_brief,
+)
 
 
 def _record(index: int) -> dict:
@@ -34,6 +39,19 @@ def test_exact_empty_outline_assignment_is_deterministic_and_exact():
     second = exact_empty_outline_ids(reversed(records))
     assert first == second
     assert len(first) == 16
+
+
+def test_provider_schema_is_strict_and_tracks_outline_assignment():
+    regular = brief_response_format(force_empty_outline=False)
+    empty = brief_response_format(force_empty_outline=True)
+    assert regular["type"] == "json_schema"
+    assert regular["json_schema"]["strict"] is True
+    schema = regular["json_schema"]["schema"]
+    assert schema["additionalProperties"] is False
+    assert set(schema["required"]) == set(schema["properties"])
+    assert "one or more" in schema["properties"]["outline"]["description"]
+    empty_outline = empty["json_schema"]["schema"]["properties"]["outline"]
+    assert "empty list" in empty_outline["description"]
 
 
 def test_brief_contract_validates_and_forces_empty_outline():

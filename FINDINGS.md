@@ -1578,3 +1578,25 @@ launch dev only. This uses the existing provider cap and is not budget
 expansion, model scale-up, Tier 2/3, or promotion.
 NEXT: Run dev synthesis, download and validate its exact bytes; launch train
 only after a clean result and cost review.
+
+## [2026-07-16] M1 / pilot-brief-synthesis-transport-attempt-1
+HYPOTHESIS: Basic JSON mode with the fixed GPT-5-mini worker will satisfy the
+published brief contract across all 64 dev records inside the `$2` cap.
+SETUP: Launched config hash `dc8fd5a1...` as
+`dftr-1784191782-93b3f0ae` at git SHA `e48a321`. The worker used two attempts
+per record, preserved only contract-valid rows, and withheld a successful
+terminal state unless every target ID was present.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Early adherence | FAIL | `10/12` attempted records remained invalid after two calls each: JSON truncation/shape failures dominated; only `2` records validated. |
+| Stop decision | PASS | Cancelled once ordered source IDs proved the failure was systemic rather than a sparse transient; no scientific result or train launch was allowed. |
+| Spend | CONTAINED | `$0.069022` provider spend, `0` accelerator-seconds, `0` generated training/evaluation tokens. Monthly provider spend is `$0.108543/$100`. |
+| Contract integrity | PASS | No invalid brief was written or admitted; the immutable source corpus, config hash, target IDs, exact 25% empty-outline assignment, and downstream validator remain unchanged. |
+| Failure diagnosis | TRANSPORT, NOT DATA | The observed JSON/shape failures are consistent with GPT-5 reasoning consuming much of the old 1,800-token budget while basic JSON mode does not enforce the disclosed schema. Separately, the cancellation endpoint used a Modal flag rejected by the current SDK. |
+| Repair | PASS | Added strict JSON Schema routing, provider parameter enforcement, explicit empty/non-empty outline instructions, minimal hidden reasoning, a 4,000-token completion ceiling, safe finish/error diagnostics, and current Modal cancellation semantics. Infrastructure suite passes `29/29`. |
+DECISION: retain this as a low-cost transport failure, not a model/data result.
+Publish and deploy the wrapper-only correction, then retry the unchanged dev
+source/config. Existing validators remain the acceptance authority.
+NEXT: Relaunch dev synthesis; require all 64 IDs, exact schema/grounding, and
+16 empty outlines before any train synthesis.
