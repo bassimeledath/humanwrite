@@ -2,11 +2,31 @@
 from __future__ import annotations
 
 import hashlib
+import re
 from typing import Any, Iterable
 
 
 class BriefContractError(ValueError):
     pass
+
+
+_PROMPT_TOKEN_RE = re.compile(r"[^\W_]+(?:['’][^\W_]+)?", re.UNICODE)
+_PROMPT_META_PHRASES = (
+    "dft",
+    "training brief",
+    "json object",
+    "json schema",
+    "convert the supplied",
+    "supplied human web document",
+    "keys user_prompt",
+    "return one json",
+    "outline must contain",
+)
+_PROMPT_STOPWORDS = {
+    "about", "after", "also", "and", "article", "create", "document", "for", "from",
+    "into", "its", "piece", "provide", "that", "the", "their", "this", "using", "with",
+    "write", "writing", "your",
+}
 
 
 def record_id(record: dict[str, Any]) -> str:
@@ -78,6 +98,23 @@ def brief_response_format(*, force_empty_outline: bool) -> dict[str, Any]:
     }
 
 
+def prompt_repair_response_format() -> dict[str, Any]:
+    """Strict provider schema for replacing only a defective content prompt."""
+    return {
+        "type": "json_schema",
+        "json_schema": {
+            "name": "dft_user_prompt_repair",
+            "strict": True,
+            "schema": {
+                "type": "object",
+                "properties": {"user_prompt": {"type": "string"}},
+                "required": ["user_prompt"],
+                "additionalProperties": False,
+            },
+        },
+    }
+
+
 def empty_brief_quotations(value: Any) -> Any:
     """Clear optional quotations while preserving every other generated field."""
     if not isinstance(value, dict):
@@ -102,6 +139,31 @@ def _nonempty_string(value: Any, field: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise BriefContractError(f"{field} must be a non-empty string")
     return value.strip()
+
+
+def validate_repaired_user_prompt(value: Any, *, source_text: str) -> str:
+    """Reject synthesis instructions and require a source-grounded writing request."""
+    if isinstance(value, dict):
+        if set(value) != {"user_prompt"}:
+            raise BriefContractError("prompt repair response must contain only user_prompt")
+        value = value.get("user_prompt")
+    prompt = _nonempty_string(value, "user_prompt")
+    if len(prompt) > 1000:
+        raise BriefContractError("user_prompt exceeds 1000 characters")
+    lowered = prompt.casefold()
+    if any(phrase in lowered for phrase in _PROMPT_META_PHRASES):
+        raise BriefContractError("user_prompt contains synthesis meta-instructions")
+    prompt_tokens = {
+        token.casefold()
+        for token in _PROMPT_TOKEN_RE.findall(prompt)
+        if len(token) >= 4 and token.casefold() not in _PROMPT_STOPWORDS
+    }
+    source_tokens = {
+        token.casefold() for token in _PROMPT_TOKEN_RE.findall(source_text) if len(token) >= 4
+    }
+    if not prompt_tokens or not (prompt_tokens & source_tokens):
+        raise BriefContractError("user_prompt lacks source-grounded topic terms")
+    return prompt
 
 
 def validate_brief(

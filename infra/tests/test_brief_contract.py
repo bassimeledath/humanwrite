@@ -7,7 +7,9 @@ from backend.brief_contract import (
     brief_response_format,
     empty_brief_quotations,
     exact_empty_outline_ids,
+    prompt_repair_response_format,
     validate_brief,
+    validate_repaired_user_prompt,
 )
 
 
@@ -53,6 +55,26 @@ def test_provider_schema_is_strict_and_tracks_outline_assignment():
     assert "one or more" in schema["properties"]["outline"]["description"]
     empty_outline = empty["json_schema"]["schema"]["properties"]["outline"]
     assert "empty list" in empty_outline["description"]
+
+
+def test_prompt_repair_schema_and_validation_reject_meta_prompts():
+    schema = prompt_repair_response_format()["json_schema"]["schema"]
+    assert schema["additionalProperties"] is False
+    assert schema["required"] == ["user_prompt"]
+    assert validate_repaired_user_prompt(
+        {"user_prompt": "Write a factual overview of Orlando Health MyChart."},
+        source_text="Orlando Health MyChart provides secure access to health information.",
+    ).startswith("Write a factual")
+    with pytest.raises(BriefContractError, match="meta-instructions"):
+        validate_repaired_user_prompt(
+            {"user_prompt": "Convert the supplied human web document into a DFT training brief."},
+            source_text="A document about housing.",
+        )
+    with pytest.raises(BriefContractError, match="source-grounded"):
+        validate_repaired_user_prompt(
+            {"user_prompt": "Write a thoughtful overview of lunar geology."},
+            source_text="Orlando Health MyChart provides secure access to health information.",
+        )
 
 
 def test_quote_recovery_preserves_every_field_except_quotations():

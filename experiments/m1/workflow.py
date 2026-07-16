@@ -27,6 +27,10 @@ from .contracts import (
 )
 
 
+REALDATA_PROTOCOLS = {"m1.realdata-pilot.v1", "m1.realdata-adherence.v1"}
+FULL_BRIEF_SCHEMA = "dft.full-brief.v1"
+
+
 def run_m1(config: dict[str, Any], run_id: str) -> dict[str, Any]:
     workflow = config.get("workflow") or {}
     step = str(workflow.get("step", "")).casefold()
@@ -47,7 +51,7 @@ def _load_fixed_manifest(config: dict[str, Any]) -> dict[str, Any]:
     resolved_manifest = resolve_repo_path(str(manifest_path))
     manifest = read_structured(resolved_manifest)
     protocol_version = str(workflow.get("protocol_version") or "")
-    if protocol_version == "m1.realdata-pilot.v1":
+    if protocol_version in REALDATA_PROTOCOLS:
         expected_manifest_sha = str(workflow.get("fixed_manifest_sha256") or "")
         if file_sha256(resolved_manifest) != expected_manifest_sha:
             raise M1ConfigError("real-data fixed manifest SHA-256 mismatch")
@@ -84,7 +88,7 @@ def _load_fixed_manifest(config: dict[str, Any]) -> dict[str, Any]:
         expected=fixed_hashes["dev"],
         field_name="config data.dev_split_hash",
     )
-    if protocol_version == "m1.realdata-pilot.v1":
+    if protocol_version in REALDATA_PROTOCOLS:
         for field in ("train_path", "dev_path"):
             if str(data_config.get(field) or "") != str(manifest.get(field) or ""):
                 raise M1ConfigError(f"real-data config/manifest {field} mismatch")
@@ -171,10 +175,50 @@ def _resolve_revision(config: dict[str, Any], run_id: str) -> dict[str, Any]:
     )
 
 
-def _render_prompt(record: dict[str, Any], prompt_format: str) -> str:
+def _render_full_brief(record: dict[str, Any]) -> str:
+    required = (
+        "user_prompt", "use_case", "style_kind", "style", "detail_mode",
+        "target_length", "em_dashes_allowed", "outline",
+    )
+    missing = [field for field in required if field not in record]
+    if missing:
+        raise M1ConfigError(f"canonical full brief is missing fields: {', '.join(missing)}")
+    user_prompt = str(record["user_prompt"]).strip()
+    if not user_prompt:
+        raise M1ConfigError("canonical record is missing user_prompt")
+    outline = record["outline"]
+    if not isinstance(outline, list):
+        raise M1ConfigError("canonical full brief outline must be a list")
+    target_length = int(record["target_length"])
+    if target_length <= 0:
+        raise M1ConfigError("canonical full brief target_length must be positive")
+    return "\n".join((
+        f"Writing request: {user_prompt}",
+        f"Use case: {str(record['use_case']).strip()}",
+        f"Style category: {str(record['style_kind']).strip()}",
+        f"Style: {str(record['style']).strip()}",
+        f"Detail mode: {str(record['detail_mode']).strip()}",
+        f"Target length: about {target_length} words",
+        f"Em dashes allowed: {'yes' if bool(record['em_dashes_allowed']) else 'no'}",
+        "Grounding outline (use only these supported facts when non-empty): "
+        + json.dumps(outline, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+    ))
+
+
+def _render_prompt(
+    record: dict[str, Any], prompt_format: str, prompt_schema_version: str = "user_prompt.v1"
+) -> str:
     user_prompt = str(record.get("user_prompt", "")).strip()
     if not user_prompt:
         raise M1ConfigError("canonical record is missing user_prompt")
+    if prompt_schema_version == FULL_BRIEF_SCHEMA:
+        if "{brief}" not in prompt_format:
+            raise M1ConfigError("full-brief prompt_format must contain {brief}")
+        return prompt_format.format(brief=_render_full_brief(record))
+    if prompt_schema_version != "user_prompt.v1":
+        raise M1ConfigError(f"unsupported prompt schema version: {prompt_schema_version}")
+    if "{user_prompt}" not in prompt_format:
+        raise M1ConfigError("legacy prompt_format must contain {user_prompt}")
     return prompt_format.format(user_prompt=user_prompt)
 
 
@@ -216,6 +260,7 @@ def _prepare_supervised_examples(
     *,
     tokenizer: Any,
     prompt_format: str,
+    prompt_schema_version: str = "user_prompt.v1",
     max_input_tokens: int,
     max_new_tokens: int,
 ) -> tuple[list[dict[str, Any]], int]:
@@ -225,7 +270,7 @@ def _prepare_supervised_examples(
     if eos_token_id is None:
         raise M1ConfigError("tokenizer.eos_token_id is required for SFT training")
     for record in records:
-        prompt = _render_prompt(record, prompt_format)
+        prompt = _render_prompt(record, prompt_format, prompt_schema_version)
         completion = str(record.get("completion", "")).strip()
         if not completion:
             raise M1ConfigError("canonical record is missing completion text")
@@ -334,8 +379,14 @@ def _train_sft(config: dict[str, Any], run_id: str) -> dict[str, Any]:
     prompt_format = str(
         (config.get("data") or {}).get("prompt_format") or fixed_manifest.get("prompt_format")
     )
-    if "{user_prompt}" not in prompt_format:
-        raise M1ConfigError("prompt_format must contain {user_prompt}")
+    prompt_schema_version = str(
+        (config.get("data") or {}).get("prompt_schema_version")
+        or fixed_manifest.get("prompt_schema_version")
+        or "user_prompt.v1"
+    )
+    protocol_version = str((config.get("workflow") or {}).get("protocol_version") or "")
+    if protocol_version == "m1.realdata-adherence.v1" and prompt_schema_version != FULL_BRIEF_SCHEMA:
+        raise M1ConfigError("adherence protocol requires dft.full-brief.v1 conditioning")
     max_input_tokens = int(
         (config.get("data") or {}).get("max_input_tokens") or fixed_manifest.get("max_input_tokens")
     )
@@ -343,15 +394,22 @@ def _train_sft(config: dict[str, Any], run_id: str) -> dict[str, Any]:
         (config.get("data") or {}).get("max_new_tokens") or fixed_manifest.get("max_new_tokens")
     )
     seeds = list((config.get("run") or {}).get("seeds") or fixed_manifest.get("training_seeds") or [])
-    if seeds != [11, 29, 47]:
-        raise M1ConfigError(f"M1 training seeds must be [11, 29, 47], found {seeds}")
-    if str((config.get("model") or {}).get("base")) != "Qwen/Qwen3-1.7B":
-        raise M1ConfigError("M1 evidentiary SFT must target Qwen/Qwen3-1.7B")
+    allowed_seeds = ([11], [11, 29, 47]) if protocol_version == "m1.realdata-adherence.v1" else ([11, 29, 47],)
+    if seeds not in allowed_seeds:
+        raise M1ConfigError(f"M1 training seeds are invalid for {protocol_version}: {seeds}")
+    allowed_models = (
+        {"Qwen/Qwen3-1.7B", "Qwen/Qwen3-4B"}
+        if protocol_version == "m1.realdata-adherence.v1"
+        else {"Qwen/Qwen3-1.7B"}
+    )
+    if str((config.get("model") or {}).get("base")) not in allowed_models:
+        raise M1ConfigError(f"M1 evidentiary SFT model is invalid for {protocol_version}")
 
     examples, tokens_per_epoch = _prepare_supervised_examples(
         train_records,
         tokenizer=tokenizer,
         prompt_format=prompt_format,
+        prompt_schema_version=prompt_schema_version,
         max_input_tokens=max_input_tokens,
         max_new_tokens=max_new_tokens,
     )
@@ -468,8 +526,9 @@ def _load_checkpoint_index(config: dict[str, Any]) -> list[dict[str, Any]]:
         raise M1ConfigError("sampling.checkpoints_manifest must point to a resolved checkpoint manifest")
     resolved_manifest = resolve_repo_path(str(manifest_path))
     manifest = read_structured(resolved_manifest)
-    realdata_pilot = str((config.get("workflow") or {}).get("protocol_version")) == "m1.realdata-pilot.v1"
-    if realdata_pilot:
+    protocol_version = str((config.get("workflow") or {}).get("protocol_version"))
+    realdata = protocol_version in REALDATA_PROTOCOLS
+    if realdata:
         ensure_fixed_hash(
             file_sha256(resolved_manifest),
             expected=str(sampling.get("checkpoints_manifest_sha256") or ""),
@@ -492,14 +551,20 @@ def _load_checkpoint_index(config: dict[str, Any]) -> list[dict[str, Any]]:
     checkpoints = manifest.get("checkpoints")
     if not isinstance(checkpoints, list) or not checkpoints:
         raise M1ConfigError("checkpoint manifest must contain a non-empty checkpoints list")
-    if realdata_pilot:
-        if [int(row.get("seed", -1)) for row in checkpoints] != [11, 29, 47]:
-            raise M1ConfigError("real-data checkpoint seeds must be [11, 29, 47]")
+    if realdata:
+        observed_seeds = [int(row.get("seed", -1)) for row in checkpoints]
+        allowed_checkpoint_seeds = (
+            ([11], [11, 29, 47])
+            if protocol_version == "m1.realdata-adherence.v1"
+            else ([11, 29, 47],)
+        )
+        if observed_seeds not in allowed_checkpoint_seeds:
+            raise M1ConfigError("real-data checkpoint seeds do not match the protocol stage")
         adapter_hashes = [
             str((row.get("checkpoint_files") or {}).get("adapter_model.safetensors") or "")
             for row in checkpoints
         ]
-        if any(len(value) != 64 for value in adapter_hashes) or len(set(adapter_hashes)) != 3:
+        if any(len(value) != 64 for value in adapter_hashes) or len(set(adapter_hashes)) != len(checkpoints):
             raise M1ConfigError("real-data checkpoint adapter hashes must be present and distinct")
         if any(int(row.get("train_tokens", 0)) <= 0 for row in checkpoints):
             raise M1ConfigError("real-data checkpoints require positive train_tokens")
@@ -516,8 +581,8 @@ def _load_sampler_grid(config: dict[str, Any]) -> dict[str, Any]:
     workflow = config.get("workflow") or {}
     sampling_stage = str(sampling.get("stage") or "")
     directional_pilot = (
-        workflow.get("protocol_version") == "m1.realdata-pilot.v1"
-        and sampling_stage == "directional_default"
+        workflow.get("protocol_version") in REALDATA_PROTOCOLS
+        and sampling_stage in {"directional_default", "adherence_directional"}
     )
     expected_points = 1 if directional_pilot else 5
     if not isinstance(points, list) or len(points) != expected_points:
@@ -541,6 +606,7 @@ def _generate_outputs(
     top_p: float,
     sampling_seed: int,
     do_sample: bool,
+    prompt_schema_version: str = "user_prompt.v1",
 ) -> list[str]:
     import torch
     from peft import PeftConfig, PeftModel
@@ -579,7 +645,9 @@ def _generate_outputs(
         torch.cuda.manual_seed_all(int(sampling_seed))
         model = model.cuda()
     outputs = []
-    prompts = [prompt_format.format(user_prompt=str(record["user_prompt"])) for record in records]
+    prompts = [
+        _render_prompt(record, prompt_format, prompt_schema_version) for record in records
+    ]
     for prompt in prompts:
         encoded = tokenizer(
             prompt,
@@ -653,6 +721,14 @@ def _sample_sweep(config: dict[str, Any], run_id: str) -> dict[str, Any]:
     prompt_format = str(
         (config.get("data") or {}).get("prompt_format") or fixed_manifest.get("prompt_format")
     )
+    prompt_schema_version = str(
+        (config.get("data") or {}).get("prompt_schema_version")
+        or fixed_manifest.get("prompt_schema_version")
+        or "user_prompt.v1"
+    )
+    protocol_version = str((config.get("workflow") or {}).get("protocol_version") or "")
+    if protocol_version == "m1.realdata-adherence.v1" and prompt_schema_version != FULL_BRIEF_SCHEMA:
+        raise M1ConfigError("adherence protocol requires dft.full-brief.v1 conditioning")
     max_input_tokens = int(
         (config.get("data") or {}).get("max_input_tokens") or fixed_manifest.get("max_input_tokens")
     )
@@ -664,8 +740,9 @@ def _sample_sweep(config: dict[str, Any], run_id: str) -> dict[str, Any]:
         raise M1ConfigError(f"M1 sampling seeds must be [101, 202, 303], found {sampling_seeds}")
     _, dev_records = _load_training_records(config, fixed_manifest)
     if (
-        str((config.get("workflow") or {}).get("protocol_version")) == "m1.realdata-pilot.v1"
-        and str((config.get("sampling") or {}).get("stage")) == "directional_default"
+        protocol_version in REALDATA_PROTOCOLS
+        and str((config.get("sampling") or {}).get("stage"))
+        in {"directional_default", "adherence_directional"}
     ):
         dev_records = _directional_dev_subset(config, dev_records)
     index_rows = []
@@ -682,6 +759,7 @@ def _sample_sweep(config: dict[str, Any], run_id: str) -> dict[str, Any]:
                     base_revision=base_revision,
                     records=dev_records,
                     prompt_format=prompt_format,
+                    prompt_schema_version=prompt_schema_version,
                     max_input_tokens=max_input_tokens,
                     max_new_tokens=max_new_tokens,
                     temperature=float(point["temperature"]),

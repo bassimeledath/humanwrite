@@ -129,6 +129,13 @@ def validate_launch(payload: dict[str, Any]) -> LaunchPolicy:
             raise PolicyError("brief_synthesis data.max_records must be between 1 and 50000")
         if not str(api.get("model", "")):
             raise PolicyError("brief_synthesis requires a frozen api.model")
+        if api.get("prompt_repair_only") is True:
+            if api.get("force_empty_quotations") is True:
+                raise PolicyError("prompt repair cannot also run quote-free recovery")
+            if data.get("input_uri") == data.get("output_uri"):
+                raise PolicyError("prompt repair input and output URIs must be distinct")
+            if max_records > 320:
+                raise PolicyError("prompt repair is limited to the frozen 320-record corpus")
         if api.get("force_empty_quotations") is True:
             max_missing = int((config.get("recovery") or {}).get("max_missing_records", 0))
             if budget_class != "smoke" or not 1 <= max_missing <= 16:

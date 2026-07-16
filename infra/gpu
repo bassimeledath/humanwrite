@@ -196,6 +196,14 @@ def _validate_submit(config: dict, budget_class: str) -> tuple[str, dict]:
             _die("brief_synthesis requires lowercase data.input_sha256")
         if not str((config.get("api") or {}).get("model", "")):
             _die("brief_synthesis requires a frozen api.model")
+        api = config.get("api") or {}
+        if api.get("prompt_repair_only") is True:
+            if api.get("force_empty_quotations") is True:
+                _die("prompt repair cannot also run quote-free recovery")
+            if data.get("input_uri") == data.get("output_uri"):
+                _die("prompt repair input and output URIs must be distinct")
+            if int(data.get("max_records", 0)) > 320:
+                _die("prompt repair is limited to the frozen 320-record corpus")
     elif task_kind == "source_materialization":
         data = config.get("data") or {}
         for field in ("train_output_uri", "dev_output_uri", "manifest_output_uri"):

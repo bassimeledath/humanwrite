@@ -34,8 +34,10 @@ from .brief_contract import (
     brief_response_format,
     empty_brief_quotations,
     exact_empty_outline_ids,
+    prompt_repair_response_format,
     record_id,
     validate_brief,
+    validate_repaired_user_prompt,
 )
 from .volume_paths import checkpoint_volume_path
 
@@ -397,6 +399,17 @@ def _brief_prompt(
     )
 
 
+def _prompt_repair_prompt(source_text: str) -> str:
+    return (
+        "Write one document-specific user request that could naturally have caused a skilled "
+        "writer to produce the supplied writing sample. The request must identify the topic and "
+        "desired output, but it must not mention DFT, training, a training brief, JSON, a schema, "
+        "keys, conversion, a supplied document, or these instructions. Do not ask to summarize or "
+        "transform a document that the future writer cannot see. Return one JSON object containing "
+        "only user_prompt.\n\nWRITING SAMPLE:\n" + source_text
+    )
+
+
 @app.function(
     image=worker_image,
     secrets=[provider_secret],
@@ -416,6 +429,7 @@ def brief_synthesis_worker(run_id: str, payload: dict) -> dict:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     max_records = int(data_config.get("max_records", 50_000))
     force_empty_quotations = bool((config.get("api") or {}).get("force_empty_quotations"))
+    prompt_repair_only = bool((config.get("api") or {}).get("prompt_repair_only"))
     cost_cap = float(payload["api_reserved_cost_usd"])
     spent = 0.0
     reported_spent = 0.0
@@ -455,19 +469,27 @@ def brief_synthesis_worker(run_id: str, payload: dict) -> dict:
                 if source_id in completed_ids or source_id not in source_index:
                     raise ValueError("existing brief output has duplicate or unknown record ID")
                 source = source_index[source_id]
-                for field in (
-                    "completion", "domain", "fineweb_id", "fingerprint", "source_config",
-                    "source_revision", "split", "url", "word_count",
-                ):
-                    if row.get(field) != source.get(field):
-                        raise ValueError("existing brief output changed a source field")
-                validate_brief(
-                    row,
-                    source_text=str(source["completion"]),
-                    force_empty_outline=source_id in empty_outline_ids,
-                )
-                if bool(row.get("outline")) == (source_id in empty_outline_ids):
-                    raise ValueError("existing brief output has wrong empty-outline assignment")
+                if prompt_repair_only:
+                    for field, source_value in source.items():
+                        if field != "user_prompt" and row.get(field) != source_value:
+                            raise ValueError("prompt repair changed a frozen source field")
+                    validate_repaired_user_prompt(
+                        row.get("user_prompt"), source_text=str(source["completion"])
+                    )
+                else:
+                    for field in (
+                        "completion", "domain", "fineweb_id", "fingerprint", "source_config",
+                        "source_revision", "split", "url", "word_count",
+                    ):
+                        if row.get(field) != source.get(field):
+                            raise ValueError("existing brief output changed a source field")
+                    validate_brief(
+                        row,
+                        source_text=str(source["completion"]),
+                        force_empty_outline=source_id in empty_outline_ids,
+                    )
+                    if bool(row.get("outline")) == (source_id in empty_outline_ids):
+                        raise ValueError("existing brief output has wrong empty-outline assignment")
                 completed_ids.add(source_id)
         if force_empty_quotations:
             max_missing = int((config.get("recovery") or {}).get("max_missing_records", 0))
@@ -497,14 +519,22 @@ def brief_synthesis_worker(run_id: str, payload: dict) -> dict:
                             "model": active_model,
                             "messages": [{
                                 "role": "user",
-                                "content": _brief_prompt(
-                                    text[:120_000],
-                                    force_empty_outline=source_id in empty_outline_ids,
-                                    safety_neutral=safety_neutral,
+                                "content": (
+                                    _prompt_repair_prompt(text[:120_000])
+                                    if prompt_repair_only
+                                    else _brief_prompt(
+                                        text[:120_000],
+                                        force_empty_outline=source_id in empty_outline_ids,
+                                        safety_neutral=safety_neutral,
+                                    )
                                 ),
                             }],
-                            "response_format": brief_response_format(
-                                force_empty_outline=source_id in empty_outline_ids
+                            "response_format": (
+                                prompt_repair_response_format()
+                                if prompt_repair_only
+                                else brief_response_format(
+                                    force_empty_outline=source_id in empty_outline_ids
+                                )
                             ),
                             "max_completion_tokens": 4000,
                         }
@@ -547,10 +577,16 @@ def brief_synthesis_worker(run_id: str, payload: dict) -> dict:
                         brief_value = json.loads(content)
                         if force_empty_quotations:
                             brief_value = empty_brief_quotations(brief_value)
-                        brief = validate_brief(
-                            brief_value,
-                            source_text=text,
-                            force_empty_outline=source_id in empty_outline_ids,
+                        brief = (
+                            {"user_prompt": validate_repaired_user_prompt(
+                                brief_value, source_text=text
+                            )}
+                            if prompt_repair_only
+                            else validate_brief(
+                                brief_value,
+                                source_text=text,
+                                force_empty_outline=source_id in empty_outline_ids,
+                            )
                         )
                         break
                     except Exception as exc:
@@ -566,8 +602,9 @@ def brief_synthesis_worker(run_id: str, payload: dict) -> dict:
                     continue
                 emitted = dict(record)
                 emitted.update(brief)
-                emitted["generation_mode"] = "generate"
-                emitted["completion"] = text
+                if not prompt_repair_only:
+                    emitted["generation_mode"] = "generate"
+                    emitted["completion"] = text
                 sink.write(json.dumps(emitted, ensure_ascii=False, sort_keys=True) + "\n")
                 sink.flush()
                 processed += 1

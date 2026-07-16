@@ -159,6 +159,37 @@ def test_quote_free_brief_recovery_is_tightly_bounded():
         validate_launch(value)
 
 
+def test_prompt_repair_is_bounded_and_cannot_overwrite_or_mix_recovery_modes():
+    value = payload()
+    value["config"]["run"]["task_kind"] = "brief_synthesis"
+    value["config"]["data"] = {
+        "input_uri": "modal-volume://humanwrite-checkpoints/data/original.jsonl",
+        "output_uri": "modal-volume://humanwrite-checkpoints/data/repaired.jsonl",
+        "input_sha256": "a" * 64,
+        "max_records": 320,
+    }
+    value["config"]["api"] = {
+        "max_cost_usd": 2.0,
+        "model": "openai/gpt-5-mini",
+        "prompt_repair_only": True,
+    }
+    value["config_hash"] = canonical_hash(value["config"])
+    assert validate_launch(value).api_reserved_cost_usd == 2.0
+
+    value["config"]["data"]["output_uri"] = value["config"]["data"]["input_uri"]
+    value["config_hash"] = canonical_hash(value["config"])
+    with pytest.raises(PolicyError, match="distinct"):
+        validate_launch(value)
+
+    value["config"]["data"]["output_uri"] = (
+        "modal-volume://humanwrite-checkpoints/data/repaired.jsonl"
+    )
+    value["config"]["api"]["force_empty_quotations"] = True
+    value["config_hash"] = canonical_hash(value["config"])
+    with pytest.raises(PolicyError, match="cannot also"):
+        validate_launch(value)
+
+
 def test_source_materialization_requires_pinned_source_and_volume_outputs():
     value = payload()
     value["config"]["run"]["task_kind"] = "source_materialization"

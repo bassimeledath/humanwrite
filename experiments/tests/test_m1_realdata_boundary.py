@@ -8,10 +8,12 @@ import pytest
 
 from experiments.m1.contracts import M1ConfigError, file_sha256
 from experiments.m1.workflow import (
+    FULL_BRIEF_SCHEMA,
     _directional_dev_subset,
     _load_fixed_manifest,
     _load_sampler_grid,
     _load_training_records,
+    _render_prompt,
 )
 
 
@@ -128,3 +130,36 @@ def test_directional_pilot_binds_exact_16_record_subset():
     config["sampling"]["dev_subset_hash"] = "0" * 64
     with pytest.raises(M1ConfigError, match="subset hash"):
         _directional_dev_subset(config, records)
+
+
+def test_full_brief_prompt_includes_every_conditioning_field():
+    record = {
+        "user_prompt": "Write an update about harbor expansion.",
+        "use_case": "news",
+        "style_kind": "reported",
+        "style": "neutral, sourced",
+        "detail_mode": "strict",
+        "target_length": 600,
+        "em_dashes_allowed": False,
+        "outline": [{"section": "Approval", "supported_facts": ["Approved in June"], "quotations": []}],
+    }
+    rendered = _render_prompt(record, "USER:\n{brief}\nASSISTANT:", FULL_BRIEF_SCHEMA)
+    for expected in (
+        record["user_prompt"], "news", "reported", "neutral, sourced", "strict",
+        "600 words", "Em dashes allowed: no", "Approved in June",
+    ):
+        assert expected in rendered
+    mutated = dict(record, outline=[])
+    assert _render_prompt(mutated, "{brief}", FULL_BRIEF_SCHEMA) != rendered
+
+
+def test_adherence_sampler_allows_one_directional_point(tmp_path):
+    grid_path = tmp_path / "grid.json"
+    grid_path.write_text(json.dumps({
+        "points": [{"id": "default", "temperature": 1.0, "top_p": 1.0}],
+    }), encoding="utf-8")
+    config = {
+        "workflow": {"protocol_version": "m1.realdata-adherence.v1"},
+        "sampling": {"stage": "adherence_directional", "sampler_grid": str(grid_path)},
+    }
+    assert len(_load_sampler_grid(config)["points"]) == 1
