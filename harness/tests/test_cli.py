@@ -761,6 +761,30 @@ def test_sealed_submit_rejects_invalid_timeout_before_network(tmp_path, monkeypa
         cli.sealed_submit(checkpoint)
 
 
+def test_sealed_submit_surfaces_bounded_http_detail(tmp_path, monkeypatch):
+    checkpoint = tmp_path / "checkpoint"
+    checkpoint.mkdir()
+    (checkpoint / "config.json").write_text(
+        json.dumps({"arm": "SFT", "comparison_id": "c", "train_embedder_id": "none"})
+    )
+    monkeypatch.setenv("SEALED_EVAL_URL", "https://sealed.invalid")
+    monkeypatch.setenv("SEALED_EVAL_TOKEN", "secret")
+    class DetailResponse(FakeResponse):
+        status_code = 400
+
+        def raise_for_status(self):
+            raise cli.requests.HTTPError("bad request")
+
+        def json(self):
+            return {"detail": "artifact contract mismatch"}
+
+    response = DetailResponse()
+    monkeypatch.setattr(cli.requests, "post", lambda *args, **kwargs: response)
+    with pytest.raises(RuntimeError, match="artifact contract mismatch") as caught:
+        cli.sealed_submit(checkpoint)
+    assert "secret" not in str(caught.value)
+
+
 def test_main_returns_two_without_leaking_secrets(monkeypatch, capsys):
     monkeypatch.delenv("SEALED_EVAL_URL", raising=False)
     monkeypatch.delenv("SEALED_EVAL_TOKEN", raising=False)

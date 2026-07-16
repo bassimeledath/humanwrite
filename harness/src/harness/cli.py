@@ -1022,8 +1022,21 @@ def sealed_submit(checkpoint_dir: str) -> dict:
         raise RuntimeError("sealed evaluator rejected an embedder independence violation")
     try:
         response.raise_for_status()
+    except requests.RequestException as error:
+        detail = None
+        try:
+            body = response.json()
+            if isinstance(body, dict) and isinstance(body.get("detail"), str):
+                detail = body["detail"][:300]
+        except ValueError:
+            pass
+        suffix = f": {detail}" if detail else ""
+        raise RuntimeError(
+            f"sealed evaluator rejected request ({response.status_code}){suffix}"
+        ) from error
+    try:
         result = response.json()
-    except (requests.RequestException, ValueError) as error:
+    except ValueError as error:
         raise RuntimeError("sealed evaluator returned an invalid response") from error
     required = {"window_id", "quota_remaining", "primary", "authorship_auc", "authorship_auc_ci", "gates", "verdict", "aggregate_only"}
     if (
