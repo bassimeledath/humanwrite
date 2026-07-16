@@ -992,6 +992,12 @@ def sealed_submit(checkpoint_dir: str) -> dict:
     url, token = os.environ.get("SEALED_EVAL_URL"), os.environ.get("SEALED_EVAL_TOKEN")
     if not url or not token:
         raise RuntimeError("SEALED_EVAL_URL and SEALED_EVAL_TOKEN must be set")
+    try:
+        timeout_seconds = int(os.environ.get("SEALED_EVAL_TIMEOUT_SECONDS", "900"))
+    except ValueError as error:
+        raise ValueError("SEALED_EVAL_TIMEOUT_SECONDS must be an integer") from error
+    if not 30 <= timeout_seconds <= 1800:
+        raise ValueError("SEALED_EVAL_TIMEOUT_SECONDS must be between 30 and 1800")
     artifact_uri, arm, train_embedder, comparison_id = _sealed_metadata(directory)
     endpoint = url.rstrip("/") if url.rstrip("/").endswith("/submit") else url.rstrip("/") + "/submit"
     payload = {
@@ -1006,7 +1012,7 @@ def sealed_submit(checkpoint_dir: str) -> dict:
             endpoint,
             json=payload,
             headers={"Authorization": f"Bearer {token}"},
-            timeout=30,
+            timeout=timeout_seconds,
         )
     except requests.RequestException as error:
         raise RuntimeError("sealed evaluator request failed") from error

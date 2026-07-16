@@ -714,6 +714,7 @@ def test_sealed_submit_matches_contract_and_uses_bearer_token(tmp_path, monkeypa
     assert result["aggregate_only"] is True
     assert captured["url"] == "https://sealed.invalid/submit"
     assert captured["headers"] == {"Authorization": "Bearer top-secret-token"}
+    assert captured["timeout"] == 900
     assert captured["json"] == {
         "checkpoint_hash": cli._ckpt_hash(checkpoint),
         "artifact_uri": "s3://bucket/checkpoint",
@@ -740,6 +741,24 @@ def test_sealed_submit_handles_contract_errors(tmp_path, monkeypatch, status, me
     with pytest.raises(RuntimeError, match=message) as caught:
         cli.sealed_submit(checkpoint)
     assert "secret" not in str(caught.value)
+
+
+def test_sealed_submit_rejects_invalid_timeout_before_network(tmp_path, monkeypatch):
+    checkpoint = tmp_path / "checkpoint"
+    checkpoint.mkdir()
+    (checkpoint / "config.json").write_text(
+        json.dumps({"arm": "SFT", "comparison_id": "c", "train_embedder_id": "none"})
+    )
+    monkeypatch.setenv("SEALED_EVAL_URL", "https://sealed.invalid")
+    monkeypatch.setenv("SEALED_EVAL_TOKEN", "secret")
+    monkeypatch.setenv("SEALED_EVAL_TIMEOUT_SECONDS", "3600")
+    monkeypatch.setattr(
+        cli.requests,
+        "post",
+        lambda *args, **kwargs: pytest.fail("network must not be called"),
+    )
+    with pytest.raises(ValueError, match="between 30 and 1800"):
+        cli.sealed_submit(checkpoint)
 
 
 def test_main_returns_two_without_leaking_secrets(monkeypatch, capsys):
