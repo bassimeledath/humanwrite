@@ -372,7 +372,9 @@ def _brief_prompt(source_text: str, *, force_empty_outline: bool) -> str:
         "Return one JSON object only with keys user_prompt, use_case, style_kind, style, "
         "detail_mode, target_length, em_dashes_allowed, and outline. outline is a list of "
         "objects with section, supported_facts, and quotations. Every fact and quote must "
-        "be traceable to the document; do not invent facts. target_length is an integer token "
+        "be traceable to the document; do not invent facts. Every quotations item must be "
+        "copied byte-for-byte as one contiguous substring of DOCUMENT, including punctuation; "
+        "use an empty quotations list when no exact quotation is needed. target_length is an integer token "
         "estimate. detail_mode must be strict or creative. "
         + outline_instruction
         + "Return no prose or Markdown outside the JSON object.\n\nDOCUMENT:\n"

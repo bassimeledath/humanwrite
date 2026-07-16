@@ -1641,3 +1641,25 @@ parameter cleanup, then resume the unchanged dev config from its two preserved
 valid rows. The full 64-row independent validator remains mandatory.
 NEXT: Launch dev attempt 3 under the original `$2` cap; do not launch train
 until exact dev validation passes.
+
+## [2026-07-16] M1 / pilot-brief-synthesis-dev-bulk-pass
+HYPOTHESIS: The strict-schema worker will preserve a contract-valid majority,
+allowing deterministic resume to isolate any remaining grounding failures.
+SETUP: Ran the unchanged 64-row dev config as
+`dftr-1784192598-f958d49d` at git SHA `e8b651d`, resuming two valid rows from
+attempt 1. The worker retried every missing record twice, committed after 50
+new valid rows, and failed closed on incomplete ID coverage.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Durable progress | PASS | `53` new rows plus `2` preserved rows = `55/64` contract-valid briefs; partial SHA `8e45f9bf86e3182a3f690d5a3d50ea682f8e71d32179060d06b91dd6f39e8895`. |
+| Independent partial audit | PASS | 55 unique known IDs, exact preserved source fields, generation mode, schema/types, facts/outline shape, and every emitted quotation passed; all 16 deterministic empty-outline IDs are already present. |
+| Rejections | FAIL CLOSED | Eight non-empty-outline records altered at least one quotation instead of copying a contiguous source substring; one additional record ended with provider `content_filter`. Exactly nine source IDs remain absent. |
+| Spend | CONTAINED | `$0.104784` provider spend, `0` accelerator-seconds; cumulative known provider spend is about `$0.215`, far below the `$100` cap. |
+| Train gate | CLOSED | Partial bytes cannot enter training; no train synthesis or GPU run launched. |
+DECISION: preserve the 55 validated rows. Strengthen only the prompt wording to
+require byte-for-byte contiguous quotations and explicitly allow an empty
+quotation list; keep the validator unchanged. Publish/deploy, then resume the
+same config so only nine missing IDs are called.
+NEXT: Require terminal 64/64 coverage and a full independent dev validation
+before train synthesis.
