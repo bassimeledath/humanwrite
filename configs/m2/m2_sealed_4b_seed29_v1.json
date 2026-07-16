@@ -1,0 +1,25 @@
+{
+  "artifact_schema": "dftr.sealed_submission.v1",
+  "arm": "SFT",
+  "comparison_id": "M4-promotion",
+  "train_embedder_id": "none-sft-no-reward-embedder",
+  "artifact_uri": "/sealed-artifacts/checkpoints/m2-sealed-4b-seed29-v1",
+  "model": {
+    "base": "Qwen/Qwen3-4B",
+    "revision": "1cfa9a7208912126459214e8b04321603b3df60c",
+    "adapter_run_id": "dftr-1784216516-91130dd3",
+    "training_seed": 29
+  },
+  "selection": {
+    "source_report_index_sha256": "f2f52d49cdb9e53e74623b4de47852bc28774bd6888bc2155e397b8a57ccb28d",
+    "rule": "Among adapters passing all three Tier-1 hard-gate cells, select the smallest absolute deviation of mean authorship AUC from 0.5; break ties by lower repeated-start rate.",
+    "selected_mean_authorship_auc": 0.4915364583333333,
+    "selected_mean_repetition_rate": 0.10416666666666667
+  },
+  "promotion_gate": {
+    "decision_source": "aggregate-only sealed evaluator",
+    "confirm": "Advance to bounded M2 objective experiments and permit an evidence-gated 14B comparison.",
+    "reject": "Do not scale this recipe; diagnose the aggregate failing gates before further spend.",
+    "inconclusive": "Treat as non-confirmation and run no scale-up until a preregistered remedy exists."
+  }
+}
