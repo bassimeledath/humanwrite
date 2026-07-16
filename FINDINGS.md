@@ -1621,3 +1621,23 @@ completion ceiling, and post-response validation. Require a separate one-row,
 NEXT: Publish and run comparison
 `M1-realdata-pilot-briefs-transport-smoke-v1`; relaunch dev only if its one
 output independently satisfies the same contract.
+
+## [2026-07-16] M1 / pilot-brief-synthesis-transport-smoke
+HYPOTHESIS: Strict JSON Schema without the incompatible route constraint will
+produce one fully grounded brief before another 64-record attempt is allowed.
+SETUP: Published config hash `b175da12...` at git SHA `b0bba74` and ran
+`dftr-1784192495-43eccfb8` against the first frozen dev record with a separate
+output URI, 20-minute timeout, and `$0.25` cap. This artifact is transport-only
+and cannot enter training or evaluation.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Terminal result | PASS | `1/1` processed, `0` failed, `$0.001711` provider spend, `0` accelerator-seconds. |
+| Independent contract | PASS | Exact source ID and all preserved source fields match; generation mode, types, required fields, non-empty outline, facts, and verbatim quotations validate. |
+| Artifact | PASS | SHA-256 `bd25eeeb546efb111e6bed5de0272b0c7c9448b85f21e26f297588d5c655711d`; four outline sections and eight grounded quotations. |
+| Parameter audit | PASS | OpenRouter's live model metadata lists structured outputs, response format, reasoning, and max-completion tokens for `openai/gpt-5-mini`, but not temperature. Removed the unsupported temperature field before the full retry. |
+DECISION: accept the wrapper transport proof. Publish/deploy the final
+parameter cleanup, then resume the unchanged dev config from its two preserved
+valid rows. The full 64-row independent validator remains mandatory.
+NEXT: Launch dev attempt 3 under the original `$2` cap; do not launch train
+until exact dev validation passes.

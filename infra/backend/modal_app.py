@@ -484,7 +484,6 @@ def brief_synthesis_worker(run_id: str, payload: dict) -> dict:
                                     force_empty_outline=source_id in empty_outline_ids
                                 ),
                                 "reasoning": {"effort": "minimal", "exclude": True},
-                                "temperature": 0.2,
                                 "max_completion_tokens": 4000,
                             },
                             timeout=180,
