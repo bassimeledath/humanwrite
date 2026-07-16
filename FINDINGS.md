@@ -298,3 +298,30 @@ rehash-preregistered, and a separate verification pass accepts them.
 NEXT: Push the candidate commit required by the approved remote clone path,
 check `infra/gpu budget`, submit the exact resolver config under `smoke`, and
 record terminal accounting/provenance or the failure without bypass.
+
+## [2026-07-15] M1 / remote-provenance-blocker
+HYPOTHESIS: The independently accepted M1 candidate can enter the single
+preregistered resolver smoke once its exact git SHA is available to the
+approved remote wrapper clone path.
+SETUP: Local candidate HEAD after recording pre-compute verification was
+`a9764d8` on `agent/m1`, ahead of `origin/agent/m1`. The required normal push
+was attempted with `git push origin agent/m1` before any project-compute
+submission. After it failed, read-only checks inspected the configured remote
+and `gh auth status`; no alternative compute/data/evaluator route was used.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Exact-SHA publication | FAIL | HTTPS push failed: Git could not read a GitHub username in this environment. |
+| Existing GitHub CLI credential | FAIL | Active account exists, but `gh auth status` reports its token invalid and requires human re-authentication. |
+| Resolver submission | NOT RUN | The wrapper clones and checks out the ledger SHA; submitting an unpublished commit would be a known provenance/launch failure. |
+| GPU/API spend in this batch | PASS | No project compute, provider call, Tier-1 eval, or Tier-2 submission was made. |
+| Boundary preservation | PASS | No direct provider, alternate git host, bundle injection, local accelerator, or wrapper bypass was attempted. |
+DECISION: park as externally blocked rather than manufacture a launch failure
+or relax provenance. Candidate implementation and its independent pre-compute
+`score=pass` remain valid, but M1 scientific deliverables are incomplete: no
+successful resolver, no pinned 1.7B revision, no SFT checkpoints, no sampler
+sweep/freeze, and no calibration proposal from experimental outputs.
+NEXT: Run an independent milestone-boundary audit, append its verdict, and
+wait for human sign-off/direction. Resumption requires a valid credential that
+can publish the exact M1 commit to the configured origin; after publication,
+restart at `infra/gpu budget` and the already-preregistered resolver smoke.
