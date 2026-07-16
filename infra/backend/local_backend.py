@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+import re
 import signal
 import subprocess
 import sys
@@ -22,6 +23,7 @@ from .policy import (
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_STATE_DIR = ROOT / ".swarmy" / "local_gpu"
+TOKEN_RE = re.compile(r"[^\W_]+(?:['’][^\W_]+)?", re.UNICODE)
 
 
 def _state_dir(path: str | Path | None = None) -> Path:
@@ -51,6 +53,29 @@ def _pid_path(state_dir: Path, run_id: str) -> Path:
 
 def _log_path(state_dir: Path, run_id: str) -> Path:
     return state_dir / "logs" / f"{run_id}.log"
+
+
+def _artifact_dir(state_dir: Path, run_id: str) -> Path:
+    return state_dir / "artifacts" / run_id
+
+
+def _count_generated_tokens(state_dir: Path, run_id: str) -> int:
+    samples_path = _artifact_dir(state_dir, run_id) / "samples.jsonl"
+    if not samples_path.exists():
+        return 0
+    total = 0
+    for line in samples_path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        row = json.loads(line)
+        text = str(
+            row.get("output")
+            or row.get("generated_completion")
+            or row.get("completion")
+            or ""
+        )
+        total += len(TOKEN_RE.findall(text))
+    return total
 
 
 def submit_local(payload: dict[str, Any], state_dir: str | Path | None = None) -> dict[str, Any]:
@@ -176,6 +201,8 @@ def cancel_local(run_id: str, state_dir: str | Path | None = None) -> dict[str, 
             "run_id": run_id,
             "status": "cancelled",
             "finished_at": time.time(),
+            "accel_seconds": round(elapsed, 3),
+            "tokens": _count_generated_tokens(state, run_id),
             "actual_cost_usd": round(actual, 6),
         },
     )

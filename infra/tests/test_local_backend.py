@@ -44,4 +44,12 @@ def test_local_backend_submit_status_logs_and_cancel(monkeypatch, tmp_path):
     assert "line2" in logs_local("dftr-local-test", state_dir=tmp_path)["logs"]
     cancelled = cancel_local("dftr-local-test", state_dir=tmp_path)
     assert cancelled["status"] == "cancelled"
-    assert budget_local(state_dir=tmp_path)["gpu_remaining_usd"] < 40.0
+    terminal = status_local("dftr-local-test", state_dir=tmp_path)
+    assert terminal["status"] == "cancelled"
+    assert terminal["tokens"] == 0
+    assert terminal["accel_seconds"] >= 0.0
+    assert terminal["actual_cost_usd"] >= 0.0
+    assert "finished_at" in terminal
+    budget = budget_local(state_dir=tmp_path)
+    assert budget["gpu_committed_usd"] == terminal["actual_cost_usd"]
+    assert budget["gpu_remaining_usd"] == round(budget["gpu_cap_usd"] - terminal["actual_cost_usd"], 6)

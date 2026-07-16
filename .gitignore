@@ -18,6 +18,7 @@ __pycache__/
 .coverage
 *.egg-info/
 .swarmy/
+.dispatch/tasks/
 .venv/
 **/.venv/
 .DS_Store
