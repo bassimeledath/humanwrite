@@ -10,7 +10,8 @@ Hugging Face, OpenRouter, and notification credentials stay in Modal secrets.
   single-GPU, command allowlist, and 14B approval rules.
 - The gateway serializes submissions and reserves worst-case cost before
   spawning a job.
-- GPU and API pools each have an internal monthly cap of $100. The Modal
+- The GPU pool has an internal monthly cap of $40 and the API pool has an
+  internal monthly cap of $100. The Modal
   dashboard workspace/environment budget is the authoritative hard cap.
 - The worker uses the HF token only to populate the model cache, removes all
   provider keys, and starts experiment code with a small allowlisted env.
@@ -56,7 +57,7 @@ export HARNESS_JUDGE_URL="$DFTR_GPU_GATEWAY_URL/judge"
 export HARNESS_JUDGE_TOKEN="$DFTR_GPU_GATEWAY_TOKEN"
 ```
 
-In the Modal dashboard, set the workspace monthly budget to $100 before any
+In the Modal dashboard, set the workspace monthly budget to $40 before any
 run. In OpenRouter, set the provider credit limit to $100 and disable automatic
 top-ups. The internal counters are defense in depth and do not replace those
 provider-side hard limits.

@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 
-MONTHLY_GPU_CAP_USD = 100.0
+MONTHLY_GPU_CAP_USD = 40.0
 MONTHLY_API_CAP_USD = 100.0
 BUDGET_CLASSES = {
     "smoke": {"max_seconds": 20 * 60, "max_gpus": 1},
