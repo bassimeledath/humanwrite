@@ -1566,6 +1566,32 @@ DECISION: publish this configuration before evaluation, then execute it once.
 NEXT: Compute nine reports, audit hashes/provenance and hard gates, and stop at
 the evidence decision without opening a recurring monitoring loop.
 
+## [2026-07-16] M1 / realdata-directional-tier1-results
+HYPOTHESIS: The real-data pilot will materially improve validity and
+no-collapse across all nine fixed default-sampler seed cells versus the failed
+six-document baseline.
+SETUP: Computed all nine preregistered reports using the frozen human bank,
+calibration, baseline, cached dev embedder, and secondary gateway judge. Index
+SHA is `32b2cfa4...`; provider cost increased by `$0.061755`.
+RESULTS:
+| item | real-data pilot | tiny-data default baseline | outcome |
+| --- | ---: | ---: | --- |
+| All hard gates | 0/9 | 0/9 | FAIL CLOSED |
+| No-collapse gate | 4/9 | 0/9 | MATERIAL IMPROVEMENT |
+| Mean self-BLEU | 0.05569 | 0.01292 | MOVED INTO HUMAN RANGE ON SOME CELLS |
+| Mean repetition | 0.18056 | 0.38889 | MATERIAL IMPROVEMENT |
+| Outline-fact gate | 0/9 | 9/9 | SEVERE REGRESSION |
+| Unsupported-claim gate | 0/9 | 3/9 | REGRESSION |
+| Language-integrity gate | 9/9 | 9/9 | PRESERVED |
+| Secondary preference win rate | 0.3125 | 0.8889 | REGRESSION, NON-PROMOTING |
+| Mean authorship AUC | 0.64757 | 0.30035 | FARTHER FROM 0.5 |
+DECISION: fail closed. The larger five-sampler sweep, Tier 2/3, 14B scale-up,
+and budget expansion are not authorized. Real-data scale fixed much of the
+collapse problem but created an outline/factual-control failure, so the next
+experiment must target adherence rather than sampling breadth.
+NEXT: Diagnose the fixed prompt/target construction and preregister a bounded
+adherence recovery before spending on another generation sweep.
+
 ## [2026-07-16] M1 / realdata-pilot-source-attempt-2
 HYPOTHESIS: The recovered pinned resolver plus bounded worker timeouts will
 allow the unchanged 320-document source config to materialize.
