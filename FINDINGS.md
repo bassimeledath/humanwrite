@@ -1554,6 +1554,18 @@ bounded Tier-1 scoring boundary. Do not authorize a full sweep or scale-up yet.
 NEXT: Validate record-level provenance and compute the directional Tier-1
 comparison against the failed tiny-data baseline in one terminal job.
 
+## [2026-07-16] M1 / realdata-directional-tier1-preregistration
+HYPOTHESIS: The completed real-data pilot will materially improve the fixed
+default sampler's validity and no-collapse profile versus the failed six-doc
+baseline, justifying consideration of the larger five-sampler screen.
+SETUP: Bound one terminal Tier-1 batch to source-index SHA `e4fb9d24...`, the
+frozen 32-document human bank, calibration SHA `4a71b081...`, baseline SHA
+`53de46c7...`, and exactly nine reports from three checkpoint seeds by three
+sampling seeds. The fixed gateway judge remains secondary and non-promoting.
+DECISION: publish this configuration before evaluation, then execute it once.
+NEXT: Compute nine reports, audit hashes/provenance and hard gates, and stop at
+the evidence decision without opening a recurring monitoring loop.
+
 ## [2026-07-16] M1 / realdata-pilot-source-attempt-2
 HYPOTHESIS: The recovered pinned resolver plus bounded worker timeouts will
 allow the unchanged 320-document source config to materialize.
