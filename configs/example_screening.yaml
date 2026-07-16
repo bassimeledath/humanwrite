@@ -1,0 +1,30 @@
+# Example screening-class experiment config (validated by infra/gpu submit)
+run:
+  comparison_id: M2-armA-vs-SFT-len64     # must exist in ledger preregistration
+  arm: A                                   # A|B1|B2|C|D|E|SFT
+  budget_class: screen                     # smoke|screen|promo
+  task_kind: experiment
+  command: [python, -m, experiments.runner]
+  seeds: [0]
+compute:
+  gpu: L40S
+  gpus: 1
+  timeout_min: 120
+model:
+  base: Qwen/Qwen3-1.7B
+  lora: {rank: 64, alpha: 128, dropout: 0.0}
+  staging: {mode: continuous}              # continuous | merge_reset(n_stages)
+data:
+  train_split_hash: "<sha256 from data pipeline>"
+  max_doc_tokens: 64
+rollout:
+  sampler: {temperature: 1.0, top_p: 1.0}  # frozen in M1; do not sweep here
+  batch_docs: 32
+objective:
+  # arm-specific block; examples:
+  # A: {kernel: {rbf_bandwidth_scales: [0.25,0.5,1,2,4], ngram_weight: 0.3},
+  #     loo_baseline: true, kl_coeff: 0.05, sft_anchor_weight: 0.1}
+  # B1: {disc: ModernBERT-base, ttur_ratio: 5, replay: true, kl_coeff: 0.05}
+  placeholder: true
+logging:
+  track: [grad_variance, kl_drift, collapse_flags, tokens_generated]

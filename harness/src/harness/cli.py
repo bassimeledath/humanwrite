@@ -1,0 +1,696 @@
+"""DFT-R Tier 1 development evaluator command line interface."""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+import re
+import string
+import sys
+from dataclasses import asdict, dataclass
+from pathlib import Path
+from typing import Any, Optional
+
+import numpy as np
+import requests
+import yaml
+
+from harness import __version__
+from harness.metrics import distribution, quality, validity
+
+
+HARNESS_DIR = Path(__file__).resolve().parents[2]
+CALIBRATION_PATH = HARNESS_DIR / "calibration.json"
+BASELINE_PATH = HARNESS_DIR / "baseline_stats.json"
+DEPLOYMENT_SAMPLER_PATH = HARNESS_DIR / "deployment_sampler.json"
+DEV_EMBEDDER_ID = "BAAI/bge-small-en-v1.5"
+WEIGHTS = (0.50, 0.25, 0.25)
+NON_INFERIORITY_MARGIN = 0.05
+_CONFIG_NAMES = ("train_config.yaml", "train_config.yml", "train_config.json", "config.yaml", "config.yml", "config.json")
+_TEXT_KEYS = ("generated_completion", "generated_text", "output", "text", "completion")
+
+
+@dataclass
+class EvalReport:
+    checkpoint_id: str
+    harness_version: str
+    S: float
+    semantic_mmd: float
+    semantic_mmd_delta_vs_human_floor: float
+    lexical_l2: float
+    structural_dist: float
+    gate_outline_fact_recall: bool
+    gate_unsupported_claim_rate: bool
+    gate_language_integrity: bool
+    gate_no_collapse: bool
+    quality_pref_winrate: float
+    jmq: float
+    authorship_auc: float
+    authorship_auc_ci: tuple[float, float]
+    diversity_self_bleu: float
+    repetition_rate: float
+    notes: list[str]
+
+
+def _read_structured(path: Path) -> dict:
+    with path.open(encoding="utf-8") as stream:
+        value = json.load(stream) if path.suffix == ".json" else yaml.safe_load(stream)
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        raise ValueError(f"expected an object in {path}")
+    return value
+
+
+def _find_config(checkpoint_dir: str | Path) -> tuple[Path | None, dict]:
+    directory = Path(checkpoint_dir)
+    for name in _CONFIG_NAMES:
+        candidate = directory / name
+        if candidate.is_file():
+            return candidate, _read_structured(candidate)
+    return None, {}
+
+
+def _walk_items(value: Any, path=()):
+    if isinstance(value, dict):
+        for key, child in value.items():
+            yield from _walk_items(child, path + (str(key).casefold(),))
+    elif isinstance(value, list):
+        for child in value:
+            yield from _walk_items(child, path)
+    else:
+        yield path, value
+
+
+def _first_config_value(config, exact_keys, contains=()):
+    exact_keys = {key.casefold() for key in exact_keys}
+    for path, value in _walk_items(config):
+        key = path[-1] if path else ""
+        if key in exact_keys or any(fragment in key for fragment in contains):
+            if value is not None and not isinstance(value, (dict, list)):
+                return value
+    return None
+
+
+def _training_representation_value(config, representation):
+    """Find generic ids only when their config path clearly belongs to training."""
+    markers = {"train", "training", "objective", "reward", "mmd", "gail"}
+    keys = {f"{representation}_id", representation}
+    for path, value in _walk_items(config):
+        if path and path[-1] in keys and markers.intersection(path[:-1]):
+            if value is not None and not isinstance(value, (dict, list)):
+                return value
+    return None
+
+
+def _guard_representation(checkpoint_dir: str) -> None:
+    """Reject reward/evaluation representation collisions from train config."""
+    directory = Path(checkpoint_dir)
+    if not directory.is_dir():
+        raise ValueError("representation guard requires a checkpoint directory")
+    config_path, config = _find_config(directory)
+    if config_path is None:
+        raise ValueError("checkpoint is missing train_config/config metadata")
+
+    train_embedder = _first_config_value(
+        config,
+        {"train_embedder_id", "reward_embedder_id", "mmd_embedder_id"},
+        ("reward_embedder", "mmd_embedder"),
+    ) or _training_representation_value(config, "embedder")
+    if train_embedder and str(train_embedder).casefold() == DEV_EMBEDDER_ID.casefold():
+        raise ValueError(
+            "cross-representation violation: training reward and dev evaluator use the same embedder"
+        )
+
+    train_disc = _first_config_value(
+        config,
+        {"train_discriminator_id", "gail_discriminator_id", "discriminator_id", "disc"},
+        ("train_discriminator", "gail_discriminator"),
+    ) or _training_representation_value(config, "discriminator")
+    eval_disc = _first_config_value(
+        config,
+        {"eval_discriminator_id", "evaluator_discriminator_id", "authorship_probe_id"},
+        ("eval_discriminator", "evaluator_discriminator"),
+    )
+    if train_disc and eval_disc and str(train_disc).casefold() == str(eval_disc).casefold():
+        raise ValueError(
+            "cross-representation violation: a GAIL training discriminator cannot evaluate its checkpoint"
+        )
+
+
+def _read_jsonl(path: str | Path) -> list[dict]:
+    records = []
+    with Path(path).open(encoding="utf-8") as stream:
+        for line_number, line in enumerate(stream, 1):
+            if not line.strip():
+                continue
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError as error:
+                raise ValueError(f"invalid JSONL at {path}:{line_number}: {error.msg}") from error
+            if not isinstance(record, dict):
+                raise ValueError(f"JSONL record at {path}:{line_number} is not an object")
+            records.append(record)
+    if not records:
+        raise ValueError(f"JSONL file is empty: {path}")
+    return records
+
+
+def _record_text(record):
+    for key in _TEXT_KEYS:
+        if key in record and isinstance(record[key], str):
+            return record[key]
+    raise ValueError("record has no text field (expected canonical completion or generated output)")
+
+
+def _sample_path(target: Path):
+    if target.is_file():
+        return target
+    for name in ("samples.jsonl", "eval_samples.jsonl", "generations.jsonl"):
+        candidate = target / name
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _load_deployment_sampler():
+    if not DEPLOYMENT_SAMPLER_PATH.is_file():
+        raise ValueError("frozen deployment sampler config is missing")
+    sampler = _read_structured(DEPLOYMENT_SAMPLER_PATH)
+    required = {
+        "prompt_bank",
+        "prompt_format",
+        "seed",
+        "batch_size",
+        "max_input_tokens",
+        "max_new_tokens",
+        "do_sample",
+        "temperature",
+        "top_p",
+    }
+    if sampler.get("frozen") is not True:
+        raise ValueError("deployment sampler is not frozen")
+    missing = sorted(key for key in required if key not in sampler or sampler[key] is None)
+    if missing:
+        raise ValueError("deployment sampler has null/unset fields: " + ", ".join(missing))
+    if not isinstance(sampler["prompt_bank"], str) or not sampler["prompt_bank"].strip():
+        raise ValueError("deployment sampler prompt_bank must be a non-empty path")
+    if not isinstance(sampler["prompt_format"], str):
+        raise ValueError("deployment sampler prompt_format must be text")
+    if not isinstance(sampler["do_sample"], bool):
+        raise ValueError("deployment sampler do_sample must be boolean")
+    integer_fields = ("seed", "batch_size", "max_input_tokens", "max_new_tokens")
+    if any(isinstance(sampler[key], bool) or not isinstance(sampler[key], int) for key in integer_fields):
+        raise ValueError("deployment sampler seed/batch/token fields must be integers")
+    if int(sampler["batch_size"]) < 1 or int(sampler["max_input_tokens"]) < 1:
+        raise ValueError("deployment sampler batch_size/max_input_tokens must be positive")
+    if int(sampler["max_new_tokens"]) < 1 or int(sampler["seed"]) < 0:
+        raise ValueError("deployment sampler seed/token limits are invalid")
+    if not 0 < float(sampler["top_p"]) <= 1 or float(sampler["temperature"]) <= 0:
+        raise ValueError("deployment sampler temperature/top_p are invalid")
+    fields = {
+        field_name
+        for _, field_name, _, _ in string.Formatter().parse(sampler["prompt_format"])
+        if field_name is not None
+    }
+    if fields != {"user_prompt"}:
+        raise ValueError("deployment sampler prompt_format must use only {user_prompt}")
+    return sampler
+
+
+def _prompt_bank_records(sampler):
+    path = Path(str(sampler["prompt_bank"]))
+    if not path.is_absolute():
+        path = DEPLOYMENT_SAMPLER_PATH.parent / path
+    records = _read_jsonl(path)
+    for index, record in enumerate(records, 1):
+        if not isinstance(record.get("user_prompt"), str) or not record["user_prompt"].strip():
+            raise ValueError(f"prompt bank record {index} lacks canonical user_prompt")
+    return records
+
+
+def _default_checkpoint_generator(checkpoint_dir, records, sampler):
+    """Local transformers/PEFT generator for the frozen deployment sampler."""
+    try:
+        import torch
+        from transformers import AutoModelForCausalLM, AutoTokenizer
+    except ImportError as error:
+        raise RuntimeError("checkpoint generation requires transformers and torch") from error
+
+    checkpoint = Path(checkpoint_dir)
+    model_source = str(checkpoint)
+    tokenizer_source = model_source
+    if (checkpoint / "adapter_config.json").is_file():
+        try:
+            from peft import PeftConfig, PeftModel
+        except ImportError as error:
+            raise RuntimeError("PEFT adapter generation requires peft") from error
+        peft_config = PeftConfig.from_pretrained(model_source, local_files_only=True)
+        base_source = peft_config.base_model_name_or_path
+        model = AutoModelForCausalLM.from_pretrained(base_source, local_files_only=True)
+        model = PeftModel.from_pretrained(model, model_source, local_files_only=True)
+        if not (checkpoint / "tokenizer_config.json").is_file():
+            tokenizer_source = base_source
+    else:
+        model = AutoModelForCausalLM.from_pretrained(model_source, local_files_only=True)
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_source, local_files_only=True)
+    if tokenizer.pad_token_id is None:
+        tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.padding_side = "left"
+    model.eval()
+    torch.manual_seed(int(sampler["seed"]))
+    torch.use_deterministic_algorithms(True)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(int(sampler["seed"]))
+    prompts = [
+        str(sampler["prompt_format"]).format(user_prompt=record["user_prompt"])
+        for record in records
+    ]
+    outputs = []
+    batch_size = int(sampler["batch_size"])
+    for start in range(0, len(prompts), batch_size):
+        batch = prompts[start : start + batch_size]
+        encoded = tokenizer(
+            batch,
+            return_tensors="pt",
+            padding=True,
+            truncation=True,
+            max_length=int(sampler["max_input_tokens"]),
+        )
+        device = next(model.parameters()).device
+        encoded = {key: value.to(device) for key, value in encoded.items()}
+        generation_args = {
+            "max_new_tokens": int(sampler["max_new_tokens"]),
+            "do_sample": bool(sampler["do_sample"]),
+            "pad_token_id": tokenizer.pad_token_id,
+        }
+        if sampler["do_sample"]:
+            generation_args.update(
+                temperature=float(sampler["temperature"]), top_p=float(sampler["top_p"])
+            )
+        with torch.inference_mode():
+            sequences = model.generate(**encoded, **generation_args)
+        input_width = encoded["input_ids"].shape[1]
+        outputs.extend(
+            tokenizer.decode(sequence[input_width:], skip_special_tokens=True)
+            for sequence in sequences
+        )
+    return outputs
+
+
+def _generate_checkpoint_records(checkpoint_dir, generator=None):
+    sampler = _load_deployment_sampler()
+    prompt_records = _prompt_bank_records(sampler)
+    active_generator = generator or _default_checkpoint_generator
+    if hasattr(active_generator, "generate") and not callable(active_generator):
+        outputs = active_generator.generate(
+            checkpoint_dir=str(checkpoint_dir), records=prompt_records, sampler=dict(sampler)
+        )
+    else:
+        try:
+            outputs = active_generator(
+                checkpoint_dir=str(checkpoint_dir), records=prompt_records, sampler=dict(sampler)
+            )
+        except TypeError:
+            outputs = active_generator(str(checkpoint_dir), prompt_records, dict(sampler))
+    outputs = list(outputs)
+    if len(outputs) != len(prompt_records):
+        raise ValueError("checkpoint generator returned the wrong number of outputs")
+    generated_records = []
+    for index, (record, output) in enumerate(zip(prompt_records, outputs), 1):
+        if not isinstance(output, str):
+            raise ValueError(f"checkpoint generator output {index} is not text")
+        generated = dict(record)
+        if isinstance(record.get("completion"), str):
+            generated["reference_completion"] = record["completion"]
+        generated["generated_completion"] = output
+        generated_records.append(generated)
+    return generated_records
+
+
+def _environment_judge():
+    url, token = os.environ.get("HARNESS_JUDGE_URL"), os.environ.get("HARNESS_JUDGE_TOKEN")
+    if not url or not token:
+        return None
+
+    def judge(*, prompt, candidate_a, candidate_b):
+        try:
+            response = requests.post(
+                url,
+                json={
+                    "prompt": prompt,
+                    "candidate_a": candidate_a,
+                    "candidate_b": candidate_b,
+                },
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=30,
+            )
+            response.raise_for_status()
+            result = response.json()
+        except (requests.RequestException, ValueError):
+            # Suppress the client exception context because some HTTP clients
+            # include prepared authorization headers in their exception repr.
+            raise RuntimeError("Tier 1 quality judge request failed") from None
+        if not isinstance(result, dict) or set(result) != {"winner"}:
+            raise RuntimeError("Tier 1 quality judge returned an invalid aggregate response")
+        return result
+
+    return judge
+
+
+def _human_records(sample_records):
+    inline = []
+    for record in sample_records:
+        value = record.get("reference_completion", record.get("human_completion"))
+        if not isinstance(value, str):
+            inline = []
+            break
+        inline.append({"completion": value})
+    if inline:
+        return inline
+    reference = os.environ.get("HARNESS_HUMAN_REFERENCE")
+    if not reference:
+        default = HARNESS_DIR / "dev_human.jsonl"
+        reference = str(default) if default.is_file() else None
+    if not reference:
+        raise ValueError(
+            "human references are required: pair reference_completion inline or set HARNESS_HUMAN_REFERENCE"
+        )
+    return _read_jsonl(reference)
+
+
+def _load_json(path, default):
+    if not Path(path).is_file():
+        return default
+    with Path(path).open(encoding="utf-8") as stream:
+        return json.load(stream)
+
+
+def _baseline_value(baseline, name, field, default):
+    value = baseline.get(name, default)
+    if isinstance(value, dict):
+        value = value.get(field, default)
+    return default if value is None else float(value)
+
+
+def _standardize(value, baseline, name, notes):
+    section = baseline.get(name)
+    if not isinstance(section, dict) or section.get("mean") is None or section.get("std") is None:
+        notes.append(f"{name} baseline mean/std unavailable; S uses the raw component")
+        return value
+    std = float(section["std"])
+    if std <= 0:
+        raise ValueError(f"baseline std for {name} must be positive")
+    return (value - float(section["mean"])) / std
+
+
+def evaluate(
+    target: str,
+    report_path: Optional[str] = None,
+    *,
+    embedder=None,
+    judge=None,
+    probe=None,
+    generator=None,
+) -> EvalReport:
+    """Evaluate pre-generated output records against an independent human bank.
+
+    Checkpoint targets are guarded. Existing pre-generated samples are used as
+    is; otherwise the frozen deployment sampler generates from the dev prompt
+    bank. Injectable arguments are for wrapper-owned clients and offline tests.
+    """
+    target_path = Path(target)
+    if not target_path.exists():
+        raise FileNotFoundError(target)
+    if target_path.is_dir():
+        _guard_representation(str(target_path))
+    sample_path = _sample_path(target_path)
+    if sample_path is not None:
+        records = _read_jsonl(sample_path)
+    elif target_path.is_dir():
+        records = _generate_checkpoint_records(target_path, generator)
+    else:
+        raise ValueError("evaluation target is not a JSONL file")
+    human_records = _human_records(records)
+    generated = [_record_text(record) for record in records]
+    humans = [_record_text(record) for record in human_records]
+    if len(generated) < 2 or len(humans) < 4:
+        raise ValueError("evaluation requires at least 2 generated and 4 human documents")
+    paired_humans = [humans[index % len(humans)] for index in range(len(generated))]
+    prompts = [str(record.get("user_prompt", "")) for record in records]
+    outlines = [record.get("outline", []) for record in records]
+
+    notes = []
+    active_embedder = distribution._resolve_embedder(
+        embedder if embedder is not None else DEV_EMBEDDER_ID
+    )
+    semantic = distribution.semantic_mmd(generated, humans, active_embedder)
+    floor, floor_ci = distribution.human_floor_mmd(humans, active_embedder)
+    notes.append(f"human-floor 95% CI: [{floor_ci[0]:.6g}, {floor_ci[1]:.6g}]")
+    lexical = distribution.lexical_l2(generated, humans, {"hash_dim": 4096, "ngram_range": (1, 3)})
+    structural = distribution.structural_distance(generated, humans)
+
+    calibration = _load_json(CALIBRATION_PATH, {})
+    baseline = _load_json(BASELINE_PATH, {})
+    recall = validity.outline_fact_recall(generated, outlines)
+    unsupported = validity.unsupported_claim_rate(generated, outlines)
+    collapse = validity.collapse_flags(generated, calibration)
+    margin = NON_INFERIORITY_MARGIN
+    validity_baselines_available = (
+        "outline_fact_recall" in baseline and "unsupported_claim_rate" in baseline
+    )
+    recall_baseline = _baseline_value(baseline, "outline_fact_recall", "mean", 0.0)
+    unsupported_baseline = _baseline_value(baseline, "unsupported_claim_rate", "mean", 1.0)
+    if not validity_baselines_available:
+        notes.append("SFT validity baselines unavailable; non-inferiority gates fail closed")
+
+    active_judge = judge if judge is not None else _environment_judge()
+    if active_judge is None:
+        preference, jmq_value = 0.5, 1.0
+        notes.append("quality judge not supplied; neutral placeholders reported")
+    else:
+        preference = quality.quality_preference(generated, paired_humans, prompts, active_judge)
+        jmq_value = 2.0 * preference
+        notes.append("quality preference is secondary and may exhibit judge self-preference")
+    if probe is None:
+        auc, auc_low, auc_high = quality.fresh_authorship_auc(generated, humans)
+        notes.append("authorship AUC uses a fresh deterministic character n-gram out-of-fold probe")
+    else:
+        auc, auc_low, auc_high = quality.authorship_auc(generated, humans, probe)
+
+    z_semantic = _standardize(semantic, baseline, "semantic_mmd", notes)
+    z_lexical = _standardize(lexical, baseline, "lexical_l2", notes)
+    z_structural = _standardize(structural, baseline, "structural_dist", notes)
+    score = WEIGHTS[0] * z_semantic + WEIGHTS[1] * z_lexical + WEIGHTS[2] * z_structural
+    report = EvalReport(
+        checkpoint_id=_ckpt_hash(str(target_path)),
+        harness_version=__version__,
+        S=float(score),
+        semantic_mmd=float(semantic),
+        semantic_mmd_delta_vs_human_floor=float(semantic - floor),
+        lexical_l2=float(lexical),
+        structural_dist=float(structural),
+        gate_outline_fact_recall=bool(
+            validity_baselines_available and recall >= recall_baseline - margin
+        ),
+        gate_unsupported_claim_rate=bool(
+            validity_baselines_available and unsupported <= unsupported_baseline + margin
+        ),
+        gate_language_integrity=validity.language_integrity(generated, calibration),
+        gate_no_collapse=bool(collapse["pass"]),
+        quality_pref_winrate=float(preference),
+        jmq=float(jmq_value),
+        authorship_auc=float(auc),
+        authorship_auc_ci=(float(auc_low), float(auc_high)),
+        diversity_self_bleu=float(collapse["self_bleu"]),
+        repetition_rate=float(collapse["repetition_rate"]),
+        notes=notes,
+    )
+    if report_path:
+        Path(report_path).write_text(json.dumps(asdict(report), indent=2, allow_nan=False) + "\n", encoding="utf-8")
+    return report
+
+
+def calibrate(human_split_jsonl: str) -> dict:
+    """Compute and persist human-calibrated distribution intervals."""
+    records = _read_jsonl(human_split_jsonl)
+    texts = [_record_text(record) for record in records]
+    if len(texts) < 2:
+        raise ValueError("calibration requires at least two human documents")
+    script_rates = [validity.non_target_script_char_rate(text) for text in texts]
+    repetition_rates = [validity.repeated_sentence_start_rate([text]) for text in texts]
+    individual_bleu = []
+    for index, text in enumerate(texts):
+        others = [other for other_index, other in enumerate(texts) if other_index != index]
+        individual_bleu.append(validity.sentence_bleu(text, others))
+    paragraph_lengths, sentence_lengths = [], []
+    for text in texts:
+        paragraph_lengths.extend(
+            len(validity._tokens(part)) for part in re.split(r"\n\s*\n", text) if part.strip()
+        )
+        sentence_lengths.extend(len(validity._tokens(sentence)) for sentence in validity._sentences(text))
+
+    def interval(values):
+        return {"low": float(np.quantile(values, 0.025)), "high": float(np.quantile(values, 0.975))}
+
+    def percentiles(values):
+        if not values:
+            return {"p10": 0.0, "p50": 0.0, "p90": 0.0}
+        return {
+            "p10": float(np.quantile(values, 0.10)),
+            "p50": float(np.quantile(values, 0.50)),
+            "p90": float(np.quantile(values, 0.90)),
+        }
+
+    result = {
+        "_comment": "Human-calibrated ranges from the supplied canonical human split.",
+        "self_bleu": interval(individual_bleu),
+        "repeated_sentence_start_rate": interval(repetition_rates),
+        "non_target_script_char_rate": interval(script_rates),
+        "paragraph_len_tokens": percentiles(paragraph_lengths),
+        "sentence_len_tokens": percentiles(sentence_lengths),
+    }
+    CALIBRATION_PATH.write_text(json.dumps(result, indent=2, allow_nan=False) + "\n", encoding="utf-8")
+    return result
+
+
+def _sealed_metadata(checkpoint_dir):
+    _, config = _find_config(checkpoint_dir)
+    arm = _first_config_value(config, {"arm"})
+    comparison_id = _first_config_value(config, {"comparison_id"})
+    train_embedder = _first_config_value(
+        config,
+        {"train_embedder_id", "reward_embedder_id", "mmd_embedder_id"},
+        ("train_embedder", "reward_embedder", "mmd_embedder"),
+    )
+    artifact_uri = os.environ.get("SEALED_ARTIFACT_URI") or _first_config_value(config, {"artifact_uri"})
+    artifact_uri = artifact_uri or str(Path(checkpoint_dir).resolve())
+    missing = [name for name, value in (("arm", arm), ("comparison_id", comparison_id), ("train_embedder_id", train_embedder)) if not value]
+    if missing:
+        raise ValueError("checkpoint config missing sealed-submit metadata: " + ", ".join(missing))
+    if str(arm) not in {"A", "B1", "B2", "C", "D", "E", "SFT"}:
+        raise ValueError(f"invalid arm for sealed submission: {arm}")
+    return str(artifact_uri), str(arm), str(train_embedder), str(comparison_id)
+
+
+def sealed_submit(checkpoint_dir: str) -> dict:
+    """Submit only contract-approved aggregate metadata to the Tier 2 service."""
+    directory = Path(checkpoint_dir)
+    if not directory.is_dir():
+        raise ValueError("sealed-submit requires a checkpoint directory")
+    url, token = os.environ.get("SEALED_EVAL_URL"), os.environ.get("SEALED_EVAL_TOKEN")
+    if not url or not token:
+        raise RuntimeError("SEALED_EVAL_URL and SEALED_EVAL_TOKEN must be set")
+    artifact_uri, arm, train_embedder, comparison_id = _sealed_metadata(directory)
+    endpoint = url.rstrip("/") if url.rstrip("/").endswith("/submit") else url.rstrip("/") + "/submit"
+    payload = {
+        "checkpoint_hash": _ckpt_hash(str(directory)),
+        "artifact_uri": artifact_uri,
+        "arm": arm,
+        "train_embedder_id": train_embedder,
+        "comparison_id": comparison_id,
+    }
+    try:
+        response = requests.post(
+            endpoint,
+            json=payload,
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=30,
+        )
+    except requests.RequestException as error:
+        raise RuntimeError("sealed evaluator request failed") from error
+    if response.status_code == 429:
+        raise RuntimeError("sealed evaluator weekly quota exhausted")
+    if response.status_code == 409:
+        raise RuntimeError("sealed evaluator rejected an embedder independence violation")
+    try:
+        response.raise_for_status()
+        result = response.json()
+    except (requests.RequestException, ValueError) as error:
+        raise RuntimeError("sealed evaluator returned an invalid response") from error
+    required = {"window_id", "quota_remaining", "primary", "authorship_auc", "authorship_auc_ci", "gates", "verdict", "aggregate_only"}
+    if (
+        not isinstance(result, dict)
+        or set(result) != required
+        or result.get("aggregate_only") is not True
+        or not isinstance(result.get("primary"), dict)
+        or set(result["primary"])
+        != {"semantic_mmd", "semantic_mmd_delta_vs_floor", "S"}
+    ):
+        raise RuntimeError("sealed evaluator response violated the aggregate-only API contract")
+    if result.get("verdict") not in {"confirm", "reject", "inconclusive"}:
+        raise RuntimeError("sealed evaluator returned an invalid verdict")
+    return result
+
+
+def _hash_piece(hasher, kind: bytes, name: str, payload: bytes = b""):
+    encoded = name.encode("utf-8", "surrogateescape")
+    hasher.update(kind)
+    hasher.update(len(encoded).to_bytes(8, "big"))
+    hasher.update(encoded)
+    hasher.update(len(payload).to_bytes(8, "big"))
+    hasher.update(payload)
+
+
+def _ckpt_hash(path: str) -> str:
+    """Stable, path-aware content hash that never follows symlinks."""
+    root = Path(path)
+    if not root.exists() and not root.is_symlink():
+        raise FileNotFoundError(path)
+    hasher = hashlib.sha256()
+    if root.is_symlink():
+        _hash_piece(hasher, b"L", root.name, os.readlink(root).encode())
+    elif root.is_file():
+        _hash_piece(hasher, b"F", root.name)
+        with root.open("rb") as stream:
+            for chunk in iter(lambda: stream.read(1 << 20), b""):
+                hasher.update(chunk)
+    elif root.is_dir():
+        _hash_piece(hasher, b"D", ".")
+        for item in sorted(root.rglob("*"), key=lambda value: value.relative_to(root).as_posix()):
+            relative = item.relative_to(root).as_posix()
+            if item.is_symlink():
+                _hash_piece(hasher, b"L", relative, os.readlink(item).encode())
+            elif item.is_dir():
+                _hash_piece(hasher, b"D", relative)
+            elif item.is_file():
+                stat = item.stat()
+                _hash_piece(hasher, b"F", relative, stat.st_size.to_bytes(8, "big"))
+                with item.open("rb") as stream:
+                    for chunk in iter(lambda: stream.read(1 << 20), b""):
+                        hasher.update(chunk)
+            else:
+                raise ValueError(f"unsupported special file in checkpoint: {relative}")
+    else:
+        raise ValueError(f"unsupported checkpoint path: {path}")
+    return hasher.hexdigest()[:16]
+
+
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(prog="harness")
+    sub = parser.add_subparsers(dest="cmd", required=True)
+    evaluate_parser = sub.add_parser("eval", help="Tier 1 dev evaluation")
+    evaluate_parser.add_argument("target", help="checkpoint dir or samples.jsonl")
+    evaluate_parser.add_argument("--report", default=None)
+    sealed_parser = sub.add_parser("sealed-submit", help="Tier 2 promotion check (quota-limited)")
+    sealed_parser.add_argument("checkpoint_dir")
+    calibration_parser = sub.add_parser("calibrate", help="M1: build calibration.json from human splits")
+    calibration_parser.add_argument("human_split_jsonl")
+    args = parser.parse_args(argv)
+    try:
+        if args.cmd == "eval":
+            output = asdict(evaluate(args.target, args.report))
+        elif args.cmd == "sealed-submit":
+            output = sealed_submit(args.checkpoint_dir)
+        else:
+            output = calibrate(args.human_split_jsonl)
+    except (OSError, RuntimeError, ValueError) as error:
+        print(f"harness: {error}", file=sys.stderr)
+        return 2
+    print(json.dumps(output, indent=2, allow_nan=False))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

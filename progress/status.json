@@ -1,0 +1,37 @@
+{
+  "updated_at": "2026-07-16T01:15:06Z",
+  "phase": "Infrastructure deployment",
+  "headline": "Deploying the research environment",
+  "summary": "The research scaffold, independent evaluators, storage, and provider boundaries are ready. Modal services are being deployed before M0 begins.",
+  "run_state": "active",
+  "budget": {
+    "modal_cap_usd": 40,
+    "modal_committed_usd": 0,
+    "openrouter_cap_usd": 100,
+    "openrouter_spend_usd": 0
+  },
+  "services": [
+    {"name": "GPU gateway", "detail": "Constrained launch API", "status": "online"},
+    {"name": "Reaper", "detail": "Five-minute independent enforcement", "status": "online"},
+    {"name": "Sealed evaluator", "detail": "Private Tier 2 endpoint", "status": "deploying"},
+    {"name": "Progress server", "detail": "Local live dashboard", "status": "online"}
+  ],
+  "milestones": [
+    {"id": "setup", "label": "Setup", "detail": "Harness, sources, storage, and guardrails", "status": "complete"},
+    {"id": "M0", "label": "M0", "detail": "Data pipeline and GPU contract smoke test", "status": "queued"},
+    {"id": "M1", "label": "M1", "detail": "SFT baseline and calibration freeze", "status": "queued"},
+    {"id": "M2", "label": "M2", "detail": "Arms A-E at 64 and 128 tokens", "status": "queued"},
+    {"id": "M3", "label": "M3", "detail": "Length curriculum and LoRA staging", "status": "queued"},
+    {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
+  ],
+  "events": [
+    {"at": "18:15", "title": "GPU gateway verified", "detail": "Authenticated budget and judge calls passed with the 40 dollar Modal cap enforced.", "tone": "complete"},
+    {"at": "18:14", "title": "Sealed evaluator building", "detail": "The private independent embedder image is installing and will be bootstrapped after deployment.", "tone": "active"},
+    {"at": "18:10", "title": "Reaper deployed", "detail": "The independent five-minute budget and wall-clock enforcement job is online.", "tone": "complete"},
+    {"at": "18:09", "title": "Deployment started", "detail": "Provider secret detected and service bindings prepared.", "tone": "active"},
+    {"at": "17:58", "title": "Operator secrets secured", "detail": "Capability tokens and sealed configuration stored in Modal and macOS Keychain.", "tone": "complete"},
+    {"at": "17:46", "title": "Storage created", "detail": "Gateway state, checkpoints, sealed state, and sealed artifacts volumes are online.", "tone": "complete"},
+    {"at": "17:40", "title": "Engineering checks passed", "detail": "Harness, infrastructure, and private evaluator suites are green.", "tone": "complete"}
+  ],
+  "next_action": "Finish deploying Modal services, verify the capability endpoints, then start the M0 Codex research run."
+}

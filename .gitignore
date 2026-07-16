@@ -1,0 +1,23 @@
+# Never commit data completions, checkpoints, logs, or anything credential-ish
+data/*.jsonl
+data/raw/
+data/splits/
+experiments/**/checkpoints/
+experiments/**/*.log
+ledger/ledger.jsonl.bak
+*.pt
+*.safetensors
+.env
+*.env
+*.key
+*.pem
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.coverage
+*.egg-info/
+.swarmy/
+.venv/
+**/.venv/
+.DS_Store

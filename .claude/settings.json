@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "deny": [
+      "Edit(./harness/**)",
+      "Write(./harness/**)",
+      "Edit(./sources/**)",
+      "Write(./sources/**)",
+      "Edit(./ledger/ledger.py)",
+      "Edit(./infra/gpu)",
+      "Edit(./infra/GPU_WRAPPER_SPEC.md)",
+      "Edit(./sealed_evaluator/**)",
+      "Write(./sealed_evaluator/**)",
+      "Read(./**/*secret*)",
+      "Read(./**/.env*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/guard_bash.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
