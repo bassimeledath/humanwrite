@@ -1,0 +1,32 @@
+{
+  "artifact_schema": "dftr.tier1_human_bank.config.v1",
+  "source": {
+    "dataset_id": "HuggingFaceFW/fineweb",
+    "dataset_config": "CC-MAIN-2024-10",
+    "revision": "9bb295ddab0e05d785b879661af7260fed5140fc",
+    "split": "train"
+  },
+  "selection": {
+    "bank_size": 32,
+    "eligible_pool_size": 512,
+    "max_non_latin_letter_ratio": 0.02,
+    "max_word_count": 220,
+    "min_word_count": 40,
+    "require_distinct_domains": true,
+    "seed_label": "dftr-m1-tier1-visible-bank-v1",
+    "stream_scan_limit": 10000
+  },
+  "exclude_manifests": [
+    "data/artifacts/m0/train_manifest.json",
+    "data/artifacts/m0/dev_manifest.json"
+  ],
+  "output": {
+    "bank_path": "data/artifacts/m1/tier1_human_bank_v1.jsonl",
+    "manifest_path": "data/artifacts/m1/tier1_human_bank_v1.manifest.json"
+  },
+  "policy": {
+    "agent_visible": true,
+    "hidden_test_materialized": false,
+    "purpose": "Independent visible Tier-1 distribution bank; never training data"
+  }
+}

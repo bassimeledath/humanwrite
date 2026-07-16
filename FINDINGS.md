@@ -904,3 +904,33 @@ path that yields locally readable sampler artifacts and four independent human
 references without duplication or hidden-data leakage, plus an operator-owned
 immutable transfer path that makes baseline/freeze/calibration execution
 lawful. Until those exist, do not run Tier-1 eval/freeze and do not start M2.
+
+## [2026-07-16] M1 / visible-tier1-human-bank-preregistration
+HYPOTHESIS: The missing independent-human gate can be resolved without reusing
+training text or exposing Tier-2 data by freezing a visible, public FineWeb
+bank before any sampler report is scored. A bank of 32 fingerprint-unique,
+domain-distinct documents is sufficient for the immutable harness's
+human-vs-human floor and is more stable than lowering its four-document rule.
+SETUP: Operator-owned preparation batch after the authoritative M1 boundary.
+Pinned `HuggingFaceFW/fineweb` snapshot `CC-MAIN-2024-10` at immutable dataset
+revision `9bb295ddab0e05d785b879661af7260fed5140fc`. Preregistered deterministic
+hash ranking under seed label `dftr-m1-tier1-visible-bank-v1`, a 512-record
+eligible pool within at most 10,000 streamed rows, 40--220 word documents,
+at most 2% non-Latin letters, and distinct domains. All fixed M0 train/dev
+fingerprints are explicit exclusions. This batch adds the materializer,
+config, and offline tests only; it does not stream the source, inspect sampler
+outputs, run `harness eval`, mutate `harness/`, expose hidden data, freeze a
+sampler, or start M2.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Source boundary | PREREGISTERED | Public agent-visible FineWeb crawl only; policy records `hidden_test_materialized=false`. |
+| Independence | PREREGISTERED | M0 train and dev fingerprints are excluded; selected completion fingerprints must be unique. |
+| Selection timing | PREREGISTERED | Config and algorithm are committed before source materialization or any Tier-1 scoring. |
+| Human-floor cardinality | PREREGISTERED | Exactly 32 distinct-domain human documents, exceeding the immutable four-document minimum. |
+| Output provenance | PREREGISTERED | Materializer will bind source revision, config hash, bank hash, fingerprints, domains, scan counts, and selection settings into a manifest. |
+DECISION: keep as preparation only. This removes no gate until offline tests
+pass, the preparation commit is published, the pinned source is materialized,
+and an independent verifier confirms disjointness and reproducibility.
+NEXT: Run the focused offline tests, publish this exact preparation commit,
+then materialize and independently audit the bank before any Tier-1 scoring.
