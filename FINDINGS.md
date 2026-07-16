@@ -1876,3 +1876,36 @@ directional recovery evidence; it remains a 1.7B screen, not 14B scale-up,
 Tier 2/3, or promotion.
 NEXT: Launch the three-seed SFT screen, verify checkpoint manifest/provenance,
 then run the fixed 16-document directional default-sampler evaluation.
+
+## [2026-07-16] M1 / adherence-recovery-model-size-screen
+HYPOTHESIS: Repairing the synthesis meta-prompts and conditioning both train
+and generation on the full structured brief will restore factual control; a
+single-seed 1.7B/4B comparison determines whether model size merits a
+three-seed confirmation.
+SETUP: Replaced only `user_prompt` in the frozen 256/64 corpus and proved all
+other values unchanged. Enforced `dft.full-brief.v1` rendering of use case,
+style, detail mode, length, em-dash policy, and outline in both SFT and
+sampling. Trained seed 11 for Qwen3-1.7B and Qwen3-4B, then generated the same
+16 dev records at sampling seeds 101, 202, and 303.
+RESULTS:
+| item | 1.7B | 4B |
+| --- | ---: | ---: |
+| Mean outline-fact recall | 0.80296 | 0.81037 |
+| Mean unsupported rate, non-empty outlines | 0.02602 | 0.01955 |
+| Outline / unsupported / language gates | 3/3 each | 3/3 each |
+| No-collapse gates | 1/3 | 2/3 |
+| Mean self-BLEU | 0.04272 | 0.04795 |
+| Directional decision | FAIL | PASS |
+
+REVIEWER AUDIT: The primary conditioning diagnosis is confirmed by code and
+the approximately 1,600-fold recall recovery from the failed pilot. Two
+evaluator caveats remain. First, the preference judge uses a prompt-unmatched
+external human bank and is secondary. Second, the positive calibrated lower
+bound makes zero repeated sentence starts fail `no-collapse`; this penalized
+1.7B seed 303 despite no observed repetition. The frozen rule is preserved
+for this decision, but must be redesigned before promotion.
+DECISION: advance Qwen3-4B to the preregistered three-seed confirmation. Do
+not authorize 14B, Tier 2, Tier 3, or promotion yet.
+NEXT: Train Qwen3-4B seeds 11/29/47 on the identical corrected corpus, repeat
+the 144-output directional screen, and require the factual and collapse gates
+to hold across adapters before any budget expansion.

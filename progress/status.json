@@ -1,12 +1,12 @@
 {
-  "updated_at": "2026-07-16T14:31:54Z",
-  "phase": "M1 — SFT baseline and calibration",
-  "headline": "Real-data tuning improved diversity but failed factual-control gates",
-  "summary": "All nine directional Tier-1 reports are complete. Compared with the tiny-data default baseline, no-collapse improved from 0 of 9 to 4 of 9, mean self-BLEU rose from 0.01292 to 0.05569, and repetition fell from 0.38889 to 0.18056. However, outline-fact adherence fell from 9 of 9 passes to 0 of 9 and unsupported-claim passes fell from 3 of 9 to 0 of 9. No cell passed every hard gate, so the larger sweep and scale-up fail closed.",
-  "run_state": "complete",
+  "updated_at": "2026-07-16T15:27:00Z",
+  "phase": "M1 — adherence recovery screen",
+  "headline": "Corrected 1.7B and 4B adapters are entering the same factual-control test",
+  "summary": "The failed directional run was traced to a real conditioning defect: training and generation saw only a synthesis meta-prompt and omitted the structured brief. All 320 prompts were repaired with every other field frozen, full-brief conditioning is now enforced in both paths, and independent validation passed. Seed-11 adapters for Qwen3-1.7B and Qwen3-4B are trained; two identical 48-output directional screens are active.",
+  "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
-    "modal_committed_usd": 1.666584,
+    "modal_committed_usd": 1.844785,
     "openrouter_cap_usd": 100,
     "openrouter_spend_usd": 0.702752
   },
@@ -19,12 +19,16 @@
   "milestones": [
     {"id": "setup", "label": "Setup", "detail": "Harness, sources, storage, and guardrails", "status": "complete"},
     {"id": "M0", "label": "M0", "detail": "Data pipeline and GPU contract smoke test", "status": "complete"},
-    {"id": "M1", "label": "M1", "detail": "Real-data SFT complete; directional quality screen preparing", "status": "active"},
+    {"id": "M1", "label": "M1", "detail": "Corrected 1.7B and 4B directional screens active", "status": "active"},
     {"id": "M2", "label": "M2", "detail": "Arms A-E at 64 and 128 tokens", "status": "queued"},
     {"id": "M3", "label": "M3", "detail": "Length curriculum and LoRA staging", "status": "queued"},
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {"at": "08:24", "title": "Dual-model adherence generation launched", "detail": "Qwen3-1.7B and Qwen3-4B now generate the same 16 fixed dev briefs under sampling seeds 101, 202, and 303. Each arm produces exactly 48 outputs; no 14B scale-up is authorized.", "tone": "active"},
+    {"at": "08:21", "title": "Corrected adapters trained successfully", "detail": "Both seed-11 arms trained on identical 46,732-token corpora. Train loss was 0.74985 for 1.7B and 0.69721 for 4B; actual GPU cost was 0.056279 and 0.108070 dollars.", "tone": "complete"},
+    {"at": "08:17", "title": "Prompt-only repair and validation passed", "detail": "All 256 train and 64 dev prompts are unique and source-grounded. Field-by-field validation proves every non-prompt value is unchanged. The largest full brief is 1,017 tokens under the frozen 1,024-token limit.", "tone": "complete"},
+    {"at": "07:50", "title": "Reviewer diagnosis audited", "detail": "The reviewer correctly identified the primary defect: only user_prompt reached the model, while use case, style, detail mode, target length, em-dash policy, and outline were omitted. The audit rejected prompt repair alone and required the formatter fix at both train and sample time.", "tone": "complete"},
     {"at": "07:31", "title": "Directional Tier-1 result failed closed", "detail": "Nine of nine reports completed with exact provenance. Diversity materially improved: no-collapse passes rose from 0 to 4, self-BLEU moved toward the human range, and repetition more than halved. But outline-fact and unsupported-claim gates were 0 of 9, so no cell passed all gates and no larger sweep or scale-up is authorized.", "tone": "blocked"},
     {"at": "03:30", "title": "Directional generation completed 144 of 144", "detail": "Run dftr-1784196454-0822114d completed with return code 0. Nine JSONL cells contain exactly 144 documents and 22,759 generated tokens. Actual cost was 0.887583 dollars over 1,364.672 L40S-seconds; Tier-1 scoring is the next evidence boundary.", "tone": "complete"},
     {"at": "03:23", "title": "Directional screen reached 96 of 144 outputs", "detail": "Checkpoint seeds 11 and 29 have each completed all three sampling seeds. Only checkpoint seed 47 remains; the worker, immutable inputs, and budget are healthy.", "tone": "active"},
@@ -75,5 +79,5 @@
     {"at": "17:46", "title": "Storage created", "detail": "Gateway state, checkpoints, sealed state, and sealed artifacts volumes are online.", "tone": "complete"},
     {"at": "17:40", "title": "Engineering checks passed", "detail": "Harness, infrastructure, and private evaluator suites are green.", "tone": "complete"}
   ],
-  "next_action": "Diagnose prompt and target construction for the outline/factual-control regression, then preregister one bounded adherence-recovery experiment before generating another sweep."
+  "next_action": "Wait for both 48-output jobs, score them with the same Tier-1 harness, and continue to three-seed confirmation only if a preregistered factual-control gate passes."
 }

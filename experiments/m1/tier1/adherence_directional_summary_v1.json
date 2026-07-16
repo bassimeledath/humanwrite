@@ -1,0 +1,52 @@
+{
+  "artifact_schema": "dftr.adherence_directional_summary.v1",
+  "decision": "Qwen3-4B passes the preregistered directional recovery gate; Qwen3-1.7B fails only the two-of-three no-collapse requirement.",
+  "failed_pilot_reference": {
+    "mean_outline_fact_recall": 0.0004938271604938272,
+    "outline_gate_passes": 0,
+    "report_count": 9,
+    "unsupported_gate_passes": 0
+  },
+  "gate": {
+    "language_integrity_required": "3/3",
+    "mean_outline_fact_recall_min": 0.4,
+    "no_collapse_required": "2/3",
+    "nonempty_unsupported_claim_rate_max": 0.6,
+    "outline_gate_required": "3/3",
+    "unsupported_gate_required": "3/3"
+  },
+  "arms": {
+    "Qwen3-1.7B": {
+      "decision": "fail",
+      "language_integrity_passes": 3,
+      "mean_outline_fact_recall": 0.802962962962963,
+      "mean_quality_preference": 0.9791666666666666,
+      "mean_self_bleu": 0.04271825250641484,
+      "mean_unsupported_claim_rate_nonempty_outlines": 0.026018135794161942,
+      "no_collapse_passes": 1,
+      "outline_gate_passes": 3,
+      "repetition_rates": [0.3125, 0.0625, 0.0],
+      "report_index_sha256": "e32cf1eed2842cf02b71aa5e74da82c1df7cb80c5f5ebc9986bf0ad9ba268ff8",
+      "unsupported_gate_passes": 3
+    },
+    "Qwen3-4B": {
+      "decision": "pass",
+      "language_integrity_passes": 3,
+      "mean_outline_fact_recall": 0.8103703703703703,
+      "mean_quality_preference": 1.0,
+      "mean_self_bleu": 0.04795253405293581,
+      "mean_unsupported_claim_rate_nonempty_outlines": 0.019554519554519558,
+      "no_collapse_passes": 2,
+      "outline_gate_passes": 3,
+      "repetition_rates": [0.125, 0.1875, 0.125],
+      "report_index_sha256": "d42802b31cf94f6ab86c48bb1b5182ae6c0605c73be047b1be16d2a1faf7c5b3",
+      "unsupported_gate_passes": 3
+    }
+  },
+  "reviewer_audit": {
+    "conditioning_diagnosis_confirmed": true,
+    "quality_preference_used_for_decision": false,
+    "quality_warning": "The preference judge compares against an external, prompt-unmatched human bank and is secondary.",
+    "repetition_gate_warning": "The calibrated lower bound is positive, so a zero repeated-start rate fails no-collapse. At 16 documents the rate is discrete; this penalizes the 1.7B seed-303 cell despite zero observed repetition. Frozen decisions are preserved, but this gate needs redesign before promotion."
+  }
+}
