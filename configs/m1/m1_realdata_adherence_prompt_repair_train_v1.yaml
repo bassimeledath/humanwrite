@@ -8,7 +8,7 @@ compute:
   timeout_min: 120
 data:
   input_uri: modal-volume://humanwrite-checkpoints/data/m1-realdata-pilot-v1/train_briefs.jsonl
-  input_sha256: 498294e01e209c6b495e5fc05dc68138f6f221a742c9bf924281e575766b2c0c
+  input_sha256: 498294a865db2b8c7d9466aad562e187c0475b84051c59453c4a030f2041d1d8
   max_records: 256
   output_uri: modal-volume://humanwrite-checkpoints/data/m1-realdata-adherence-v1/train_briefs.jsonl
   source_split_hash: 833b2c259a8e68c110d4668121213f3f98b47dac5f70f26047d69cbd2cca932e
