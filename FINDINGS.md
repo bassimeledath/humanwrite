@@ -934,3 +934,38 @@ pass, the preparation commit is published, the pinned source is materialized,
 and an independent verifier confirms disjointness and reproducibility.
 NEXT: Run the focused offline tests, publish this exact preparation commit,
 then materialize and independently audit the bank before any Tier-1 scoring.
+
+## [2026-07-16] M1 / visible-tier1-human-bank-materialization
+HYPOTHESIS: The published visible-bank design is executable and reproducible
+if the pinned FineWeb source yields exactly 32 domain-distinct eligible human
+documents, the resulting bytes are disjoint from every existing M0 train/dev
+fingerprint, and a clean second streaming pass reproduces both bank and
+manifest byte-for-byte.
+SETUP: Materialization occurred only after preparation commit
+`283170f8577b61c926c30461e4298d85d6c35938` was published. Ran
+`python -m data.tier1_bank --config
+configs/m1/m1_tier1_human_bank_v1.json` against the preregistered immutable
+FineWeb revision. The materializer scanned only until its frozen 512-record
+eligible pool was filled and selected by the published seeded hash rule. Ran
+offline structural/hash/disjointness checks, then repeated the complete source
+stream and materialization without changing code or config. No generated
+sampler completion was read, no harness metric was run, and no `harness/`,
+M0 artifact, hidden data, model, ledger, compute, Tier 2/3, or M2 surface was
+mutated.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Source scan | PASS | Scanned 1,470 streamed rows to collect the frozen 512-record eligible pool from `CC-MAIN-2024-10` at revision `9bb295ddab0e05d785b879661af7260fed5140fc`. |
+| Bank cardinality | PASS | Exactly 32 completion-fingerprint-unique documents from 32 distinct domains; observed word-count range is 50--220 under the preregistered 40--220 filter. |
+| Train/dev disjointness | PASS | Intersection with all eight fingerprints in the immutable M0 train and dev manifests is empty. |
+| Provenance | PASS | Bank SHA-256 is `ebcff5bca1e6c75ab482aa831453a79986ffd700ee4a729de57fc8c496c6dc68`; manifest SHA-256 is `92a0366c313d007c5d602cc8758c148a775b94d5c927416dd668121bcf447ae1`; config SHA-256 is `090c3596853617dd4c5c0fbfa0189f177ab890994c74c3e36431c6469132265a`. |
+| Deterministic reproduction | PASS | A second complete streaming/materialization pass reproduced the same bank and manifest hashes byte-for-byte. |
+| Hidden-test wall | PASS | Artifact is explicitly visible Tier 1 only and contains no sealed-evaluator material or metadata. |
+DECISION: keep. The independent-human data gate is resolved at the artifact
+level without weakening the harness, duplicating training humans, or exposing
+hidden data. This does not itself authorize scoring until the separate harness
+engineering lane passes independent tests and the materialization commit is
+published.
+NEXT: Publish the exact bank artifacts, finish and independently verify the
+external-bank/calibration/baseline/freeze harness repair, then evaluate the
+already-completed sampler cells without inspecting or regenerating outputs.
