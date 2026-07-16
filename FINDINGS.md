@@ -1724,3 +1724,25 @@ dev gate is satisfied; launch the exact 256-row train synthesis under its `$5`
 cap. No SFT GPU run is authorized until the combined 256/64 validator passes.
 NEXT: Run train synthesis, resume only contract-valid rows if needed, then
 publish the full pilot validation and mechanical three-seed SFT config.
+
+## [2026-07-16] M1 / pilot-brief-synthesis-train-bulk-pass
+HYPOTHESIS: The dev-hardened strict-schema worker will synthesize a
+contract-valid 256-row train artifact, with resume isolating any sparse
+quotation failures.
+SETUP: Launched canonical train config hash `ea354894...` as
+`dftr-1784193698-9f68c860` at git SHA `bc95fb1`, under the preregistered `$5`
+cap. The worker committed every 50 valid rows and retried each rejection twice.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Durable progress | PASS | `248/256` unique train briefs committed; partial SHA `08d57fa74629212123178d99600e4915977c3977a95816c05f15e290a00fb0bd`. |
+| Independent partial audit | PASS | All 248 rows preserve exact source fields/IDs, generation mode, schema/types, and verbatim quotation grounding. All 64 deterministic empty-outline IDs are already present. |
+| Rejections | FAIL CLOSED | Exactly eight non-empty-outline rows remained absent after altering at least one quotation; no malformed row was written. |
+| Reliability | PASS | Two slow provider cases resolved within the fixed timeout/retry policy; checkpoints 50, 100, 150, and 200 remained durable throughout. |
+| Spend | CONTAINED | `$0.382337` provider spend, `0` accelerator-seconds; total monthly provider spend is `$0.612572/$100`. |
+| GPU gate | CLOSED | No partial training artifact or SFT launch is permitted. |
+DECISION: accept the 248-row checkpoint as valid partial progress. Resume the
+same immutable config once so only the eight absent IDs are called; use a
+separate preregistered recovery only if any remain.
+NEXT: Complete 256/256, run the combined source/brief validator, and only then
+publish the mechanical three-seed SFT config.

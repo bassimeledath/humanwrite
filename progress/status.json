@@ -1,14 +1,14 @@
 {
-  "updated_at": "2026-07-16T09:45:13Z",
+  "updated_at": "2026-07-16T09:52:14Z",
   "phase": "M1 — SFT baseline and calibration",
-  "headline": "Train synthesis checkpointed at 200/256 valid rows",
-  "summary": "The complete dev artifact has 64 independently validated briefs and final SHA 524c224a. Train run dftr-1784193698-9f68c860 has durably committed 200 contract-valid rows; seven additional rows were rejected for non-verbatim quotations and will be retried after the bulk pass. Cumulative train cost is 0.303997 dollars and actual total provider spend is 0.534232 of 100 dollars. GPU training remains closed until combined validation passes.",
+  "headline": "Train bulk pass complete with 248/256 valid rows",
+  "summary": "The complete dev artifact has 64 independently validated briefs and final SHA 524c224a. The train bulk pass durably committed 248 contract-valid rows; exactly eight additional rows were rejected for non-verbatim quotations and will now be retried without repeating valid work. Independent partial validation passed, including all 64 deterministic empty outlines. Train cost is 0.382337 dollars and actual total provider spend is 0.612572 of 100 dollars. GPU training remains closed.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
     "modal_committed_usd": 0.683574,
     "openrouter_cap_usd": 100,
-    "openrouter_spend_usd": 0.534232
+    "openrouter_spend_usd": 0.612572
   },
   "services": [
     {"name": "GPU gateway", "detail": "Constrained launch API", "status": "online"},
@@ -25,6 +25,7 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {"at": "02:52", "title": "Train bulk pass preserved 248 valid rows", "detail": "The terminal bulk pass committed 248 of 256 rows. Independent partial validation passed exact IDs, source preservation, schema, quotation grounding, and all 64 empty-outline IDs; eight missing rows will be retried for 0.382337 dollars spent so far.", "tone": "active"},
     {"at": "02:45", "title": "Train synthesis checkpoint 200 is durable", "detail": "Two hundred valid train briefs are committed. Seven quotation-rejected rows remain absent for retry; slow provider responses stayed inside their timeout policy and cumulative train cost is 0.303997 dollars.", "tone": "active"},
     {"at": "02:38", "title": "Train synthesis checkpoint 150 is durable", "detail": "A slow provider call resolved inside its timeout and the run resumed without intervention. One hundred fifty valid rows are committed; five quotation-rejected rows remain for retry and cumulative train cost is 0.225038 dollars.", "tone": "active"},
     {"at": "02:33", "title": "Train synthesis checkpoint 100 is durable", "detail": "One hundred contract-valid train briefs are committed. Four of 104 attempted rows failed only the verbatim-quotation check and remain absent for a later missing-row retry; cumulative train cost is 0.153342 dollars.", "tone": "active"},
@@ -66,5 +67,5 @@
     {"at": "17:46", "title": "Storage created", "detail": "Gateway state, checkpoints, sealed state, and sealed artifacts volumes are online.", "tone": "complete"},
     {"at": "17:40", "title": "Engineering checks passed", "detail": "Harness, infrastructure, and private evaluator suites are green.", "tone": "complete"}
   ],
-  "next_action": "Monitor train run dftr-1784193698-9f68c860 through its 100, 150, 200, and 250-row checkpoints, preserve and resume only contract-valid rows if needed, then require combined 256/64 validation before any GPU training."
+  "next_action": "Resume the immutable train config so only eight missing IDs are called, then require exact 256/64 combined validation before publishing or launching any GPU training config."
 }
