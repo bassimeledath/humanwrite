@@ -1319,3 +1319,24 @@ DECISION: publish and deploy this reviewed gateway revision. This is a source
 transport repair, not a model-result change and not permission to scale.
 NEXT: Add the open ledger preregistration, launch one 320-document source job,
 verify its manifest and reproducibility, then separately preregister synthesis.
+
+## [2026-07-16] M1 / realdata-pilot-source-attempt-1
+HYPOTHESIS: The privileged gateway can materialize the preregistered 320-record
+source corpus despite the local Hugging Face listing failure.
+SETUP: Deployed gateway commit `66d1895`, opened the published preregistration,
+and launched source-only smoke run `dftr-1784190213-0ceedecd` at git SHA
+`81d7df3`. The gateway accepted canonical config hash `42b0eeec...`, classified
+the task as CPU source materialization, and reserved `$0` GPU/API spend.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Policy and launch | PASS | Exact published config accepted; single resource, 20-minute hard timeout, pinned revision/shard, and volume-only outputs enforced. |
+| Source access | FAIL | The fixed worker received a Hugging Face `ReadTimeout` before selecting any record. The local API, direct pinned shard, and authenticated Modal route all timed out during the same service incident. |
+| Side effects | PASS | `0` records, `0` tokens, `0` accelerator-seconds, and `$0` charged; terminal failed ledger row recorded. |
+| External status | BLOCKED EXTERNALLY | Hugging Face's official status page reports some services down as of `2026-07-16 07:56 UTC`. |
+DECISION: keep as a zero-cost infrastructure/outage result. Do not change the
+dataset, revision, shard, selection, or exclusions to manufacture progress.
+Retain the open preregistration and retry with backoff after Hub/CDN recovery.
+NEXT: Monitor Hugging Face status on a longer cadence; when operational,
+launch the same config unchanged, verify the volume manifest, and only then
+authorize capped brief synthesis.

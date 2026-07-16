@@ -289,6 +289,7 @@ def source_materialization_worker(run_id: str, payload: dict) -> dict:
         from datasets import load_dataset
 
         token = os.environ.pop("HF_TOKEN", None)
+        os.environ.pop("OPENROUTER_API_KEY", None)
         files = source.get("files") or []
         base = f"https://huggingface.co/datasets/{source['dataset_id']}/resolve/{source['revision']}"
         urls = [f"{base}/{str(path).lstrip('/')}" for path in files]

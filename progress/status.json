@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-16T08:07:20Z",
+  "updated_at": "2026-07-16T08:25:00Z",
   "phase": "M1 — SFT baseline and calibration",
-  "headline": "M1 screen complete — current tiny SFT does not qualify",
-  "summary": "All 45 frozen-provenance Tier-1 reports completed and passed their integrity audit. The evaluation system worked as designed, but no sampler passed the human-calibrated no-collapse gate, so the mechanical freeze correctly selected nothing. This is a useful pipeline proof and a negative model result; larger-model or M2 spend is paused while a low-cost real-data pilot is prepared.",
+  "headline": "Real-data recovery pilot preregistered; source host temporarily down",
+  "summary": "The negative tiny-data M1 result is preserved and no scale-up is planned. A fixed 320-document real-FineWeb recovery pilot and a credential-safe Modal source path are now published and deployed. The first zero-cost source attempt selected no records because Hugging Face is reporting service downtime; the same frozen config will retry after recovery, before any provider or GPU spend.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
@@ -25,6 +25,8 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {"at": "01:25", "title": "Pilot source attempt stopped by Hugging Face outage", "detail": "The new constrained source job was accepted with exact published provenance and a zero-dollar reservation, then failed before selecting records when both local and Modal routes timed out against Hugging Face. No data source was substituted and no paid call occurred; retry cadence is lengthened until the official service status recovers.", "tone": "blocked"},
+    {"at": "01:22", "title": "Credential-safe real-data path deployed", "detail": "The gateway now supports preregistered, fully pinned FineWeb source materialization directly to the checkpoint volume without exposing the Hugging Face credential. All 16 infrastructure tests pass and the 320-document pilot excludes all 40 published M0/Tier-1 fingerprints and domains.", "tone": "complete"},
     {"at": "01:07", "title": "Full Tier-1 screen failed closed", "detail": "All 45 reports are complete and hash-valid, but no sampler passed every hard gate: human-calibrated no-collapse was 0/45 and unsupported-claim non-inferiority was 18/45. The preregistered freeze selected nothing. Provider spend is 0.039521 dollars and GPU commitment remains 0.683574 dollars; no scale-up is justified.", "tone": "blocked"},
     {"at": "00:25", "title": "Independent Tier-1 human bank published", "detail": "A preregistered public FineWeb bank now provides 32 visible human documents from 32 domains, with zero overlap against every M0 train/dev fingerprint. Two complete materialization passes reproduced bank SHA ebcff5bc byte-for-byte; the hidden Tier-2 split remains sealed.", "tone": "complete"},
     {"at": "00:24", "title": "M1 boundary recovery started", "detail": "Sampler artifacts were recovered locally and the independent harness engineer is repairing external-bank precedence, calibration transfer validation, and baseline/freeze ordering without reading model outputs.", "tone": "active"},
@@ -53,5 +55,5 @@
     {"at": "17:46", "title": "Storage created", "detail": "Gateway state, checkpoints, sealed state, and sealed artifacts volumes are online.", "tone": "complete"},
     {"at": "17:40", "title": "Engineering checks passed", "detail": "Harness, infrastructure, and private evaluator suites are green.", "tone": "complete"}
   ],
-  "next_action": "Preregister a small, real-data training pilot that is disjoint from the visible and sealed evaluators; run it at the existing 0.6B scale and require the same Tier-1 gates to pass before synthesizing the full 20–30K brief set or increasing budget."
+  "next_action": "Wait for Hugging Face Hub/CDN recovery, then relaunch the unchanged zero-cost 320-document source config; verify exact train/dev hashes before preregistering any synthesis or Qwen3-1.7B training spend."
 }
