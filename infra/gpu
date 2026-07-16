@@ -177,7 +177,7 @@ def _validate_submit(config: dict, budget_class: str) -> tuple[str, dict]:
     if "14B" in base_model.upper() and os.environ.get("DFTR_ALLOW_SCALEUP") != "1":
         _die("REJECTED: 14B/scale-up requires human DFTR_ALLOW_SCALEUP=1")
     revision = str((config.get("model") or {}).get("revision", "")).strip()
-    if workflow_step in {"train_sft", "sample_sweep"} and (
+    if workflow_step in {"train_sft", "sample_sweep", "merge_adapter"} and (
         not revision or revision.startswith(UNRESOLVED_REVISION_PREFIX)
     ):
         _die("REJECTED: M1 evidentiary experiment jobs require a resolved immutable model.revision")

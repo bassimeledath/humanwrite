@@ -44,7 +44,76 @@ def run_m1(config: dict[str, Any], run_id: str) -> dict[str, Any]:
         return _train_sft(config, run_id)
     if step == "sample_sweep":
         return _sample_sweep(config, run_id)
+    if step == "merge_adapter":
+        return _merge_adapter(config, run_id)
     raise M1ConfigError(f"unsupported M1 workflow.step: {workflow.get('step')!r}")
+
+
+def _merge_adapter(config: dict[str, Any], run_id: str) -> dict[str, Any]:
+    """Materialize an immutable full-model artifact for evaluators without PEFT."""
+    import torch
+    from peft import PeftModel
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+
+    model_config = config.get("model") or {}
+    revision = require_resolved_revision(config, context="adapter merge")
+    source = Path(str((config.get("artifact") or {}).get("source_adapter_path") or ""))
+    checkpoint_root = Path("/checkpoints/runs").resolve()
+    try:
+        source.resolve().relative_to(checkpoint_root)
+    except (ValueError, OSError) as exc:
+        raise M1ConfigError("adapter merge source must be under /checkpoints/runs") from exc
+    if not source.is_dir() or not (source / "adapter_model.safetensors").is_file():
+        raise M1ConfigError("adapter merge source is incomplete")
+    expected_adapter_sha = str((config.get("artifact") or {}).get("adapter_sha256") or "")
+    if file_sha256(source / "adapter_model.safetensors") != expected_adapter_sha:
+        raise M1ConfigError("adapter merge source SHA-256 mismatch")
+
+    output_dir, checkpoint_dir = build_run_paths(config, run_id)
+    merged_dir = checkpoint_dir / "merged-model"
+    merged_dir.mkdir(parents=True, exist_ok=True)
+    base = AutoModelForCausalLM.from_pretrained(
+        str(model_config.get("base") or ""),
+        revision=revision,
+        local_files_only=True,
+        trust_remote_code=True,
+        torch_dtype=torch.bfloat16,
+        device_map={"": 0},
+    )
+    model = PeftModel.from_pretrained(base, str(source), local_files_only=True)
+    merged = model.merge_and_unload(safe_merge=True)
+    merged.save_pretrained(
+        merged_dir,
+        safe_serialization=True,
+        max_shard_size="4GB",
+    )
+    tokenizer = AutoTokenizer.from_pretrained(str(source), local_files_only=True)
+    tokenizer.save_pretrained(merged_dir)
+    sealed_metadata = config.get("sealed_metadata")
+    if not isinstance(sealed_metadata, dict):
+        raise M1ConfigError("adapter merge requires sealed_metadata")
+    write_json(merged_dir / "train_config.json", sealed_metadata)
+
+    files = {
+        item.name: file_sha256(item)
+        for item in sorted(merged_dir.iterdir())
+        if item.is_file()
+    }
+    manifest = {
+        "artifact_schema": "dftr.merged_adapter.v1",
+        "run_id": run_id,
+        "status": "completed",
+        "model_base": str(model_config.get("base") or ""),
+        "model_revision": revision,
+        "source_adapter_path": str(source),
+        "source_adapter_sha256": expected_adapter_sha,
+        "merged_model_dir": str(merged_dir),
+        "merged_files": files,
+        "token_accounting": {"total_tokens": 0},
+    }
+    write_json(checkpoint_dir / "run_manifest.json", manifest)
+    write_json(output_dir / "merged_adapter_manifest.json", manifest)
+    return manifest
 
 
 def _load_fixed_manifest(config: dict[str, Any]) -> dict[str, Any]:

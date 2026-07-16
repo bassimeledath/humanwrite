@@ -103,7 +103,7 @@ def validate_launch(payload: dict[str, Any]) -> LaunchPolicy:
     workflow_step = str((config.get("workflow") or {}).get("step", "")).casefold()
     if "14B" in base_model.upper() and not payload.get("human_scaleup_approved"):
         raise PolicyError("14B scale-up lacks human approval")
-    if workflow_step in {"train_sft", "sample_sweep"} and revision_is_unresolved(
+    if workflow_step in {"train_sft", "sample_sweep", "merge_adapter"} and revision_is_unresolved(
         (config.get("model") or {}).get("revision")
     ):
         raise PolicyError(

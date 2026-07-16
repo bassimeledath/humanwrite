@@ -1,0 +1,30 @@
+run:
+  comparison_id: M2-sealed-artifact-merge-4b-v1
+  arm: SFT
+  budget_class: screen
+  task_kind: experiment
+  command: [python, -m, experiments.runner]
+compute:
+  gpu: L40S
+  gpus: 1
+  timeout_min: 30
+model:
+  base: Qwen/Qwen3-4B
+  revision: 1cfa9a7208912126459214e8b04321603b3df60c
+artifact:
+  source_adapter_path: /checkpoints/runs/dftr-1784216516-91130dd3/seed-29
+  adapter_sha256: a34c14230f4847001a3a0c4362a3bc26b3a43c1d0ef049e12a7a0d029aacea91
+sealed_metadata:
+  artifact_schema: dftr.sealed_submission.v1
+  arm: SFT
+  comparison_id: M4-promotion
+  train_embedder_id: none-sft-no-reward-embedder
+  artifact_uri: /sealed-artifacts/checkpoints/m2-sealed-4b-seed29-merged-v1
+  model:
+    base: Qwen/Qwen3-4B
+    revision: 1cfa9a7208912126459214e8b04321603b3df60c
+    adapter_run_id: dftr-1784216516-91130dd3
+    training_seed: 29
+workflow:
+  protocol_version: m1.sealed-artifact.v1
+  step: merge_adapter
