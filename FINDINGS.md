@@ -1382,3 +1382,27 @@ DECISION: keep and deploy before any synthesis preregistration. This repairs
 data validity and does not weaken or reinterpret Tier-1 model gates.
 NEXT: Continue source-host backoff; after source hashes exist, bind two capped
 synthesis configs to the exact train/dev source bytes and use this contract.
+
+## [2026-07-16] M1 / pilot-artifact-validator-preparation
+HYPOTHESIS: A single fail-closed operator validator can turn recovered source
+and synthesized brief bytes into trustworthy training inputs without manual
+document inspection or accepting provider-produced provenance fields on faith.
+SETUP: Preparation only during the source-host outage. Added a validator that
+recomputes every source file SHA, split hash, completion fingerprint, count,
+domain uniqueness, train/dev disjointness, and exclusion intersection; then
+requires exact source/brief ID equality, byte-identical preserved source
+fields, the privileged brief contract, and the exact empty-outline ID set.
+It emits a metadata-only validation artifact after both splits pass.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Source provenance | PASS | Dataset/config/revision/split/shard, file SHA, split hash, fingerprints, domains, labels, and counts are independently recomputed. |
+| Test-wall exclusions | PASS | Any overlap with the published excluded fingerprint or domain sets fails validation. |
+| Brief binding | PASS | Brief IDs must exactly equal source IDs and all source fields, including completion, must remain byte-identical. |
+| Schema/arm binding | PASS | Reuses the deployed schema/grounding contract and independently checks the exact empty-outline ID set. |
+| Verification | PASS | All 13 data tests and all 22 infrastructure tests pass; mutation tests reject changed completions and wrong empty-outline assignment. |
+DECISION: keep as the mandatory post-download/post-synthesis gate. No source,
+brief, provider call, model run, or evaluation was produced here.
+NEXT: On host recovery, download the three source artifacts to the ignored
+operator staging area, run this validator after capped synthesis, and publish
+only its metadata result plus training config hashes.
