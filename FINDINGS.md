@@ -1457,3 +1457,27 @@ No fixed manifest or training config can be generated until source and brief
 validation artifacts exist, so this does not preregister or authorize a run.
 NEXT: Resume unchanged source materialization after host recovery, then flow
 its validated hashes through synthesis and this training boundary.
+
+## [2026-07-16] M1 / pilot-sft-config-builder-preparation
+HYPOTHESIS: Generating the SFT fixed manifest and run config mechanically from
+the completed validation artifact will eliminate manual hash/path transcription
+between paid synthesis and GPU training.
+SETUP: Preparation only. Added a builder that refuses any validation artifact
+other than `dftr.realdata_pilot_validation.v1`, requires exact 256/64 counts
+and source/brief split-hash equality, then emits a fixed-input manifest and a
+Qwen3-1.7B three-seed SFT screen config. The fixed manifest binds volume brief
+paths, file SHAs, split hashes, source-manifest SHA, validation SHA, prompt
+format, token limits, and seeds. The run retains the original LoRA/training
+hyperparameters so data realism/scale is the intended changed factor.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Validation dependency | PASS | Missing/wrong schema, cardinality, counts, or split hashes fail before config emission. |
+| Training provenance | PASS | Generated config includes the exact fixed-manifest SHA consumed by `m1.realdata-pilot.v1`. |
+| Controlled model setup | PASS | Qwen3-1.7B, seeds `[11,29,47]`, rank-64 LoRA, one epoch, LR `2e-4`, L40S screen budget. |
+| Authorization | NONE | Builder emits files only; ledger preregistration and launch remain separate after real validation evidence. |
+| Verification | PASS | Combined data and experiment suite passes `31/31`. |
+DECISION: keep as the mandatory mechanical bridge to SFT. Do not generate or
+publish a concrete config until the real source and brief validator passes.
+NEXT: Continue host recovery monitoring; after dev/train synthesis validation,
+generate, publish, preregister, and budget-check this exact SFT config.
