@@ -262,3 +262,39 @@ for human transfer; it may not make the harness accept them during M1.
 NEXT: Dispatch a separate implementer to create and preregister the bounded M1
 surfaces without launching or evaluating. Review and commit exact seeds, grid,
 revision-resolution flow, and config hashes before the first wrapper submit.
+
+## [2026-07-15] M1 / constrained-workflow-candidate-1
+HYPOTHESIS: A wrapper-only M1 workflow can safely reach the first remote
+plumbing gate if it locks evidentiary work to Qwen3-1.7B, confines Qwen3-0.6B
+to revision-resolution plumbing, and fails closed on every unresolved revision,
+checkpoint, Tier-1 report, or preregistration.
+SETUP: Candidate commit `3f778274b87a42ecfb4c1259caa0243bae079a39`
+adds M1 configs and workflow/analysis code outside `harness/`. Fixed hashes are
+train=`c59c853cdc03c7378308c8f35baa874e0f484fa035d4297948c3f3b755afa1a6`
+and dev=`69dded207ccb2a7753666752ebcbdaee0e00260bf9848817979e50427bb2cf8b`;
+training seeds are `[11,29,47]`; sampling seeds are `[101,202,303]`; the
+five-point sampler grid includes default `(temperature=1.0, top_p=1.0)`.
+Only comparison `M1-plumbing-revision-resolve-qwen3-0p6b` was preregistered,
+after config hash
+`8f0be62b88999d23143946f3c6dbf8db50d03e7eebf8032f924eb5fa1809f930`
+was frozen. A separate tester received the commit and acceptance contract but
+not the implementer's strategy or logs. The tester ran offline policy/local
+backend checks and temp-file assertions only; it launched no job and ran no
+Tier-1/Tier-2 evaluation.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Independent pre-compute verdict | PASS | `.swarmy/results/m1-precompute.txt` reports `score=pass`. |
+| Protected surfaces | PASS | Candidate diff does not touch `harness/`, `sources/`, or fixed M0 data artifacts/manifests; the ledger change is one append-only prereg row. |
+| Infra route confinement | PASS | Runtime remains behind `infra/gpu` and allowlisted `python -m experiments.runner`. |
+| Config/ledger agreement | PASS | Resolver config hash exactly matches the sole open M1 preregistration. |
+| Model boundary | PASS | 0.6B is resolver plumbing only; evidentiary SFT is locked to Qwen3-1.7B. |
+| Fail-closed provenance | PASS | Unresolved 1.7B revisions, checkpoints, reports, and missing preregistration are rejected. |
+| Offline checks | PASS | Policy and local-backend tests plus focused static/temp assertions passed without eval/provider access. |
+DECISION: keep candidate 1 and permit only the preregistered 0.6B resolver
+smoke as the next action. Do not launch 1.7B training or sampler generation
+until the resolver result is recorded, exact revisions are pinned, configs are
+rehash-preregistered, and a separate verification pass accepts them.
+NEXT: Push the candidate commit required by the approved remote clone path,
+check `infra/gpu budget`, submit the exact resolver config under `smoke`, and
+record terminal accounting/provenance or the failure without bypass.
