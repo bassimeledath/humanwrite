@@ -29,6 +29,9 @@
   "source": {
     "dataset_config": "CC-MAIN-2024-10",
     "dataset_id": "HuggingFaceFW/fineweb",
+    "files": [
+      "data/CC-MAIN-2024-10/000_00000.parquet"
+    ],
     "revision": "9bb295ddab0e05d785b879661af7260fed5140fc",
     "split": "train"
   }

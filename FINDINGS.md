@@ -1273,3 +1273,25 @@ manifest exists.
 NEXT: Publish this preparation commit, materialize twice to prove byte-level
 reproducibility, upload the two source splits to the constrained volume, then
 preregister capped brief-synthesis jobs.
+
+## [2026-07-16] M1 / realdata-pilot-source-transport-amendment
+HYPOTHESIS: Pinning the first immutable Parquet shard explicitly will preserve
+the preregistered dataset/revision/selection semantics while avoiding the
+intermittently unavailable Hugging Face dataset-listing API.
+SETUP: The first two materialization attempts failed before reading or writing
+any candidate record: the online attempt received HTTP 504 from dataset-info,
+and offline mode correctly refused the uncached listing. The dataset's public
+immutable tree identifies `data/CC-MAIN-2024-10/000_00000.parquet` at the same
+already-frozen revision. Amended the source config to name only that shard and
+the loader to stream its revision-qualified Parquet URL directly. Selection,
+exclusions, sizes, filters, seeds, and outputs are unchanged.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Paid effects | NONE | Zero provider calls, GPU seconds, or output records before amendment. |
+| Scientific selection | UNCHANGED | Same immutable dataset revision and CC snapshot; exact shard is now an additional frozen constraint. |
+| Failure recovery | FAIL CLOSED | No fallback dataset, moving revision, or alternate time slice was used. |
+DECISION: keep as a transport-only preregistration amendment made before any
+candidate content was materialized.
+NEXT: Publish the amendment, then make one exact materialization attempt and
+verify reproducibility before any synthesis call.

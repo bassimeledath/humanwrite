@@ -198,6 +198,16 @@ def _stream_source(config: dict[str, Any]):
         raise PilotCorpusError("source is missing fields: " + ", ".join(missing))
     from datasets import load_dataset
 
+    files = source.get("files") or []
+    if files:
+        base = f"https://huggingface.co/datasets/{source['dataset_id']}/resolve/{source['revision']}"
+        urls = [f"{base}/{str(path).lstrip('/')}" for path in files]
+        return load_dataset(
+            "parquet",
+            data_files={str(source["split"]): urls},
+            split=str(source["split"]),
+            streaming=True,
+        )
     return load_dataset(
         str(source["dataset_id"]),
         name=str(source["dataset_config"]),
