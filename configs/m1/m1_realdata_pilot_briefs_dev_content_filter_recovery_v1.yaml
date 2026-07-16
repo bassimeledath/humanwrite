@@ -1,0 +1,23 @@
+run:
+  comparison_id: M1-realdata-pilot-briefs-dev-content-filter-recovery-v1
+  arm: SFT
+  budget_class: smoke
+  task_kind: brief_synthesis
+compute:
+  gpus: 1
+  timeout_min: 20
+data:
+  input_uri: modal-volume://humanwrite-checkpoints/data/m1-realdata-pilot-v1/dev_source.jsonl
+  input_sha256: 7012e7a84e11d14b6e8e46b827de77d44bc46401946a7cb848f0587633b05ac5
+  max_records: 64
+  output_uri: modal-volume://humanwrite-checkpoints/data/m1-realdata-pilot-v1/dev_briefs.jsonl
+  source_split_hash: 849f4e5bcbf1e78330f9d6f0e812b9d359d638ee5ed1a422e9d01c54b69e9722
+  expected_empty_outline_count: 16
+api:
+  model: openai/gpt-5-mini
+  fallback_model: anthropic/claude-haiku-4.5
+  max_cost_usd: 0.25
+provenance:
+  source_manifest_sha256: 6b264d07d18309201604ad800bbfd4b5650c5b1dc452bb1dfd5355457f7fe89b
+  source_revision: 9bb295ddab0e05d785b879661af7260fed5140fc
+  purpose: Recover one GPT-5-mini content-filtered dev row with pinned neutral fallback; not promotion evidence

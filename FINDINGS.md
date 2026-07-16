@@ -1681,3 +1681,22 @@ after `content_filter`: prohibit persuasion, advocacy, voter targeting, calls
 to action, and imitated campaign copy; require a neutral factual user prompt
 and empty quotations. The frozen source and output validator stay unchanged.
 NEXT: Resume the one missing ID, then run the full 64-row dev validator.
+
+## [2026-07-16] M1 / pilot-brief-synthesis-dev-content-filter-boundary
+HYPOTHESIS: A neutral non-persuasive GPT-5-mini retry will recover the sole
+campaign-page record without changing source or contract.
+SETUP: Resumed 63 validated rows as `dftr-1784193442-8e4e57b7` at git SHA
+`46a7145`; only the missing fingerprint was eligible for a call.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| GPT-5-mini policy boundary | FAIL | Both the normal and explicit neutral archival prompts ended with `content_filter`; no response body was admitted. |
+| Side effects | PASS | `0` processed, `0` provider cost, `0` accelerator-seconds; the 63-row checkpoint remains byte-valid. |
+| Source diagnosis | BENIGN POLITICAL | The 122-word public page is a contact/campaign page for a community-college governing-board candidate. The incompatibility is political-persuasion policy routing, not malformed or unsafe source bytes. |
+DECISION: preregister a one-record recovery config that preserves GPT-5-mini as
+primary and invokes pinned `anthropic/claude-haiku-4.5` only after an explicit
+`content_filter`. The fallback receives the neutral archival prompt, cannot
+produce persuasion/calls to action, uses empty quotations, remains under a
+`$0.25` cap, and must pass the unchanged validator.
+NEXT: Publish/deploy the allowlisted fallback, recover the one row, then run
+the full 64-row independent dev validation before train synthesis.

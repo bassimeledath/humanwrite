@@ -43,6 +43,7 @@ APP_NAME = "humanwrite-gpu-gateway"
 STATE_PATH = "/state/events.jsonl"
 CHECKPOINT_PATH = "/checkpoints"
 REPO_URL = "https://github.com/bassimeledath/humanwrite.git"
+BRIEF_FALLBACK_MODEL = "anthropic/claude-haiku-4.5"
 
 state_volume = modal.Volume.from_name("humanwrite-gateway-state", create_if_missing=True)
 checkpoint_volume = modal.Volume.from_name("humanwrite-checkpoints", create_if_missing=True)
@@ -425,6 +426,9 @@ def brief_synthesis_worker(run_id: str, payload: dict) -> dict:
         model = os.environ["DFTR_OPENROUTER_MODEL"]
         if str((config.get("api") or {}).get("model")) != model:
             raise ValueError("brief synthesis model does not match the frozen deployment model")
+        fallback_model = str((config.get("api") or {}).get("fallback_model") or "")
+        if fallback_model and fallback_model != BRIEF_FALLBACK_MODEL:
+            raise ValueError("brief synthesis fallback model is not allowlisted")
         api_key = os.environ["OPENROUTER_API_KEY"]
         checkpoint_volume.reload()
         if not input_path.is_file():
@@ -479,6 +483,27 @@ def brief_synthesis_worker(run_id: str, payload: dict) -> dict:
                 safety_neutral = False
                 for _attempt in range(2):
                     try:
+                        active_model = fallback_model if safety_neutral and fallback_model else model
+                        request_payload = {
+                            "model": active_model,
+                            "messages": [{
+                                "role": "user",
+                                "content": _brief_prompt(
+                                    text[:120_000],
+                                    force_empty_outline=source_id in empty_outline_ids,
+                                    safety_neutral=safety_neutral,
+                                ),
+                            }],
+                            "response_format": brief_response_format(
+                                force_empty_outline=source_id in empty_outline_ids
+                            ),
+                            "max_completion_tokens": 4000,
+                        }
+                        if active_model == model:
+                            request_payload["reasoning"] = {
+                                "effort": "minimal",
+                                "exclude": True,
+                            }
                         response = requests.post(
                             "https://openrouter.ai/api/v1/chat/completions",
                             headers={
@@ -487,22 +512,7 @@ def brief_synthesis_worker(run_id: str, payload: dict) -> dict:
                                 "HTTP-Referer": "https://github.com/bassimeledath/humanwrite",
                                 "X-OpenRouter-Title": "Humanwrite DFT-R brief synthesis",
                             },
-                            json={
-                                "model": model,
-                                "messages": [{
-                                    "role": "user",
-                                    "content": _brief_prompt(
-                                        text[:120_000],
-                                        force_empty_outline=source_id in empty_outline_ids,
-                                        safety_neutral=safety_neutral,
-                                    ),
-                                }],
-                                "response_format": brief_response_format(
-                                    force_empty_outline=source_id in empty_outline_ids
-                                ),
-                                "reasoning": {"effort": "minimal", "exclude": True},
-                                "max_completion_tokens": 4000,
-                            },
+                            json=request_payload,
                             timeout=180,
                         )
                         response.raise_for_status()
