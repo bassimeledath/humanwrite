@@ -776,3 +776,50 @@ this commit does not launch sampling or claim Tier-1 executability.
 NEXT: Publish this exact preparation commit before any future sampler launch.
 Any launch must recheck budget and publication gates through the approved
 wrapper; Tier-1 analysis still requires a separate authorized boundary design.
+
+## [2026-07-16] M1 / sampler-screen-terminal-qwen3-1p7b
+HYPOTHESIS: The preregistered Qwen3-1.7B sampler screen is complete evidence
+only if the already-launched wrapper run terminates successfully and the
+terminal payload proves exact source/config/revision/checkpoint/grid/seed
+provenance, exact token/cost/accelerator accounting, the Tier-1 index pointer,
+and the expected `45` index entries / `90` generated documents, while the
+known downstream Tier-1 human-bank and baseline/freeze boundaries remain
+explicitly unbypassed.
+SETUP: Resume-only monitor pass on Thursday, July 16, 2026. Read the governing
+M1 findings, the terse independent prelaunch verdict, the sampler config and
+fixed manifests, the operator-materialized SFT checkpoint manifest and
+attestation, the current sampler ledger rows, and the checked-in sampler
+workflow contract. Resumed the already-launched run
+`dftr-1784183624-2e567266` from published tip
+`583dd8c149276f4544eb120649ba0b4952985216`. Monitoring used only
+`infra/gpu status` and `infra/gpu logs` with polling waits no longer than
+45 seconds. No submit, cancel, evaluation, calibration, freeze, Tier 2, Tier
+3, M2, 14B, alternate route, or protected-surface mutation occurred. Because
+the remote Modal artifact paths were not mounted locally in this checkout, the
+`90` generated-document count was validated from primary sources by combining
+the terminal `sample_count=45`, terminal visible `dev=2`, and the checked-in
+`experiments/m1/workflow.py` contract that writes one JSONL row per dev record
+for each index row.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Terminal wrapper run | PASS | `infra/gpu status dftr-1784183624-2e567266` returned `completed`, `return_code=0`, `started_at=1784183628.6075485`, `finished_at=1784184631.5288382`, `accel_seconds=992.069`, `actual_cost_usd=0.645241`, and `tokens=26618`. |
+| Source and config provenance | PASS | Terminal payload matches published `git_sha=583dd8c149276f4544eb120649ba0b4952985216`, comparison `M1-sft-sampler-sweep-qwen3-1p7b`, budget `screen`, GPU `L40S`, and sampler config hash `09b7c974c5a3b49ade9447fa0619af819828bcc2da15a5703c06c6cf02bb0ec9`; local canonical rehash of `configs/m1/m1_sampler_sweep_qwen3_1p7b_v1.yaml` matches exactly. |
+| Fixed data and model provenance | PASS | Sampler config still pins `Qwen/Qwen3-1.7B` revision `70d244cc86ccca08cf5af4e1e306ecf908b1ad5e`; fixed train/dev hashes remain `c59c853cdc03c7378308c8f35baa874e0f484fa035d4297948c3f3b755afa1a6` and `69dded207ccb2a7753666752ebcbdaee0e00260bf9848817979e50427bb2cf8b`; fixed manifest hashes remain `e56e9cf2573b957b8491cf7733fa384de42908a71d6b8d2c2be581fbb402808d` and `662d21f269b7a8ea8bc70da105bd6b2b8164021e2fdc510120763aa19df800ae`. |
+| SFT checkpoint provenance | PASS | Sampler config still points at `/checkpoints/runs/dftr-1784180693-f3c7ab5c/checkpoints_manifest.json`; the operator-materialized manifest attestation and independent `jq -cS . | shasum -a 256` recomputation preserve canonical compact JSON SHA-256 `2c255965575359ce8e92761befe0dd8db360b204b7385b924f4261194c0e2fb1`, protocol `m1.checkpoints.v1`, checkpoint seeds `[11,29,47]`, `474` train tokens per seed, and distinct adapter hashes across all three checkpoints. |
+| Sampler grid and seeds | PASS | Terminal logs returned the fixed five grid IDs `default_t1.0_p1.0`, `cool_t0.8_p1.0`, `narrow_t1.0_p0.95`, `cool_narrow_t0.8_p0.95`, and `warm_t1.2_p0.95`, with sampling seeds `[101,202,303]`; these match the preregistered sampler grid and config. |
+| Tier-1 index cardinality | PASS | Terminal logs returned `sample_count=45`, which exactly matches `3 checkpoints x 5 grid points x 3 sampling seeds`. |
+| Generated-document cardinality | PASS | Inference from primary sources: terminal visible fixture count is `dev=2`, and `experiments/m1/workflow.py` writes one JSONL row per dev record for each of the 45 index rows, so the completed run necessarily produced `45 x 2 = 90` generated documents. |
+| Tier-1 index pointer | PASS | Terminal logs returned exact artifact pointer `/__modal/volumes/vo-EY2fT0CaoNDuXGLZLNZcGg/runs/dftr-1784183624-2e567266/tier1_eval_index.template.json`; its bytes were not mounted locally here, so no Tier-1 analysis or artifact read was attempted in this pass. |
+| Token accounting | PASS | Terminal logs reported `generated_tokens=26618`, `train_tokens=0`, and `total_tokens=26618`; terminal status reported the same total `tokens=26618`. |
+| Append-only accounting | PASS | Before this pass, the ledger contained the open sampler prereg row plus the launched run row and no terminal sampler update. This pass appended exactly one `run_update` row for `dftr-1784183624-2e567266` with `status=completed`, `tokens=26618`, `accel_seconds=992.069`, `cost=0.645241`, and `metrics_ptr=/__modal/volumes/vo-EY2fT0CaoNDuXGLZLNZcGg/runs/dftr-1784183624-2e567266/tier1_eval_index.template.json`. |
+| Downstream boundaries | PASS | The known Tier-1 human-bank boundary remains unchanged because current sampler cells still inline only the two fixed dev human references, and the immutable baseline/calibration/freeze path remains fail-closed. This task did not evaluate, calibrate, freeze, or use Tier 2/3, M2, or 14B routes. |
+DECISION: keep. The sampler screen itself completed successfully with exact
+wrapper-visible provenance and accounting, and the terminal evidence is strong
+enough to checkpoint as the completed M1 sampler screen. Downstream Tier-1
+analysis remains a separate bounded step that still requires the unchanged
+human-bank and baseline/freeze boundaries to be respected.
+NEXT: Commit and publish this exact terminal evidence before any later sampler
+analysis. Subsequent tasks must not treat the completed sampler screen as
+authorization to evaluate, calibrate, freeze, use Tier 2/3, M2, or 14B, or
+mutate protected or fixed surfaces.
