@@ -1,0 +1,40 @@
+run:
+  comparison_id: M1-realdata-adherence-model-size-seed11-v1
+  arm: SFT-4B
+  budget_class: screen
+  task_kind: experiment
+  command: [python, -m, experiments.runner]
+  seeds: [11]
+compute:
+  gpu: L40S
+  gpus: 1
+  timeout_min: 120
+model:
+  base: Qwen/Qwen3-4B
+  revision: 1cfa9a7208912126459214e8b04321603b3df60c
+  requested_revision: main
+  lora:
+    rank: 64
+    alpha: 128
+    dropout: 0.0
+    target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
+training:
+  per_device_train_batch_size: 1
+  gradient_accumulation_steps: 1
+  num_train_epochs: 1.0
+  learning_rate: 0.0002
+  logging_steps: 10
+data:
+  train_split_hash: 833b2c259a8e68c110d4668121213f3f98b47dac5f70f26047d69cbd2cca932e
+  dev_split_hash: 849f4e5bcbf1e78330f9d6f0e812b9d359d638ee5ed1a422e9d01c54b69e9722
+  train_path: /checkpoints/data/m1-realdata-adherence-v1/train_briefs.jsonl
+  dev_path: /checkpoints/data/m1-realdata-adherence-v1/dev_briefs.jsonl
+  prompt_format: "USER:\n{brief}\nASSISTANT:"
+  prompt_schema_version: dft.full-brief.v1
+  max_input_tokens: 1024
+  max_new_tokens: 384
+workflow:
+  protocol_version: m1.realdata-adherence.v1
+  step: train_sft
+  fixed_manifest: configs/m1/manifests/m1_realdata_adherence_fixed_inputs_v1.json
+  fixed_manifest_sha256: a2e15653a0eb2f06c7ed33b86a97d27d42fe86dcb46f68e78d4c98117d4e9684
