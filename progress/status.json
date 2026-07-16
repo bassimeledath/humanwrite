@@ -1,12 +1,12 @@
 {
-  "updated_at": "2026-07-16T10:00:54Z",
+  "updated_at": "2026-07-16T10:02:06Z",
   "phase": "M1 — SFT baseline and calibration",
-  "headline": "All 320 real-data briefs validated; three-seed SFT ready",
-  "summary": "Combined validation passed all 256 train and 64 dev briefs with exact source hashes, unique IDs, schema and grounding, and 25 percent deterministic empty outlines. The hash-bound Qwen3-1.7B three-seed SFT config is preregistered after 112 of 112 tests passed. Total provider spend is 0.640997 of 100 dollars; GPU commitment remains 0.683574 of 40 dollars before the screen reservation.",
+  "headline": "Three-seed Qwen3-1.7B real-data SFT is running",
+  "summary": "Combined validation passed all 256 train and 64 dev briefs with exact source hashes, unique IDs, schema and grounding, and 25 percent deterministic empty outlines. L40S run dftr-1784196107-48549e4e is now training seeds 11, 29, and 47 from published config hash b57d06ba. The worst-case 4.682880 dollar reservation brings GPU commitment to 5.366454 of 40 dollars; actual provider spend remains 0.640997 of 100 dollars.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
-    "modal_committed_usd": 0.683574,
+    "modal_committed_usd": 5.366454,
     "openrouter_cap_usd": 100,
     "openrouter_spend_usd": 0.640997
   },
@@ -25,6 +25,7 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {"at": "03:02", "title": "Three-seed real-data SFT launched", "detail": "Run dftr-1784196107-48549e4e is active on one L40S from published git SHA 23e1813 and canonical config hash b57d06ba. It trains Qwen3-1.7B revision 70d244cc for seeds 11, 29, and 47 with a 4.682880 dollar worst-case reservation.", "tone": "active"},
     {"at": "03:00", "title": "Combined 256/64 brief validation passed", "detail": "All 320 briefs passed exact ID, source preservation, schema, grounding, split-hash, and deterministic 25 percent empty-outline checks. Train SHA is 498294a8 and dev SHA is 524c224a; the generated Qwen3-1.7B SFT config hash is b57d06ba and the full test gate passed 112 of 112.", "tone": "complete"},
     {"at": "02:52", "title": "Train bulk pass preserved 248 valid rows", "detail": "The terminal bulk pass committed 248 of 256 rows. Independent partial validation passed exact IDs, source preservation, schema, quotation grounding, and all 64 empty-outline IDs; eight missing rows will be retried for 0.382337 dollars spent so far.", "tone": "active"},
     {"at": "02:45", "title": "Train synthesis checkpoint 200 is durable", "detail": "Two hundred valid train briefs are committed. Seven quotation-rejected rows remain absent for retry; slow provider responses stayed inside their timeout policy and cumulative train cost is 0.303997 dollars.", "tone": "active"},
@@ -68,5 +69,5 @@
     {"at": "17:46", "title": "Storage created", "detail": "Gateway state, checkpoints, sealed state, and sealed artifacts volumes are online.", "tone": "complete"},
     {"at": "17:40", "title": "Engineering checks passed", "detail": "Harness, infrastructure, and private evaluator suites are green.", "tone": "complete"}
   ],
-  "next_action": "Publish and launch the preregistered three-seed Qwen3-1.7B real-data SFT screen, verify its checkpoint manifest, then run the fixed 16-document directional default-sampler evaluation."
+  "next_action": "Monitor SFT run dftr-1784196107-48549e4e, verify all three checkpoint adapters and token accounting, then mechanically build and launch the fixed 16-document directional default-sampler evaluation."
 }
