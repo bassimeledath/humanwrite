@@ -1,14 +1,14 @@
 {
-  "updated_at": "2026-07-16T06:03:59Z",
+  "updated_at": "2026-07-16T06:58:30Z",
   "phase": "M1 — SFT baseline and calibration",
-  "headline": "Three-seed SFT completed; sampler readiness is under review",
-  "summary": "The preregistered Qwen3-1.7B SFT screen completed successfully across seeds 11, 29, and 47. Checkpoint provenance is independently verified and published; Codex 5.6-sol is now auditing the exact sampler-screen launch path before generation.",
+  "headline": "The 90-document sampler screen completed successfully",
+  "summary": "The preregistered Qwen3-1.7B sampler generated all 45 checkpoint/grid/seed cells, corresponding to 90 documents and 26,618 generated tokens. Terminal provenance and accounting are published; Codex 5.6-sol is advancing to calibration and quality-analysis preparation without bypassing the known Tier 1 human-reference boundary.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
-    "modal_committed_usd": 0.038333,
+    "modal_committed_usd": 0.683574,
     "openrouter_cap_usd": 100,
-    "openrouter_spend_usd": 0
+    "openrouter_spend_usd": 0.000663
   },
   "services": [
     {"name": "GPU gateway", "detail": "Constrained launch API", "status": "online"},
@@ -25,6 +25,9 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {"at": "23:58", "title": "Sampler evidence published", "detail": "The completed sampler record is live at commit cae5270 with exactly one terminal ledger update and full source, revision, grid, seed, token, cost, and accelerator provenance.", "tone": "complete"},
+    {"at": "23:50", "title": "Ninety-document sampler completed", "detail": "Run dftr-1784183624-2e567266 completed 45 cells and 90 documents with 26,618 generated tokens in 992.069 L40S-seconds for 0.645241 dollars.", "tone": "complete"},
+    {"at": "23:34", "title": "Sampler prelaunch gate passed", "detail": "An independent audit verified the exact published revision, immutable inputs, fixed grid and seeds, loader fail-closed behavior, ledger cardinality, and budget before launch.", "tone": "complete"},
     {"at": "23:03", "title": "Sampler readiness audit started", "detail": "The published SFT pass is clean and the research lead is validating the exact three-checkpoint sampler configuration, reservation, and Tier 1 handoff before launch.", "tone": "active"},
     {"at": "23:02", "title": "SFT provenance verified and published", "detail": "The attested checkpoint manifest passed independent validation for all three seeds, 474 training tokens per seed, and distinct adapter hashes. Resolution tip fb4439d is live on origin/agent/m1.", "tone": "complete"},
     {"at": "22:48", "title": "Three-seed SFT completed", "detail": "One L40S run produced three checkpoints for seeds 11, 29, and 47 in 36.292 accelerator-seconds for 0.023604 dollars.", "tone": "complete"},
@@ -46,5 +49,5 @@
     {"at": "17:46", "title": "Storage created", "detail": "Gateway state, checkpoints, sealed state, and sealed artifacts volumes are online.", "tone": "complete"},
     {"at": "17:40", "title": "Engineering checks passed", "detail": "Harness, infrastructure, and private evaluator suites are green.", "tone": "complete"}
   ],
-  "next_action": "Finish the read-only sampler readiness audit, pin and preregister the exact three-checkpoint sweep, publish its launch tip, then run generation and Tier 1 scoring if every gate passes."
+  "next_action": "Materialize and validate the completed sampler index, compute the human calibration proposal, and resolve the explicit Tier 1 human-bank plus baseline/freeze ordering boundary before any quality ranking or sampler freeze."
 }
