@@ -1101,3 +1101,29 @@ observed rare incidence, directly reproducible, and bound to the frozen
 32-document visible bank. V1 and v2 remain negative results.
 NEXT: Publish this exact transfer before running only the default-sampler
 bootstrap reports needed to propose and transfer the frozen SFT baseline.
+
+## [2026-07-16] M1 / default-sampler-bootstrap-preregistration
+HYPOTHESIS: Nine default-sampler cells can establish the SFT component and
+validity baseline without circularly selecting a sampler, provided every
+report is bound to the exact frozen bank, calibration, placeholder baseline,
+source index, and materialized sample bytes.
+SETUP: Preparation-only batch after calibration transfer commit `2afa698`.
+Added a batch runner that loads the immutable dev embedder once, maps only
+hash-bound local artifacts from sampler run `dftr-1784183624-2e567266`, and
+rejects wrong bank/calibration/baseline provenance. Bootstrap is restricted to
+`default_t1.0_p1.0`: three training seeds times three sampling seeds = nine
+reports. The secondary judge is neutral for this bootstrap because it does
+not enter baseline statistics; full frozen-sampler reports will use the fixed
+gateway judge. No report was run in this batch and no sample content was
+printed.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Source index | PREREGISTERED | SHA `3fe0cade233bdaaa6c724a525076771f7340beb9805471da55a24e3e78141763`, 45 original cells. |
+| Bootstrap selection | PREREGISTERED | Exactly nine default-sampler cells; no post-result sampler choice. |
+| Frozen inputs | PREREGISTERED | Human manifest ID `92a0366c...`, calibration SHA `4a71b081...`, placeholder baseline SHA `2eb736f9...`. |
+| Output contract | PREREGISTERED | Every report and sample receives a SHA-bound entry in `m1.tier1_eval_index.v1`. |
+DECISION: keep as preparation only. The runner must pass focused tests and be
+published before loading the embedder or producing any bootstrap report.
+NEXT: Test and publish this exact runner/config, then run the nine-cell
+bootstrap once and build the default-sampler baseline proposal.
