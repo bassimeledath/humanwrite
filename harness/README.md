@@ -28,7 +28,35 @@ accept the canonical `data/PIPELINE.md` `completion` field (plus
 `generated_completion`, `generated_text`, or `output` for generated samples).
 Human references must either be paired as `reference_completion` /
 `human_completion`, or supplied as a canonical JSONL bank through
-`HARNESS_HUMAN_REFERENCE`. Checkpoint directories must include a train config
+`HARNESS_HUMAN_REFERENCE`. Tier 1 requires at least four unique held-out human
+documents. When `HARNESS_HUMAN_REFERENCE` is set it intentionally overrides
+inline references and requires `HARNESS_HUMAN_REFERENCE_MANIFEST` (or the
+default `<bank-stem>.manifest.json`) with the operator-owned
+`dftr.tier1_human_bank.manifest.v1` contract:
+
+```json
+{
+  "artifact_schema": "dftr.tier1_human_bank.manifest.v1",
+  "bank_path": "<visible canonical JSONL>",
+  "bank_sha256": "<sha256 of exact JSONL bytes>",
+  "config_path": "<preregistered selection config>",
+  "config_sha256": "<sha256 of selection config>",
+  "counts": {"bank_size": 32, "unique_domain_count": 32},
+  "domains": ["<in bank-row order>"],
+  "fingerprints": ["<in bank-row order>"],
+  "policy": {"agent_visible": true, "hidden_test_materialized": false, "purpose": "Independent visible Tier-1 distribution bank; never training data"},
+  "selection": {"bank_size": 32, "seed_label": "<frozen seed label>"},
+  "source": {"dataset_id": "<public source>", "dataset_config": "<slice>", "revision": "<immutable revision>"}
+}
+```
+
+Every bank row needs `completion`, `fingerprint`, `domain`, pinned
+`source_config`/`source_revision`, and `split=tier1_visible_human`; train/test rows,
+duplicates, manifest mismatches, and overlap with sampled fingerprints or IDs
+are rejected. The current fixed M0 fixture has only two dev humans, so it does
+not satisfy this contract and must not be padded with train rows or duplicates.
+
+Checkpoint directories must include a train config
 and may include `samples.jsonl` (or `eval_samples.jsonl` /
 `generations.jsonl`). Without samples, generation fails closed until
 `deployment_sampler.json` is human-frozen; it then uses canonical
@@ -45,6 +73,31 @@ reports stratified out-of-fold AUC and CI.
 bearer token only in the authorization header and rejects any response outside
 the aggregate-only Tier 2 contract. `SEALED_ARTIFACT_URI` may override the
 artifact URI recorded in the checkpoint config.
+
+### Operator-only M1 transfers
+
+The harness never copies review artifacts automatically. It validates exact
+operator-reviewed source bytes and emits the only accepted target shape:
+
+```bash
+harness prepare-calibration-transfer experiments/m1/calibration_proposal_v1.json \
+  --expected-sha256 <reviewed-proposal-sha256> > /tmp/calibration.candidate.json
+harness prepare-baseline-transfer experiments/m1/baseline_stats_v1.json \
+  --expected-sha256 <reviewed-proposal-sha256> > /tmp/baseline.candidate.json
+```
+
+The operator reviews the candidate, removes no provenance fields, replaces
+the corresponding immutable harness JSON with exactly that object, and
+commits its SHA-256. The calibration mapping is exact: each proposal
+`intervals.<metric>.{low,high}` becomes the identically named harness interval;
+no percentile is inferred. The two-human M0 calibration proposal remains a
+descriptive, operator-reviewed limitation and does not satisfy the independent
+four-human Tier-1 reference-bank contract.
+
+The non-circular order is: independent human bank -> calibration transfer ->
+default-sampler bootstrap reports -> baseline proposal/transfer -> rerun all
+sampler cells with frozen hashes -> sampler freeze. Missing/unfrozen/null
+calibration or baseline artifacts keep gates fail-closed.
 
 ## Metric definitions are preregistered
 

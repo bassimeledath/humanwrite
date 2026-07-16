@@ -1,6 +1,8 @@
 {
   "default_sampler_id": "default_t1.0_p1.0",
   "output_path": "experiments/m1/freeze_sampler_v1.json",
-  "report_index": "__M1_REPLACE_WITH_TIER1_EVAL_INDEX__"
+  "report_index": "__M1_REPLACE_WITH_TIER1_EVAL_INDEX__",
+  "expected_baseline_sha256": "__M1_REPLACE_WITH_FROZEN_BASELINE_SHA256__",
+  "expected_calibration_sha256": "__M1_REPLACE_WITH_FROZEN_CALIBRATION_SHA256__",
+  "expected_human_reference_bank_id": "__M1_REPLACE_WITH_FROZEN_HUMAN_BANK_ID__"
 }
-

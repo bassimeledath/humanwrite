@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import os
 import re
 import string
@@ -50,6 +51,9 @@ class EvalReport:
     authorship_auc_ci: tuple[float, float]
     diversity_self_bleu: float
     repetition_rate: float
+    human_reference_bank_id: str
+    calibration_sha256: str
+    baseline_sha256: str
     notes: list[str]
 
 
@@ -359,25 +363,174 @@ def _environment_judge():
     return judge
 
 
+def _file_sha256(path):
+    hasher = hashlib.sha256()
+    with Path(path).open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1 << 20), b""):
+            hasher.update(chunk)
+    return hasher.hexdigest()
+
+
+def _identity_digest(records, *, require_fingerprints):
+    fingerprints, text_hashes = [], []
+    for index, record in enumerate(records, 1):
+        text = _record_text(record)
+        text_hashes.append(hashlib.sha256(text.encode("utf-8")).hexdigest())
+        fingerprint = str(record.get("fingerprint") or "").strip()
+        if require_fingerprints and not fingerprint:
+            raise ValueError(f"human reference record {index} is missing fingerprint")
+        if fingerprint:
+            fingerprints.append(fingerprint)
+    if len(set(text_hashes)) != len(text_hashes):
+        raise ValueError("human reference bank contains duplicate document text")
+    if fingerprints and len(set(fingerprints)) != len(fingerprints):
+        raise ValueError("human reference bank contains duplicate fingerprints")
+    identities = fingerprints if len(fingerprints) == len(records) else text_hashes
+    digest = hashlib.sha256(("\n".join(sorted(identities)) + "\n").encode("utf-8")).hexdigest()
+    return digest, set(fingerprints)
+
+
+def _external_human_records(reference_path, manifest_path, sample_records):
+    reference_path, manifest_path = Path(reference_path), Path(manifest_path)
+    if not reference_path.is_file() or not manifest_path.is_file():
+        raise ValueError("frozen human reference bank and manifest must both exist")
+    records = _read_jsonl(reference_path)
+    manifest = _read_structured(manifest_path)
+    required = {
+        "artifact_schema",
+        "bank_path",
+        "bank_sha256",
+        "config_path",
+        "config_sha256",
+        "counts",
+        "domains",
+        "fingerprints",
+        "policy",
+        "selection",
+        "source",
+    }
+    if (
+        set(manifest) != required
+        or manifest.get("artifact_schema") != "dftr.tier1_human_bank.manifest.v1"
+    ):
+        raise ValueError("human reference manifest violates dftr.tier1_human_bank.manifest.v1")
+    if _file_sha256(reference_path) != str(manifest["bank_sha256"]):
+        raise ValueError("human reference bank file hash does not match its frozen manifest")
+    config_path = Path(str(manifest["config_path"]))
+    if not config_path.is_absolute():
+        config_path = HARNESS_DIR.parent / config_path
+    if not config_path.is_file() or _file_sha256(config_path) != str(manifest["config_sha256"]):
+        raise ValueError("human reference selection config is missing or hash-mismatched")
+    selection_config = _read_structured(config_path)
+    if selection_config.get("artifact_schema") != "dftr.tier1_human_bank.config.v1":
+        raise ValueError("human reference selection config schema is invalid")
+    counts = manifest.get("counts") or {}
+    if len(records) != int(counts.get("bank_size", 0)):
+        raise ValueError("human reference bank count does not match its frozen manifest")
+    fingerprint_digest, fingerprints = _identity_digest(records, require_fingerprints=True)
+    del fingerprint_digest
+    ordered_fingerprints = [str(record["fingerprint"]) for record in records]
+    ordered_domains = [str(record.get("domain") or "") for record in records]
+    if ordered_fingerprints != [str(value) for value in manifest.get("fingerprints") or []]:
+        raise ValueError("human reference fingerprints do not match the frozen manifest")
+    if ordered_domains != [str(value) for value in manifest.get("domains") or []]:
+        raise ValueError("human reference domains do not match the frozen manifest")
+    if len(set(ordered_domains)) != len(records) or int(counts.get("unique_domain_count", 0)) != len(records):
+        raise ValueError("human reference bank does not preserve distinct-domain selection")
+    policy, source, selection = (
+        manifest.get("policy") or {},
+        manifest.get("source") or {},
+        manifest.get("selection") or {},
+    )
+    if (
+        selection_config.get("policy") != policy
+        or selection_config.get("source") != source
+        or selection_config.get("selection") != selection
+    ):
+        raise ValueError("human reference manifest does not match its frozen selection config")
+    if (
+        policy.get("agent_visible") is not True
+        or policy.get("hidden_test_materialized") is not False
+        or "never training data" not in str(policy.get("purpose", "")).casefold()
+    ):
+        raise ValueError("human reference manifest violates visible/non-training policy")
+    if int(selection.get("bank_size", 0)) != len(records) or not selection.get("seed_label"):
+        raise ValueError("human reference manifest lacks frozen selection provenance")
+    if not source.get("dataset_id") or not source.get("revision") or not source.get("dataset_config"):
+        raise ValueError("human reference manifest lacks pinned source provenance")
+    if any(
+        str(record.get("source_revision")) != str(source["revision"])
+        or str(record.get("source_config")) != str(source["dataset_config"])
+        for record in records
+    ):
+        raise ValueError("human reference rows do not match manifest source provenance")
+    excluded_fingerprints = set()
+    for raw_path in selection_config.get("exclude_manifests") or []:
+        excluded_path = Path(str(raw_path))
+        if not excluded_path.is_absolute():
+            excluded_path = HARNESS_DIR.parent / excluded_path
+        if not excluded_path.is_file():
+            raise ValueError("human reference exclusion manifest is missing")
+        excluded_manifest = _read_structured(excluded_path)
+        values = excluded_manifest.get("fingerprints")
+        if not isinstance(values, list):
+            raise ValueError("human reference exclusion manifest lacks fingerprints")
+        excluded_fingerprints.update(str(value) for value in values)
+    if not excluded_fingerprints or fingerprints & excluded_fingerprints:
+        raise ValueError("human reference bank lacks proven train/dev fingerprint exclusion")
+    sampled_fingerprints = {
+        str(record.get("fingerprint")) for record in sample_records if record.get("fingerprint")
+    }
+    overlap = fingerprints & sampled_fingerprints
+    if overlap:
+        raise ValueError("human reference bank overlaps sampled prompt/reference fingerprints")
+    bank_ids = {str(record.get("fineweb_id")) for record in records if record.get("fineweb_id")}
+    sampled_ids = {
+        str(record.get("fineweb_id")) for record in sample_records if record.get("fineweb_id")
+    }
+    if bank_ids & sampled_ids:
+        raise ValueError("human reference bank overlaps sampled prompt/reference ids")
+    if any(str(record.get("split", "")) != "tier1_visible_human" for record in records):
+        raise ValueError("human reference bank rows must use tier1_visible_human split")
+    return records, _file_sha256(manifest_path)
+
+
 def _human_records(sample_records):
+    reference = os.environ.get("HARNESS_HUMAN_REFERENCE")
+    if reference:
+        manifest = os.environ.get("HARNESS_HUMAN_REFERENCE_MANIFEST")
+        if not manifest:
+            manifest = str(Path(reference).with_suffix(".manifest.json"))
+        records, bank_id = _external_human_records(reference, manifest, sample_records)
+        if len(records) < 4:
+            raise ValueError("Tier 1 requires at least 4 unique held-out human documents")
+        return records, bank_id
+
     inline = []
     for record in sample_records:
         value = record.get("reference_completion", record.get("human_completion"))
         if not isinstance(value, str):
             inline = []
             break
-        inline.append({"completion": value})
+        inline.append({"completion": value, "fingerprint": record.get("fingerprint")})
     if inline:
-        return inline
-    reference = os.environ.get("HARNESS_HUMAN_REFERENCE")
-    if not reference:
-        default = HARNESS_DIR / "dev_human.jsonl"
-        reference = str(default) if default.is_file() else None
-    if not reference:
+        bank_id, _ = _identity_digest(inline, require_fingerprints=False)
+        if len(inline) < 4:
+            raise ValueError(
+                "Tier 1 requires at least 4 unique held-out human documents; "
+                "supply a separately frozen HARNESS_HUMAN_REFERENCE bank"
+            )
+        return inline, "inline:" + bank_id
+    default = HARNESS_DIR / "dev_human.jsonl"
+    if not default.is_file():
         raise ValueError(
             "human references are required: pair reference_completion inline or set HARNESS_HUMAN_REFERENCE"
         )
-    return _read_jsonl(reference)
+    manifest = str(default.with_suffix(".manifest.json"))
+    records, bank_id = _external_human_records(default, manifest, sample_records)
+    if len(records) < 4:
+        raise ValueError("Tier 1 requires at least 4 unique held-out human documents")
+    return records, bank_id
 
 
 def _load_json(path, default):
@@ -403,6 +556,35 @@ def _standardize(value, baseline, name, notes):
     if std <= 0:
         raise ValueError(f"baseline std for {name} must be positive")
     return (value - float(section["mean"])) / std
+
+
+def _baseline_ready(baseline):
+    if baseline.get("frozen") is not True:
+        return False
+    required = {
+        "semantic_mmd": ("mean", "std"),
+        "lexical_l2": ("mean", "std"),
+        "structural_dist": ("mean", "std"),
+        "outline_fact_recall": ("mean",),
+        "unsupported_claim_rate": ("mean",),
+    }
+    for name, fields in required.items():
+        section = baseline.get(name)
+        if not isinstance(section, dict) or any(section.get(field) is None for field in fields):
+            return False
+        if "std" in fields and float(section["std"]) <= 0:
+            return False
+    return True
+
+
+def _calibration_ready(calibration):
+    if calibration.get("frozen") is not True:
+        return False
+    for name in ("self_bleu", "repeated_sentence_start_rate", "non_target_script_char_rate"):
+        section = calibration.get(name)
+        if not isinstance(section, dict) or section.get("low") is None or section.get("high") is None:
+            return False
+    return True
 
 
 def evaluate(
@@ -432,7 +614,7 @@ def evaluate(
         records = _generate_checkpoint_records(target_path, generator)
     else:
         raise ValueError("evaluation target is not a JSONL file")
-    human_records = _human_records(records)
+    human_records, human_bank_id = _human_records(records)
     generated = [_record_text(record) for record in records]
     humans = [_record_text(record) for record in human_records]
     if len(generated) < 2 or len(humans) < 4:
@@ -457,13 +639,14 @@ def evaluate(
     unsupported = validity.unsupported_claim_rate(generated, outlines)
     collapse = validity.collapse_flags(generated, calibration)
     margin = NON_INFERIORITY_MARGIN
-    validity_baselines_available = (
-        "outline_fact_recall" in baseline and "unsupported_claim_rate" in baseline
-    )
+    validity_baselines_available = _baseline_ready(baseline)
+    calibration_available = _calibration_ready(calibration)
     recall_baseline = _baseline_value(baseline, "outline_fact_recall", "mean", 0.0)
     unsupported_baseline = _baseline_value(baseline, "unsupported_claim_rate", "mean", 1.0)
     if not validity_baselines_available:
         notes.append("SFT validity baselines unavailable; non-inferiority gates fail closed")
+    if not calibration_available:
+        notes.append("human calibration is unavailable/unfrozen; calibrated gates fail closed")
 
     active_judge = judge if judge is not None else _environment_judge()
     if active_judge is None:
@@ -497,14 +680,19 @@ def evaluate(
         gate_unsupported_claim_rate=bool(
             validity_baselines_available and unsupported <= unsupported_baseline + margin
         ),
-        gate_language_integrity=validity.language_integrity(generated, calibration),
-        gate_no_collapse=bool(collapse["pass"]),
+        gate_language_integrity=bool(
+            calibration_available and validity.language_integrity(generated, calibration)
+        ),
+        gate_no_collapse=bool(calibration_available and collapse["pass"]),
         quality_pref_winrate=float(preference),
         jmq=float(jmq_value),
         authorship_auc=float(auc),
         authorship_auc_ci=(float(auc_low), float(auc_high)),
         diversity_self_bleu=float(collapse["self_bleu"]),
         repetition_rate=float(collapse["repetition_rate"]),
+        human_reference_bank_id=human_bank_id,
+        calibration_sha256=_file_sha256(CALIBRATION_PATH) if Path(CALIBRATION_PATH).is_file() else "missing",
+        baseline_sha256=_file_sha256(BASELINE_PATH) if Path(BASELINE_PATH).is_file() else "missing",
         notes=notes,
     )
     if report_path:
@@ -534,25 +722,128 @@ def calibrate(human_split_jsonl: str) -> dict:
     def interval(values):
         return {"low": float(np.quantile(values, 0.025)), "high": float(np.quantile(values, 0.975))}
 
-    def percentiles(values):
+    def length_interval(values):
         if not values:
-            return {"p10": 0.0, "p50": 0.0, "p90": 0.0}
-        return {
-            "p10": float(np.quantile(values, 0.10)),
-            "p50": float(np.quantile(values, 0.50)),
-            "p90": float(np.quantile(values, 0.90)),
-        }
+            return {"low": 0.0, "high": 0.0}
+        return interval(values)
 
     result = {
+        "artifact_schema": "harness.calibration.v1",
+        "frozen": True,
         "_comment": "Human-calibrated ranges from the supplied canonical human split.",
         "self_bleu": interval(individual_bleu),
         "repeated_sentence_start_rate": interval(repetition_rates),
         "non_target_script_char_rate": interval(script_rates),
-        "paragraph_len_tokens": percentiles(paragraph_lengths),
-        "sentence_len_tokens": percentiles(sentence_lengths),
+        "paragraph_len_tokens": length_interval(paragraph_lengths),
+        "sentence_len_tokens": length_interval(sentence_lengths),
     }
     CALIBRATION_PATH.write_text(json.dumps(result, indent=2, allow_nan=False) + "\n", encoding="utf-8")
     return result
+
+
+def _validated_interval(value, field_name):
+    if not isinstance(value, dict) or value.get("low") is None or value.get("high") is None:
+        raise ValueError(f"{field_name} must contain non-null low/high")
+    low, high = float(value["low"]), float(value["high"])
+    if not math.isfinite(low) or not math.isfinite(high) or low > high:
+        raise ValueError(f"{field_name} contains an invalid interval")
+    return {"low": low, "high": high}
+
+
+def prepare_calibration_transfer(proposal_path: str, expected_sha256: str) -> dict:
+    """Validate a reviewed M1 proposal and emit exact immutable harness bytes."""
+    path = Path(proposal_path)
+    actual_sha256 = _file_sha256(path)
+    if actual_sha256 != str(expected_sha256):
+        raise ValueError("calibration proposal SHA-256 does not match operator-reviewed bytes")
+    proposal = _read_structured(path)
+    required = {
+        "artifact_schema",
+        "human_split_sha256",
+        "sample_count",
+        "interval_method",
+        "confidence_level",
+        "intervals",
+        "split_hashes",
+        "resampling_seeds",
+        "review_limitations",
+    }
+    if not required.issubset(proposal):
+        raise ValueError("calibration proposal is missing transfer-contract fields")
+    if proposal["artifact_schema"] != "m1.calibration_proposal.review.v1":
+        raise ValueError("unsupported calibration proposal schema")
+    if int(proposal["sample_count"]) < 2:
+        raise ValueError("calibration proposal requires at least two unique human documents")
+    if proposal["interval_method"] != "deterministic central quantile interval":
+        raise ValueError("calibration proposal interval method is not preregistered")
+    if float(proposal["confidence_level"]) != 0.95:
+        raise ValueError("calibration proposal confidence level must be 0.95")
+    if not proposal["resampling_seeds"] or not proposal["review_limitations"]:
+        raise ValueError("calibration proposal lacks reproducibility/limitation evidence")
+    intervals = proposal["intervals"]
+    names = (
+        "self_bleu",
+        "repeated_sentence_start_rate",
+        "non_target_script_char_rate",
+        "paragraph_len_tokens",
+        "sentence_len_tokens",
+    )
+    target = {
+        "artifact_schema": "harness.calibration.v1",
+        "frozen": True,
+        "source_proposal_sha256": actual_sha256,
+        "source_human_split_sha256": str(proposal["human_split_sha256"]),
+        "source_sample_count": int(proposal["sample_count"]),
+        "interval_method": proposal["interval_method"],
+        "confidence_level": float(proposal["confidence_level"]),
+        "split_hashes": proposal["split_hashes"],
+        "resampling_seeds": [int(seed) for seed in proposal["resampling_seeds"]],
+        "operator_review_required": True,
+    }
+    target.update({name: _validated_interval(intervals.get(name), f"intervals.{name}") for name in names})
+    return target
+
+
+def prepare_baseline_transfer(proposal_path: str, expected_sha256: str) -> dict:
+    """Validate a default-sampler baseline proposal for operator transfer."""
+    path = Path(proposal_path)
+    actual_sha256 = _file_sha256(path)
+    if actual_sha256 != str(expected_sha256):
+        raise ValueError("baseline proposal SHA-256 does not match operator-reviewed bytes")
+    proposal = _read_structured(path)
+    if proposal.get("artifact_schema") != "m1.baseline_stats.review.v1":
+        raise ValueError("unsupported baseline proposal schema")
+    if proposal.get("baseline_sampler_id") != "default_t1.0_p1.0":
+        raise ValueError("bootstrap baseline must use preregistered default sampler")
+    if int(proposal.get("sample_count", 0)) < 2:
+        raise ValueError("baseline proposal requires at least two independent reports")
+    target = {
+        "artifact_schema": "harness.baseline_stats.v1",
+        "frozen": True,
+        "source_proposal_sha256": actual_sha256,
+        "baseline_sampler_id": proposal["baseline_sampler_id"],
+        "sample_count": int(proposal["sample_count"]),
+        "train_split_hash": str(proposal["train_split_hash"]),
+        "dev_split_hash": str(proposal["dev_split_hash"]),
+        "human_reference_bank_id": str(proposal["human_reference_bank_id"]),
+        "calibration_sha256": str(proposal["calibration_sha256"]),
+        "operator_review_required": True,
+    }
+    for name in ("semantic_mmd", "lexical_l2", "structural_dist"):
+        section = proposal.get(name)
+        if not isinstance(section, dict):
+            raise ValueError(f"baseline proposal is missing {name}")
+        mean, std = float(section.get("mean")), float(section.get("std"))
+        if not math.isfinite(mean) or not math.isfinite(std) or std <= 0:
+            raise ValueError(f"baseline proposal {name} mean/std is invalid")
+        target[name] = {"mean": mean, "std": std}
+    for name in ("outline_fact_recall", "unsupported_claim_rate"):
+        section = proposal.get(name)
+        mean = float(section.get("mean")) if isinstance(section, dict) else math.nan
+        if not math.isfinite(mean):
+            raise ValueError(f"baseline proposal {name} mean is invalid")
+        target[name] = {"mean": mean}
+    return target
 
 
 def _sealed_metadata(checkpoint_dir):
@@ -677,14 +968,28 @@ def main(argv=None) -> int:
     sealed_parser.add_argument("checkpoint_dir")
     calibration_parser = sub.add_parser("calibrate", help="M1: build calibration.json from human splits")
     calibration_parser.add_argument("human_split_jsonl")
+    calibration_transfer = sub.add_parser(
+        "prepare-calibration-transfer", help="validate proposal and emit operator-reviewed calibration"
+    )
+    calibration_transfer.add_argument("proposal")
+    calibration_transfer.add_argument("--expected-sha256", required=True)
+    baseline_transfer = sub.add_parser(
+        "prepare-baseline-transfer", help="validate proposal and emit operator-reviewed baseline"
+    )
+    baseline_transfer.add_argument("proposal")
+    baseline_transfer.add_argument("--expected-sha256", required=True)
     args = parser.parse_args(argv)
     try:
         if args.cmd == "eval":
             output = asdict(evaluate(args.target, args.report))
         elif args.cmd == "sealed-submit":
             output = sealed_submit(args.checkpoint_dir)
-        else:
+        elif args.cmd == "calibrate":
             output = calibrate(args.human_split_jsonl)
+        elif args.cmd == "prepare-calibration-transfer":
+            output = prepare_calibration_transfer(args.proposal, args.expected_sha256)
+        else:
+            output = prepare_baseline_transfer(args.proposal, args.expected_sha256)
     except (OSError, RuntimeError, ValueError) as error:
         print(f"harness: {error}", file=sys.stderr)
         return 2

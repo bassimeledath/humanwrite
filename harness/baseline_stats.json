@@ -1,0 +1,10 @@
+{
+  "artifact_schema": "harness.baseline_stats.v1",
+  "frozen": false,
+  "_comment": "Operator-frozen from a reviewed default-sampler M1 baseline proposal. Nulls fail closed.",
+  "semantic_mmd": {"mean": null, "std": null},
+  "lexical_l2": {"mean": null, "std": null},
+  "structural_dist": {"mean": null, "std": null},
+  "outline_fact_recall": {"mean": null},
+  "unsupported_claim_rate": {"mean": null}
+}

@@ -4,6 +4,10 @@
 S = w1*z(semantic_MMD) + w2*z(lexical_L2) + w3*z(structural_dist)
 - z() standardizes each component against the SFT-baseline mean/std recorded
   at M1 freeze (harness/baseline_stats.json).
+- The M1 baseline is bootstrapped from the preregistered default sampler
+  `default_t1.0_p1.0`, before sampler selection. This avoids selecting a
+  sampler with scores standardized by statistics that depend on that same
+  selection. The frozen baseline is then used to rerun every sampler report.
 - Report S AND raw components AND the delta vs the human-vs-human floor
   (Delta_MMD = MMD(gen,H1) - MMD(H2,H1)) for the semantic term.
 - Weights: w1=0.50 w2=0.25 w3=0.25   (frozen 2026-07-15)
@@ -48,3 +52,19 @@ S = w1*z(semantic_MMD) + w2*z(lexical_L2) + w3*z(structural_dist)
 eval() must reject: (a) semantic scoring of an MMD checkpoint with the
 embedder id recorded in its train config; (b) any use of a GAIL checkpoint's
 own discriminator as an evaluator.
+
+## M1 freeze order
+
+1. An operator provisions and freezes an independently selected visible human
+   bank of at least four unique, non-training, non-hidden-test documents.
+2. The operator reviews the human-only calibration proposal and transfers its
+   exact intervals into `calibration.json`; no sampler outputs enter this step.
+3. Tier 1 produces bootstrap reports for only `default_t1.0_p1.0`. Raw metrics
+   are usable for a baseline proposal while unavailable baseline gates remain
+   fail-closed.
+4. The operator reviews and transfers that default-sampler proposal into
+   `baseline_stats.json`.
+5. Every sampler cell is rerun against the exact frozen human-bank,
+   calibration, and baseline hashes. Only these reports may feed sampler
+   freeze; the selected sampler is then transferred into
+   `deployment_sampler.json`.

@@ -1,8 +1,10 @@
 {
+  "artifact_schema": "harness.calibration.v1",
+  "frozen": false,
   "_comment": "Human-calibrated RANGES from real human FineWeb subsets. Built in M1 via `harness calibrate`. Targets are intervals; below the floor is failure, not success.",
   "self_bleu": {"low": null, "high": null},
   "repeated_sentence_start_rate": {"low": null, "high": null, "note": "~0.174 in Rosmine human corpus"},
   "non_target_script_char_rate": {"low": 0.0, "high": null},
-  "paragraph_len_tokens": {"p10": null, "p50": null, "p90": null},
-  "sentence_len_tokens": {"p10": null, "p50": null, "p90": null}
+  "paragraph_len_tokens": {"low": null, "high": null},
+  "sentence_len_tokens": {"low": null, "high": null}
 }

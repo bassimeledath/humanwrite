@@ -47,6 +47,9 @@ def _read_report(entry: dict[str, Any]) -> dict[str, Any]:
         "gate_unsupported_claim_rate",
         "gate_language_integrity",
         "gate_no_collapse",
+        "human_reference_bank_id",
+        "calibration_sha256",
+        "baseline_sha256",
     }
     missing = sorted(key for key in required if key not in report)
     if missing:
@@ -78,22 +81,32 @@ def _std(values: list[float]) -> float:
 def build_baseline_stats(config_path: str) -> dict[str, Any]:
     config = read_structured(resolve_repo_path(config_path))
     fixed_hashes = load_fixed_split_hashes()
+    baseline_sampler_id = _require_non_placeholder(
+        config.get("baseline_sampler_id"), field_name="baseline_sampler_id"
+    )
+    if baseline_sampler_id != "default_t1.0_p1.0":
+        raise M1ConfigError("M1 bootstrap baseline must use default_t1.0_p1.0")
     eval_index = _load_eval_index(_require_non_placeholder(config.get("report_index"), field_name="report_index"))
-    selection = read_structured(
-        resolve_repo_path(_require_non_placeholder(config.get("selection_artifact"), field_name="selection_artifact"))
-    )
-    selected_sampler_id = _require_non_placeholder(
-        selection.get("selected_sampler_id"),
-        field_name="selection_artifact.selected_sampler_id",
-    )
-    selected = [entry for entry in eval_index if str(entry.get("sampler_id")) == selected_sampler_id]
+    selected = [entry for entry in eval_index if str(entry.get("sampler_id")) == baseline_sampler_id]
     if not selected:
-        raise M1ConfigError(f"no eval index rows matched sampler {selected_sampler_id}")
+        raise M1ConfigError(f"no eval index rows matched sampler {baseline_sampler_id}")
     if len(selected) < 2:
         raise M1ConfigError("baseline statistics require at least two selected Tier 1 reports")
     reports = [_read_report(entry) for entry in selected]
+    expected_calibration = _require_non_placeholder(
+        config.get("expected_calibration_sha256"), field_name="expected_calibration_sha256"
+    )
+    expected_human_bank = _require_non_placeholder(
+        config.get("expected_human_reference_bank_id"),
+        field_name="expected_human_reference_bank_id",
+    )
+    if any(str(report["calibration_sha256"]) != expected_calibration for report in reports):
+        raise M1ConfigError("bootstrap reports do not use the operator-frozen calibration")
+    if any(str(report["human_reference_bank_id"]) != expected_human_bank for report in reports):
+        raise M1ConfigError("bootstrap reports do not use the frozen independent human bank")
     sample_metrics = [_samples_metrics(entry["samples_path"]) for entry in selected]
     baseline = {
+        "artifact_schema": "m1.baseline_stats.review.v1",
         "semantic_mmd": {
             "mean": _mean([float(report["semantic_mmd"]) for report in reports]),
             "std": _std([float(report["semantic_mmd"]) for report in reports]),
@@ -112,10 +125,12 @@ def build_baseline_stats(config_path: str) -> dict[str, Any]:
         "unsupported_claim_rate": {
             "mean": _mean([metric["unsupported_claim_rate"] for metric in sample_metrics]),
         },
-        "selected_sampler_id": selected_sampler_id,
+        "baseline_sampler_id": baseline_sampler_id,
         "sample_count": len(selected),
         "train_split_hash": fixed_hashes["train"],
         "dev_split_hash": fixed_hashes["dev"],
+        "human_reference_bank_id": expected_human_bank,
+        "calibration_sha256": expected_calibration,
     }
     output_path = resolve_repo_path(_require_non_placeholder(config.get("output_path"), field_name="output_path"))
     write_json(output_path, baseline)
@@ -127,6 +142,16 @@ def freeze_sampler(config_path: str) -> dict[str, Any]:
     config = read_structured(resolve_repo_path(config_path))
     eval_index = _load_eval_index(_require_non_placeholder(config.get("report_index"), field_name="report_index"))
     default_sampler_id = str(config.get("default_sampler_id", "default_t1.0_p1.0"))
+    expected_baseline = _require_non_placeholder(
+        config.get("expected_baseline_sha256"), field_name="expected_baseline_sha256"
+    )
+    expected_calibration = _require_non_placeholder(
+        config.get("expected_calibration_sha256"), field_name="expected_calibration_sha256"
+    )
+    expected_human_bank = _require_non_placeholder(
+        config.get("expected_human_reference_bank_id"),
+        field_name="expected_human_reference_bank_id",
+    )
     grouped: dict[str, list[dict[str, Any]]] = {}
     for entry in eval_index:
         grouped.setdefault(str(entry.get("sampler_id")), []).append(entry)
@@ -135,6 +160,12 @@ def freeze_sampler(config_path: str) -> dict[str, Any]:
     summaries = []
     for sampler_id, entries in grouped.items():
         reports = [_read_report(entry) for entry in entries]
+        if any(str(report["baseline_sha256"]) != expected_baseline for report in reports):
+            raise M1ConfigError("freeze reports do not use the operator-frozen baseline")
+        if any(str(report["calibration_sha256"]) != expected_calibration for report in reports):
+            raise M1ConfigError("freeze reports do not use the operator-frozen calibration")
+        if any(str(report["human_reference_bank_id"]) != expected_human_bank for report in reports):
+            raise M1ConfigError("freeze reports do not use the frozen independent human bank")
         gate_fields = (
             "gate_outline_fact_recall",
             "gate_unsupported_claim_rate",

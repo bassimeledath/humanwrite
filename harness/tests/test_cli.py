@@ -14,6 +14,55 @@ def write_jsonl(path, records):
     path.write_text("".join(json.dumps(record) + "\n" for record in records), encoding="utf-8")
 
 
+def write_bank_contract(tmp_path, bank, records):
+    source = {
+        "dataset_id": "public-source",
+        "dataset_config": "CC-MAIN-2024-10",
+        "revision": "revision",
+        "split": "train",
+    }
+    selection = {"bank_size": len(records), "seed_label": "frozen-seed"}
+    policy = {
+        "agent_visible": True,
+        "hidden_test_materialized": False,
+        "purpose": "Independent visible Tier-1 distribution bank; never training data",
+    }
+    excluded = tmp_path / "excluded.json"
+    excluded.write_text(json.dumps({"fingerprints": ["excluded-train", "excluded-dev"]}))
+    config = tmp_path / "bank-config.json"
+    config.write_text(
+        json.dumps(
+            {
+                "artifact_schema": "dftr.tier1_human_bank.config.v1",
+                "source": source,
+                "selection": selection,
+                "exclude_manifests": [str(excluded)],
+                "output": {},
+                "policy": policy,
+            }
+        )
+    )
+    manifest = tmp_path / "human-bank.manifest.json"
+    manifest.write_text(
+        json.dumps(
+            {
+                "artifact_schema": "dftr.tier1_human_bank.manifest.v1",
+                "bank_path": str(bank),
+                "bank_sha256": cli._file_sha256(bank),
+                "config_path": str(config),
+                "config_sha256": cli._file_sha256(config),
+                "counts": {"bank_size": len(records), "unique_domain_count": len(records)},
+                "domains": [record["domain"] for record in records],
+                "fingerprints": [record["fingerprint"] for record in records],
+                "policy": policy,
+                "selection": selection,
+                "source": source,
+            }
+        )
+    )
+    return manifest
+
+
 def test_checkpoint_hash_is_stable_path_aware_and_symlink_safe(tmp_path):
     first = tmp_path / "first"
     second = tmp_path / "second"
@@ -78,7 +127,7 @@ def test_calibrate_reads_canonical_schema_without_changing_repo_file(tmp_path, m
     result = cli.calibrate(source)
     assert json.loads(destination.read_text()) == result
     assert result["self_bleu"]["low"] is not None
-    assert result["paragraph_len_tokens"]["p50"] > 0
+    assert result["paragraph_len_tokens"]["low"] >= 0
     assert result["repeated_sentence_start_rate"]["high"] > 0
 
 
@@ -102,6 +151,7 @@ def test_evaluate_offline_with_inline_references(tmp_path, monkeypatch):
     calibration.write_text(
         json.dumps(
             {
+                "frozen": True,
                 "self_bleu": {"low": 0.0, "high": 1.0},
                 "repeated_sentence_start_rate": {"low": 0.0, "high": 1.0},
                 "non_target_script_char_rate": {"low": 0.0, "high": 0.1},
@@ -147,6 +197,7 @@ def test_evaluate_builds_fresh_probe_when_none_is_injected(tmp_path, monkeypatch
     calibration.write_text(
         json.dumps(
             {
+                "frozen": True,
                 "self_bleu": {"low": 0.0, "high": 1.0},
                 "repeated_sentence_start_rate": {"low": 0.0, "high": 1.0},
                 "non_target_script_char_rate": {"low": 0.0, "high": 1.0},
@@ -208,6 +259,7 @@ def test_checkpoint_generation_uses_frozen_canonical_prompt_bank(tmp_path, monke
     calibration.write_text(
         json.dumps(
             {
+                "frozen": True,
                 "self_bleu": {"low": 0.0, "high": 1.0},
                 "repeated_sentence_start_rate": {"low": 0.0, "high": 1.0},
                 "non_target_script_char_rate": {"low": 0.0, "high": 1.0},
@@ -292,6 +344,7 @@ def test_checkpoint_prefers_existing_samples_over_generator(tmp_path, monkeypatc
     calibration.write_text(
         json.dumps(
             {
+                "frozen": True,
                 "self_bleu": {"low": 0.0, "high": 1.0},
                 "repeated_sentence_start_rate": {"low": 0.0, "high": 1.0},
                 "non_target_script_char_rate": {"low": 0.0, "high": 1.0},
@@ -313,6 +366,180 @@ def test_evaluate_requires_independent_human_reference(tmp_path):
     write_jsonl(samples, [{"completion": "one"}, {"completion": "two"}])
     with pytest.raises(ValueError, match="human references"):
         cli.evaluate(samples, embedder=lambda texts: np.ones((len(texts), 2)))
+
+
+def test_external_frozen_human_bank_overrides_two_inline_references(tmp_path, monkeypatch):
+    sample_records = [
+        {
+            "fineweb_id": f"prompt-{index}",
+            "fingerprint": f"prompt-fingerprint-{index}",
+            "generated_completion": f"generated {index}",
+            "reference_completion": f"inline human {index}",
+        }
+        for index in range(2)
+    ]
+    bank = tmp_path / "human-bank.jsonl"
+    bank_records = [
+        {
+            "fineweb_id": f"heldout-{index}",
+            "fingerprint": f"heldout-fingerprint-{index}",
+            "domain": f"domain-{index}.example",
+            "source_config": "CC-MAIN-2024-10",
+            "source_revision": "revision",
+            "split": "tier1_visible_human",
+            "completion": f"Unique held-out human document number {index}.",
+        }
+        for index in range(4)
+    ]
+    write_jsonl(bank, bank_records)
+    manifest = tmp_path / "human-bank.manifest.json"
+    manifest.write_text(
+        json.dumps(
+            {
+                "artifact_schema": "dftr.tier1_human_bank.manifest.v1",
+                "bank_path": str(bank),
+                "bank_sha256": cli._file_sha256(bank),
+                "config_path": "config.json",
+                "config_sha256": "config-sha",
+                "counts": {"bank_size": 4, "unique_domain_count": 4},
+                "domains": [record["domain"] for record in bank_records],
+                "fingerprints": [record["fingerprint"] for record in bank_records],
+                "policy": {
+                    "agent_visible": True,
+                    "hidden_test_materialized": False,
+                    "purpose": "Independent visible Tier-1 distribution bank; never training data",
+                },
+                "selection": {"bank_size": 4, "seed_label": "frozen-seed"},
+                "source": {
+                    "dataset_id": "public-source",
+                    "dataset_config": "CC-MAIN-2024-10",
+                    "revision": "revision",
+                },
+            }
+        )
+    )
+    manifest = write_bank_contract(tmp_path, bank, bank_records)
+    monkeypatch.setenv("HARNESS_HUMAN_REFERENCE", str(bank))
+    monkeypatch.delenv("HARNESS_HUMAN_REFERENCE_MANIFEST", raising=False)
+    records, bank_id = cli._human_records(sample_records)
+    assert [record["fineweb_id"] for record in records] == [f"heldout-{index}" for index in range(4)]
+    assert bank_id == cli._file_sha256(manifest)
+
+
+def test_external_human_bank_rejects_prompt_overlap(tmp_path, monkeypatch):
+    sample_records = [{"fineweb_id": "overlap", "generated_completion": "generated"}]
+    bank = tmp_path / "human-bank.jsonl"
+    bank_records = [
+        {
+            "fineweb_id": "overlap" if index == 0 else f"heldout-{index}",
+            "fingerprint": f"heldout-fingerprint-{index}",
+            "domain": f"domain-{index}.example",
+            "source_config": "CC-MAIN-2024-10",
+            "source_revision": "revision",
+            "split": "tier1_visible_human",
+            "completion": f"Unique held-out human document number {index}.",
+        }
+        for index in range(4)
+    ]
+    write_jsonl(bank, bank_records)
+    manifest = tmp_path / "human-bank.manifest.json"
+    manifest.write_text(
+        json.dumps(
+            {
+                "artifact_schema": "dftr.tier1_human_bank.manifest.v1",
+                "bank_path": str(bank),
+                "bank_sha256": cli._file_sha256(bank),
+                "config_path": "config.json",
+                "config_sha256": "config-sha",
+                "counts": {"bank_size": 4, "unique_domain_count": 4},
+                "domains": [record["domain"] for record in bank_records],
+                "fingerprints": [record["fingerprint"] for record in bank_records],
+                "policy": {
+                    "agent_visible": True,
+                    "hidden_test_materialized": False,
+                    "purpose": "Independent visible Tier-1 distribution bank; never training data",
+                },
+                "selection": {"bank_size": 4, "seed_label": "frozen-seed"},
+                "source": {
+                    "dataset_id": "public-source",
+                    "dataset_config": "CC-MAIN-2024-10",
+                    "revision": "revision",
+                },
+            }
+        )
+    )
+    manifest = write_bank_contract(tmp_path, bank, bank_records)
+    monkeypatch.setenv("HARNESS_HUMAN_REFERENCE", str(bank))
+    monkeypatch.setenv("HARNESS_HUMAN_REFERENCE_MANIFEST", str(manifest))
+    with pytest.raises(ValueError, match="overlaps"):
+        cli._human_records(sample_records)
+
+
+def test_inline_two_human_rows_fail_with_precise_external_bank_gate(monkeypatch):
+    monkeypatch.delenv("HARNESS_HUMAN_REFERENCE", raising=False)
+    monkeypatch.delenv("HARNESS_HUMAN_REFERENCE_MANIFEST", raising=False)
+    rows = [
+        {"generated_completion": f"g{index}", "reference_completion": f"h{index}"}
+        for index in range(2)
+    ]
+    with pytest.raises(ValueError, match="at least 4 unique held-out"):
+        cli._human_records(rows)
+
+
+def test_current_m1_calibration_proposal_has_exact_operator_transfer():
+    root = Path(__file__).resolve().parents[2]
+    proposal = root / "experiments" / "m1" / "calibration_proposal_v1.json"
+    expected = "d8cfe3bdc1825f8c03717ceb78bb79efd022d9dc1a7a3ce706039cc4da2f3c48"
+    target = cli.prepare_calibration_transfer(proposal, expected)
+    source = json.loads(proposal.read_text())
+    assert target["frozen"] is True
+    assert target["source_proposal_sha256"] == expected
+    for name in (
+        "self_bleu",
+        "repeated_sentence_start_rate",
+        "non_target_script_char_rate",
+        "paragraph_len_tokens",
+        "sentence_len_tokens",
+    ):
+        assert target[name] == source["intervals"][name]
+
+
+def test_calibration_transfer_rejects_unreviewed_bytes(tmp_path):
+    proposal = tmp_path / "proposal.json"
+    proposal.write_text("{}")
+    with pytest.raises(ValueError, match="SHA-256"):
+        cli.prepare_calibration_transfer(proposal, "0" * 64)
+
+
+def test_baseline_transfer_requires_default_sampler_and_positive_stds(tmp_path):
+    proposal = {
+        "artifact_schema": "m1.baseline_stats.review.v1",
+        "baseline_sampler_id": "default_t1.0_p1.0",
+        "sample_count": 3,
+        "train_split_hash": "train",
+        "dev_split_hash": "dev",
+        "human_reference_bank_id": "bank",
+        "calibration_sha256": "calibration",
+        "semantic_mmd": {"mean": 0.2, "std": 0.1},
+        "lexical_l2": {"mean": 0.3, "std": 0.1},
+        "structural_dist": {"mean": 0.4, "std": 0.1},
+        "outline_fact_recall": {"mean": 0.9},
+        "unsupported_claim_rate": {"mean": 0.1},
+    }
+    path = tmp_path / "baseline.json"
+    path.write_text(json.dumps(proposal))
+    target = cli.prepare_baseline_transfer(path, cli._file_sha256(path))
+    assert target["frozen"] is True
+    assert cli._baseline_ready(target)
+    proposal["semantic_mmd"]["std"] = 0.0
+    path.write_text(json.dumps(proposal))
+    with pytest.raises(ValueError, match="mean/std"):
+        cli.prepare_baseline_transfer(path, cli._file_sha256(path))
+
+
+def test_checked_in_calibration_and_baseline_placeholders_fail_closed():
+    assert not cli._calibration_ready(json.loads(cli.CALIBRATION_PATH.read_text()))
+    assert not cli._baseline_ready(json.loads(cli.BASELINE_PATH.read_text()))
 
 
 def test_environment_judge_posts_aggregate_request_with_bearer_token(monkeypatch):
