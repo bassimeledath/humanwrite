@@ -1909,3 +1909,38 @@ not authorize 14B, Tier 2, Tier 3, or promotion yet.
 NEXT: Train Qwen3-4B seeds 11/29/47 on the identical corrected corpus, repeat
 the 144-output directional screen, and require the factual and collapse gates
 to hold across adapters before any budget expansion.
+
+## [2026-07-16] M1 / adherence-recovery-4b-three-seed-confirmation
+HYPOTHESIS: The corrected Qwen3-4B result will reproduce across training seeds
+11, 29, and 47, with all nine factual/language gates and at least six of nine
+no-collapse gates passing.
+SETUP: Trained three adapters on the identical frozen 256-record full-brief
+corpus, then generated the same 16 dev records under sampling seeds 101, 202,
+and 303. The evaluator retained the exact calibration, baseline, external
+human bank, and gateway judge hashes used in the bounded model-size screen.
+RESULTS:
+| item | result | gate |
+| --- | ---: | ---: |
+| Outline-fact gate | 9/9 | 9/9 |
+| Unsupported-claim gate | 9/9 | 9/9 |
+| Language-integrity gate | 9/9 | 9/9 |
+| No-collapse gate | 8/9 | >= 6/9 |
+| Mean outline-fact recall | 0.78963 | >= 0.40 directional threshold |
+| Mean unsupported rate, non-empty outlines | 0.03083 | <= 0.60 directional threshold |
+| Mean self-BLEU | 0.04505 | human interval 0.03234-0.07693 |
+| Generated evidence | 144 docs / 20,809 tokens | exact |
+| Compute | 1,966.832 L40S-sec / $1.279227 | under cap |
+
+REVIEWER AUDIT: Factual recovery is deterministic and consistent across
+adapters. Quality preference remains secondary because its human comparison
+bank is prompt-unmatched. The only no-collapse failure was checkpoint seed 11
+/ sampling seed 202 at repeated-start rate 0.1875, above the frozen 0.15744
+upper bound. The separate lower-bound problem remains relevant to future
+promotion design, but did not determine this pass.
+DECISION: pass the directional three-seed confirmation. This is enough
+evidence to justify the next bounded evaluation stage, but not an automatic
+14B scale-up. Preserve 4B as the current winning size and repair the discrete
+repetition gate before treating it as a promotion criterion.
+NEXT: Publish the result, then choose between a bounded 4B sealed evaluation
+and the next M2 experimental arm. Require explicit evidence before any 14B
+budget expansion.

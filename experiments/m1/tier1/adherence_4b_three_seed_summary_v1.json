@@ -1,0 +1,44 @@
+{
+  "artifact_schema": "dftr.adherence_4b_three_seed_summary.v1",
+  "decision": "pass",
+  "confirmation_gate": {
+    "language_integrity_required": "9/9",
+    "no_collapse_required": "at least 6/9",
+    "outline_gate_required": "9/9",
+    "unsupported_gate_required": "9/9"
+  },
+  "results": {
+    "cell_count": 9,
+    "language_integrity_passes": 9,
+    "mean_outline_fact_recall": 0.7896296296296297,
+    "mean_quality_preference_secondary": 0.9930555555555556,
+    "mean_repeated_sentence_start_rate": 0.125,
+    "mean_self_bleu": 0.04504527988540079,
+    "mean_unsupported_claim_rate_nonempty_outlines": 0.030826705381160828,
+    "no_collapse_passes": 8,
+    "outline_gate_passes": 9,
+    "unsupported_gate_passes": 9
+  },
+  "training": {
+    "checkpoint_seeds": [11, 29, 47],
+    "losses": [0.6972130245994776, 0.7009145490592346, 0.6959702530875802],
+    "model": "Qwen/Qwen3-4B",
+    "model_revision": "1cfa9a7208912126459214e8b04321603b3df60c",
+    "total_training_tokens": 140196
+  },
+  "generation": {
+    "generated_documents": 144,
+    "generated_tokens": 20809,
+    "run_id": "dftr-1784217143-f01137b4"
+  },
+  "provenance": {
+    "report_index_sha256": "c93f9ca1790a04bc9191cedca7f26d644452f8058dc6b7447286e922eaf8b5d1",
+    "source_index_sha256": "0b4fd3e42ffb308e22c701445d8f3a6df89d5e8775f7615aada5df6bdd85cc60"
+  },
+  "reviewer_audit": {
+    "factual_recovery_is_deterministic": true,
+    "quality_preference_used_for_decision": false,
+    "remaining_no_collapse_failure": "Checkpoint seed 11, sampling seed 202 had repeated-start rate 0.1875, above the frozen 0.1574426382 upper bound.",
+    "promotion_caveat": "Redesign the discrete 16-document repetition gate before using it for promotion; preserve this frozen result as directional evidence."
+  }
+}
