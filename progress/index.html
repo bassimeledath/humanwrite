@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Humanwrite — Research progress</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+      font-synthesis: none;
+      --page: #f2f3f5;
+      --page-glow: rgba(0, 122, 255, 0.12);
+      --surface: rgba(255, 255, 255, 0.72);
+      --surface-strong: rgba(255, 255, 255, 0.9);
+      --text: #15171a;
+      --secondary: #62676f;
+      --tertiary: #898f98;
+      --line: rgba(27, 31, 36, 0.09);
+      --shadow: 0 24px 70px rgba(24, 30, 40, 0.09), 0 2px 10px rgba(24, 30, 40, 0.04);
+      --blue: #087ff5;
+      --blue-soft: rgba(8, 127, 245, 0.12);
+      --green: #22a06b;
+      --green-soft: rgba(34, 160, 107, 0.12);
+      --amber: #b36a00;
+      --amber-soft: rgba(245, 158, 11, 0.14);
+      --gray-soft: rgba(98, 103, 111, 0.1);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --page: #0c0d0f;
+        --page-glow: rgba(10, 132, 255, 0.15);
+        --surface: rgba(30, 32, 36, 0.72);
+        --surface-strong: rgba(34, 36, 41, 0.92);
+        --text: #f5f6f7;
+        --secondary: #afb4bc;
+        --tertiary: #7f858e;
+        --line: rgba(255, 255, 255, 0.09);
+        --shadow: 0 28px 80px rgba(0, 0, 0, 0.34), 0 2px 12px rgba(0, 0, 0, 0.2);
+        --blue: #58a9ff;
+        --blue-soft: rgba(88, 169, 255, 0.14);
+        --green: #51d195;
+        --green-soft: rgba(81, 209, 149, 0.13);
+        --amber: #f0b45b;
+        --amber-soft: rgba(240, 180, 91, 0.14);
+        --gray-soft: rgba(175, 180, 188, 0.1);
+      }
+    }
+
+    * { box-sizing: border-box; }
+
+    html { min-height: 100%; background: var(--page); }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 12% -8%, var(--page-glow), transparent 31rem),
+        radial-gradient(circle at 88% 4%, rgba(175, 82, 222, 0.08), transparent 28rem),
+        var(--page);
+      font-size: 1rem;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .shell { width: min(1180px, calc(100% - 2rem)); margin: 0 auto; padding: 1.25rem 0 4rem; }
+
+    .topbar {
+      position: sticky;
+      top: 0.75rem;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      min-height: 3.5rem;
+      padding: 0.7rem 0.85rem 0.7rem 1rem;
+      border: 1px solid var(--line);
+      border-radius: 1rem;
+      background: var(--surface);
+      box-shadow: 0 10px 35px rgba(20, 25, 35, 0.06);
+      backdrop-filter: blur(24px) saturate(160%);
+      -webkit-backdrop-filter: blur(24px) saturate(160%);
+    }
+
+    .brand { display: flex; align-items: center; gap: 0.7rem; min-width: 0; }
+    .mark { width: 1.8rem; height: 1.8rem; display: grid; place-items: center; border-radius: 0.58rem; background: var(--text); color: var(--page); font-weight: 750; font-size: 0.78rem; letter-spacing: -0.02em; }
+    .brand-copy { min-width: 0; }
+    .brand-name { margin: 0; font-size: 0.92rem; line-height: 1.15; font-weight: 680; letter-spacing: -0.015em; }
+    .brand-subtitle { margin: 0.1rem 0 0; color: var(--tertiary); font-size: 0.72rem; line-height: 1.2; }
+
+    .sync { display: flex; align-items: center; gap: 0.55rem; padding: 0.45rem 0.7rem; border-radius: 999px; background: var(--gray-soft); color: var(--secondary); font-size: 0.76rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .sync-dot { width: 0.46rem; height: 0.46rem; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 0.23rem var(--green-soft); }
+
+    main { padding-top: clamp(3.5rem, 8vw, 7rem); }
+    .eyebrow { margin: 0 0 0.8rem; color: var(--blue); font-size: 0.78rem; line-height: 1.2; font-weight: 700; letter-spacing: 0.075em; text-transform: uppercase; }
+    h1 { max-width: 870px; margin: 0; font-size: clamp(2.65rem, 7vw, 5.8rem); line-height: 0.96; letter-spacing: -0.055em; font-weight: 730; }
+    .lede { max-width: 760px; margin: 1.5rem 0 0; color: var(--secondary); font-size: clamp(1.05rem, 2vw, 1.35rem); line-height: 1.48; letter-spacing: -0.018em; }
+
+    .run-strip { display: flex; align-items: center; gap: 0.75rem; margin-top: 2rem; }
+    .run-pill { display: inline-flex; align-items: center; gap: 0.55rem; padding: 0.58rem 0.78rem; border-radius: 999px; color: var(--blue); background: var(--blue-soft); font-size: 0.82rem; font-weight: 650; }
+    .pulse { width: 0.48rem; height: 0.48rem; border-radius: 50%; background: currentColor; animation: breathe 1.8s ease-in-out infinite; }
+    @keyframes breathe { 0%, 100% { opacity: 0.48; transform: scale(0.88); } 50% { opacity: 1; transform: scale(1); } }
+
+    .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 1rem; margin-top: clamp(3rem, 7vw, 5.5rem); }
+    .card { border: 1px solid var(--line); border-radius: 1.35rem; background: var(--surface); box-shadow: var(--shadow); backdrop-filter: blur(28px) saturate(145%); -webkit-backdrop-filter: blur(28px) saturate(145%); overflow: hidden; }
+    .card-pad { padding: clamp(1.25rem, 3vw, 1.75rem); }
+    .card-title { margin: 0; font-size: 0.8rem; line-height: 1.2; color: var(--secondary); font-weight: 700; letter-spacing: 0.045em; text-transform: uppercase; }
+    .services-card { grid-column: span 7; }
+    .budget-card { grid-column: span 5; }
+    .milestones-card, .activity-card { grid-column: span 12; }
+
+    .service-list { display: grid; gap: 0; margin-top: 1rem; }
+    .service { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 0.85rem; padding: 0.9rem 0; border-top: 1px solid var(--line); }
+    .service:first-child { border-top: 0; }
+    .service-icon { width: 2rem; height: 2rem; display: grid; place-items: center; border-radius: 0.68rem; background: var(--gray-soft); color: var(--secondary); font-size: 0.74rem; font-weight: 750; }
+    .service-name { margin: 0; font-size: 0.94rem; font-weight: 650; letter-spacing: -0.012em; }
+    .service-detail { margin: 0.12rem 0 0; color: var(--tertiary); font-size: 0.77rem; }
+
+    .status { display: inline-flex; align-items: center; gap: 0.38rem; padding: 0.38rem 0.56rem; border-radius: 999px; font-size: 0.7rem; font-weight: 700; text-transform: capitalize; }
+    .status::before { content: ""; width: 0.38rem; height: 0.38rem; border-radius: 50%; background: currentColor; }
+    .status-complete, .status-online { color: var(--green); background: var(--green-soft); }
+    .status-active, .status-deploying { color: var(--blue); background: var(--blue-soft); }
+    .status-queued { color: var(--secondary); background: var(--gray-soft); }
+    .status-blocked, .status-failed { color: var(--amber); background: var(--amber-soft); }
+
+    .budget-stack { display: grid; gap: 1.35rem; margin-top: 1.5rem; }
+    .budget-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+    .budget-label { color: var(--secondary); font-size: 0.83rem; }
+    .budget-value { font-size: 1.05rem; font-weight: 690; letter-spacing: -0.025em; font-variant-numeric: tabular-nums; }
+    .track { height: 0.46rem; margin-top: 0.55rem; overflow: hidden; border-radius: 999px; background: var(--gray-soft); }
+    .fill { width: 0%; height: 100%; border-radius: inherit; background: var(--blue); transition: width 380ms cubic-bezier(.2,.8,.2,1); }
+    .budget-note { margin: 1.3rem 0 0; color: var(--tertiary); font-size: 0.76rem; }
+
+    .milestone-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 0; margin-top: 1.35rem; }
+    .milestone { position: relative; min-width: 0; padding: 1.25rem 0.85rem 0.3rem 0; border-top: 2px solid var(--line); }
+    .milestone::before { content: ""; position: absolute; top: -0.42rem; left: 0; width: 0.7rem; height: 0.7rem; border-radius: 50%; background: var(--surface-strong); border: 2px solid var(--tertiary); }
+    .milestone.complete { border-color: var(--green); }
+    .milestone.complete::before { border-color: var(--green); background: var(--green); }
+    .milestone.active { border-color: var(--blue); }
+    .milestone.active::before { border-color: var(--blue); background: var(--blue); box-shadow: 0 0 0 0.28rem var(--blue-soft); }
+    .milestone-label { margin: 0; font-size: 0.9rem; font-weight: 680; }
+    .milestone-detail { margin: 0.28rem 0 0; color: var(--tertiary); font-size: 0.73rem; line-height: 1.35; }
+
+    .activity { display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 0.38fr); gap: 2.5rem; margin-top: 1.4rem; }
+    .events { display: grid; gap: 0; }
+    .event { display: grid; grid-template-columns: 3.2rem 0.7rem 1fr; gap: 0.65rem; padding: 0.85rem 0; }
+    .event-time { color: var(--tertiary); font-size: 0.73rem; font-variant-numeric: tabular-nums; padding-top: 0.12rem; }
+    .event-rail { position: relative; display: flex; justify-content: center; }
+    .event-rail::after { content: ""; position: absolute; top: 0.72rem; bottom: -1.2rem; width: 1px; background: var(--line); }
+    .event:last-child .event-rail::after { display: none; }
+    .event-dot { position: relative; z-index: 1; width: 0.48rem; height: 0.48rem; margin-top: 0.28rem; border-radius: 50%; background: var(--tertiary); box-shadow: 0 0 0 0.24rem var(--surface-strong); }
+    .event.active .event-dot { background: var(--blue); }
+    .event.complete .event-dot { background: var(--green); }
+    .event-title { margin: 0; font-size: 0.88rem; font-weight: 650; }
+    .event-detail { margin: 0.18rem 0 0; color: var(--tertiary); font-size: 0.77rem; }
+    .next { align-self: start; padding: 1.2rem; border-radius: 1rem; background: var(--blue-soft); }
+    .next-label { margin: 0; color: var(--blue); font-size: 0.71rem; font-weight: 750; letter-spacing: 0.06em; text-transform: uppercase; }
+    .next-copy { margin: 0.55rem 0 0; font-size: 0.9rem; line-height: 1.45; font-weight: 560; letter-spacing: -0.01em; }
+
+    .error { display: none; margin-top: 1rem; color: var(--amber); font-size: 0.8rem; }
+    footer { margin-top: 2rem; color: var(--tertiary); font-size: 0.73rem; text-align: center; }
+
+    @media (max-width: 820px) {
+      .services-card, .budget-card { grid-column: span 12; }
+      .milestone-row { grid-template-columns: repeat(3, 1fr); row-gap: 1.3rem; }
+      .activity { grid-template-columns: 1fr; gap: 1.25rem; }
+    }
+
+    @media (max-width: 540px) {
+      .shell { width: min(100% - 1rem, 1180px); padding-top: 0.5rem; }
+      .topbar { top: 0.4rem; border-radius: 0.88rem; }
+      .brand-subtitle { display: none; }
+      .sync-label { display: none; }
+      main { padding-top: 3.2rem; }
+      .milestone-row { grid-template-columns: repeat(2, 1fr); }
+      .service { grid-template-columns: auto 1fr; }
+      .service .status { grid-column: 2; justify-self: start; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; animation: none !important; transition-duration: 0.01ms !important; }
+    }
+
+    @media (prefers-reduced-transparency: reduce) {
+      .topbar, .card { background: var(--surface-strong); backdrop-filter: none; -webkit-backdrop-filter: none; }
+    }
+
+    @media (prefers-contrast: more) {
+      .topbar, .card { border-color: var(--secondary); }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="mark" aria-hidden="true">HW</div>
+        <div class="brand-copy">
+          <p class="brand-name">Humanwrite</p>
+          <p class="brand-subtitle">Distribution fine-tuning research</p>
+        </div>
+      </div>
+      <div class="sync" aria-live="polite">
+        <span class="sync-dot" aria-hidden="true"></span>
+        <span class="sync-label">Live · </span><span id="sync-time">connecting</span>
+      </div>
+    </header>
+
+    <main>
+      <section aria-labelledby="page-title">
+        <p class="eyebrow" id="phase">Research status</p>
+        <h1 id="page-title">Loading progress…</h1>
+        <p class="lede" id="summary">Connecting to the local status feed.</p>
+        <div class="run-strip"><span class="run-pill"><span class="pulse" aria-hidden="true"></span><span id="run-state">Active run</span></span></div>
+        <p class="error" id="error" role="alert">The status feed is temporarily unavailable. Retrying automatically.</p>
+      </section>
+
+      <div class="grid">
+        <section class="card services-card" aria-labelledby="services-heading">
+          <div class="card-pad">
+            <h2 class="card-title" id="services-heading">Systems</h2>
+            <div class="service-list" id="services"></div>
+          </div>
+        </section>
+
+        <section class="card budget-card" aria-labelledby="budget-heading">
+          <div class="card-pad">
+            <h2 class="card-title" id="budget-heading">Guardrails</h2>
+            <div class="budget-stack" id="budgets"></div>
+            <p class="budget-note">Provider-side limits are authoritative. Local reservations remain conservative.</p>
+          </div>
+        </section>
+
+        <section class="card milestones-card" aria-labelledby="milestones-heading">
+          <div class="card-pad">
+            <h2 class="card-title" id="milestones-heading">Research milestones</h2>
+            <div class="milestone-row" id="milestones"></div>
+          </div>
+        </section>
+
+        <section class="card activity-card" aria-labelledby="activity-heading">
+          <div class="card-pad">
+            <h2 class="card-title" id="activity-heading">Latest activity</h2>
+            <div class="activity">
+              <div class="events" id="events"></div>
+              <aside class="next" aria-labelledby="next-heading">
+                <p class="next-label" id="next-heading">Up next</p>
+                <p class="next-copy" id="next-action">Waiting for status.</p>
+              </aside>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+    <footer>Local operator view · refreshes every 5 seconds</footer>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const iconLetters = (name) => name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
+    const money = (value) => `$${Number(value || 0).toFixed(2)}`;
+
+    function node(tag, className, text) {
+      const element = document.createElement(tag);
+      if (className) element.className = className;
+      if (text !== undefined) element.textContent = text;
+      return element;
+    }
+
+    function renderServices(items) {
+      const root = $("services");
+      root.replaceChildren(...items.map((item) => {
+        const row = node("div", "service");
+        row.append(node("div", "service-icon", iconLetters(item.name)));
+        const copy = node("div");
+        copy.append(node("p", "service-name", item.name), node("p", "service-detail", item.detail));
+        row.append(copy, node("span", `status status-${item.status}`, item.status));
+        return row;
+      }));
+    }
+
+    function budgetBlock(label, spent, cap) {
+      const wrapper = node("div", "budget-block");
+      const head = node("div", "budget-head");
+      head.append(node("span", "budget-label", label), node("span", "budget-value", `${money(spent)} / ${money(cap)}`));
+      const track = node("div", "track");
+      const fill = node("div", "fill");
+      fill.style.width = `${Math.min(100, Math.max(0, cap ? (spent / cap) * 100 : 0))}%`;
+      track.append(fill);
+      wrapper.append(head, track);
+      return wrapper;
+    }
+
+    function render(data) {
+      $("phase").textContent = data.phase;
+      $("page-title").textContent = data.headline;
+      $("summary").textContent = data.summary;
+      $("run-state").textContent = data.run_state === "active" ? "Run active" : data.run_state;
+      $("sync-time").textContent = new Date(data.updated_at).toLocaleTimeString([], {hour: "numeric", minute: "2-digit", second: "2-digit"});
+      $("next-action").textContent = data.next_action;
+      renderServices(data.services || []);
+
+      $("budgets").replaceChildren(
+        budgetBlock("Modal compute", data.budget.modal_committed_usd, data.budget.modal_cap_usd),
+        budgetBlock("OpenRouter API", data.budget.openrouter_spend_usd, data.budget.openrouter_cap_usd)
+      );
+
+      $("milestones").replaceChildren(...(data.milestones || []).map((item) => {
+        const block = node("div", `milestone ${item.status}`);
+        block.append(node("p", "milestone-label", item.label), node("p", "milestone-detail", item.detail));
+        return block;
+      }));
+
+      $("events").replaceChildren(...(data.events || []).map((item) => {
+        const event = node("article", `event ${item.tone || ""}`);
+        event.append(node("time", "event-time", item.at));
+        const rail = node("div", "event-rail");
+        rail.append(node("span", "event-dot"));
+        const copy = node("div");
+        copy.append(node("p", "event-title", item.title), node("p", "event-detail", item.detail));
+        event.append(rail, copy);
+        return event;
+      }));
+      $("error").style.display = "none";
+    }
+
+    async function refresh() {
+      try {
+        const response = await fetch(`status.json?t=${Date.now()}`, {cache: "no-store"});
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        render(await response.json());
+      } catch (error) {
+        $("error").style.display = "block";
+      }
+    }
+
+    refresh();
+    setInterval(refresh, 5000);
+  </script>
+</body>
+</html>

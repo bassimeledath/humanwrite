@@ -22,7 +22,6 @@ from .policy import (
 STATE_PATH = "/state/events.jsonl"
 state_volume = modal.Volume.from_name("humanwrite-gateway-state", create_if_missing=True)
 reaper_secret = modal.Secret.from_name("humanwrite-reaper-auth")
-alert_secret = modal.Secret.from_name("humanwrite-alerts")
 source_root = Path(__file__).resolve().parent
 image = (
     modal.Image.debian_slim(python_version="3.11")
@@ -49,7 +48,7 @@ def _notify(details: dict) -> None:
 @app.function(
     image=image,
     schedule=modal.Cron("*/5 * * * *"),
-    secrets=[reaper_secret, alert_secret],
+    secrets=[reaper_secret],
     volumes={"/state": state_volume},
     timeout=240,
 )

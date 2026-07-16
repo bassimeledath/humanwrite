@@ -17,8 +17,8 @@ Hugging Face, OpenRouter, and notification credentials stay in Modal secrets.
   provider keys, and starts experiment code with a small allowlisted env.
 - The independent reaper checks every five minutes and can cancel a Modal
   function call even if the gateway or job is unhealthy.
-- Alerts are emitted for every promo launch and reaper kill when
-  `DFTR_ALERT_WEBHOOK_URL` is configured.
+- Optional alerts are emitted for promo launches and reaper kills only when
+  `DFTR_ALERT_WEBHOOK_URL` is configured in an attached deployment secret.
 
 ## One-time human deployment
 
@@ -32,12 +32,11 @@ modal profile activate bassimfaizal
 Create the following secrets interactively or in the Modal dashboard:
 
 - `humanwrite-gateway-auth`: `DFTR_GPU_GATEWAY_TOKEN`
-- `humanwrite-provider-secrets`: `HF_TOKEN`, `OPENROUTER_API_KEY`, and a
+- `the-other-ones`: `HF_TOKEN`, `OPENROUTER_API_KEY`, and a
   frozen `DFTR_OPENROUTER_MODEL` slug for brief synthesis plus a frozen
   `DFTR_JUDGE_MODEL` slug. The preregistered defaults are
   `openai/gpt-5-mini` for synthesis and `openai/gpt-5.4-mini` for the judge;
   changing either is a human-reviewed configuration change.
-- `humanwrite-alerts`: `DFTR_ALERT_WEBHOOK_URL`
 - `humanwrite-reaper-auth`: a distinct operational token or marker
 
 Then deploy both apps:

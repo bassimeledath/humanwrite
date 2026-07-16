@@ -38,8 +38,7 @@ REPO_URL = "https://github.com/bassimeledath/humanwrite.git"
 state_volume = modal.Volume.from_name("humanwrite-gateway-state", create_if_missing=True)
 checkpoint_volume = modal.Volume.from_name("humanwrite-checkpoints", create_if_missing=True)
 gateway_secret = modal.Secret.from_name("humanwrite-gateway-auth")
-provider_secret = modal.Secret.from_name("humanwrite-provider-secrets")
-alert_secret = modal.Secret.from_name("humanwrite-alerts")
+provider_secret = modal.Secret.from_name("the-other-ones")
 
 source_root = Path(__file__).resolve().parent
 base_image = (
@@ -339,7 +338,7 @@ def brief_synthesis_worker(run_id: str, payload: dict) -> dict:
 
 @app.function(
     image=base_image,
-    secrets=[gateway_secret, alert_secret, provider_secret],
+    secrets=[gateway_secret, provider_secret],
     volumes={"/state": state_volume},
     max_containers=1,
     timeout=120,
