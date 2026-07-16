@@ -7,8 +7,7 @@
   },
   "qwen3_1p7b": {
     "base": "Qwen/Qwen3-1.7B",
-    "revision": "__M1_RESOLVE_QWEN3_1P7B_REVISION__",
+    "revision": "70d244cc86ccca08cf5af4e1e306ecf908b1ad5e",
     "requested_revision": "main"
   }
 }
-

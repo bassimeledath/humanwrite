@@ -11,7 +11,7 @@ compute:
   timeout_min: 120
 model:
   base: Qwen/Qwen3-1.7B
-  revision: __M1_RESOLVE_QWEN3_1P7B_REVISION__
+  revision: 70d244cc86ccca08cf5af4e1e306ecf908b1ad5e
   requested_revision: main
   lora:
     rank: 64
@@ -37,4 +37,3 @@ workflow:
   step: train_sft
   fixed_manifest: configs/m1/manifests/fixed_inputs_v1.json
   revision_manifest: configs/m1/manifests/revision_placeholders_v1.json
-

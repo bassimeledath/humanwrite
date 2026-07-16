@@ -520,3 +520,18 @@ RESULTS:
 | Scope/boundaries | PASS | No local accelerator, no SFT, no harness eval, no Tier-2/3, no M2, and no alternate route. |
 DECISION: keep.
 NEXT: Use resolved immutable revision `70d244cc86ccca08cf5af4e1e306ecf908b1ad5e` to preregister and run exact 1.7B preparatory SFT configs only through approved M1 routes.
+
+## [2026-07-16] M1 / sft-prepare-qwen3-1p7b
+HYPOTHESIS: The first evidentiary Qwen3-1.7B SFT launch candidate is valid for preregistration only if it depends on the already accepted immutable resolver result for `Qwen/Qwen3-1.7B`, pins that revision only in the checked-in SFT surfaces named by the explorer memo, preserves every other SFT control exactly, and records the exact three-seed `screen` launch provenance before any compute or evaluation. This relies on the accepted resolver batch already recorded above, the fixed M1 data boundary, and the fail-closed SFT readiness memo in `.swarmy/explore-m1-sft-readiness.md`.
+SETUP: Preparation-only implementer batch from clean published tip `3d52149f2d309bdb2fb5da259b66324910d02c3d`, matching local `HEAD` before edits. Pinned immutable revision `70d244cc86ccca08cf5af4e1e306ecf908b1ad5e` only in `configs/m1/manifests/revision_placeholders_v1.json` and `configs/m1/m1_sft_qwen3_1p7b_v1.yaml`. Canonical parsed-YAML hash for `configs/m1/m1_sft_qwen3_1p7b_v1.yaml` was recomputed offline after pinning and must equal `e213ed59e70ece4815b4b467b84df30eb6fccec8fb64c507d6699100df1575e8`. Launch provenance for later independent testing is fixed as comparison `M1-sft-baseline-qwen3-1p7b`, arm `SFT`, budget `screen`, seeds `[11,29,47]`, one `L40S`, timeout `120` minutes, train split hash `c59c853cdc03c7378308c8f35baa874e0f484fa035d4297948c3f3b755afa1a6`, dev split hash `69dded207ccb2a7753666752ebcbdaee0e00260bf9848817979e50427bb2cf8b`, and immutable fixed-manifest hashes `fixed_inputs_v1.json=e56e9cf2573b957b8491cf7733fa384de42908a71d6b8d2c2be581fbb402808d`, `sampler_grid_v1.json=662d21f269b7a8ea8bc70da105bd6b2b8164021e2fdc510120763aa19df800ae`. No compute, no `harness eval`, no Tier 2, no Tier 3, and no M2 work were run in this batch.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Accepted resolver dependency | PASS | This batch uses only immutable resolver revision `70d244cc86ccca08cf5af4e1e306ecf908b1ad5e` already recorded for `M1-plumbing-revision-resolve-qwen3-1p7b`; no new resolver or alternate route was used. |
+| Authorized pinned surfaces | PASS | Only `configs/m1/manifests/revision_placeholders_v1.json` and `configs/m1/m1_sft_qwen3_1p7b_v1.yaml` received tracked config changes. |
+| Canonical SFT config hash | PREREGISTERED | Offline recomputation after pinning must match `e213ed59e70ece4815b4b467b84df30eb6fccec8fb64c507d6699100df1575e8`. |
+| SFT launch provenance | PREREGISTERED | Comparison `M1-sft-baseline-qwen3-1p7b` is fixed to seeds `[11,29,47]`, budget `screen`, one `L40S`, timeout `120` minutes, and fixed train/dev split hashes. |
+| Compute and evaluation activity | NOT RUN | No submit, no training, no generation, and no Tier-1/Tier-3 action occurred in this preparation batch. |
+| Protected/fixed surfaces | PRESERVED | No `harness/`, `sources/`, fixed M0 data artifacts, sampler sweep config, or M2 surface was mutated. |
+DECISION: keep this as preparation and preregistration evidence only. It does not self-accept the launch tip and does not authorize compute without a separate tester.
+NEXT: Separate tester must verify published-tip equality, allowed diff scope, exact hash/preregistration agreement, fixed-manifest hashes, and clean tracked worktree before any single `screen` SFT submit. Do not begin sampler, evaluation, or M2 work from this batch.
