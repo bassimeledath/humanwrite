@@ -1,0 +1,27 @@
+{
+  "artifact_schema": "m1.baseline_stats.review.v1",
+  "baseline_sampler_id": "default_t1.0_p1.0",
+  "calibration_sha256": "4a71b081bbb05081a461d0968312aacd4472221fdeab9934d63202b2f8e6e039",
+  "dev_split_hash": "69dded207ccb2a7753666752ebcbdaee0e00260bf9848817979e50427bb2cf8b",
+  "human_reference_bank_id": "92a0366c313d007c5d602cc8758c148a775b94d5c927416dd668121bcf447ae1",
+  "lexical_l2": {
+    "mean": 0.04533869430927019,
+    "std": 0.029060816759049642
+  },
+  "outline_fact_recall": {
+    "mean": 0.25
+  },
+  "sample_count": 9,
+  "semantic_mmd": {
+    "mean": 0.0015667598764848023,
+    "std": 0.022579039399933686
+  },
+  "structural_dist": {
+    "mean": 0.4674470591915121,
+    "std": 0.08527179172851143
+  },
+  "train_split_hash": "c59c853cdc03c7378308c8f35baa874e0f484fa035d4297948c3f3b755afa1a6",
+  "unsupported_claim_rate": {
+    "mean": 0.8542332081084832
+  }
+}

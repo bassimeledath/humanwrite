@@ -1,10 +1,30 @@
 {
   "artifact_schema": "harness.baseline_stats.v1",
-  "frozen": false,
-  "_comment": "Operator-frozen from a reviewed default-sampler M1 baseline proposal. Nulls fail closed.",
-  "semantic_mmd": {"mean": null, "std": null},
-  "lexical_l2": {"mean": null, "std": null},
-  "structural_dist": {"mean": null, "std": null},
-  "outline_fact_recall": {"mean": null},
-  "unsupported_claim_rate": {"mean": null}
+  "frozen": true,
+  "source_proposal_sha256": "8b1623c3368f9c6ec475a7a833a3cf0730807e41bd4690df1048a497a9f8c227",
+  "baseline_sampler_id": "default_t1.0_p1.0",
+  "sample_count": 9,
+  "train_split_hash": "c59c853cdc03c7378308c8f35baa874e0f484fa035d4297948c3f3b755afa1a6",
+  "dev_split_hash": "69dded207ccb2a7753666752ebcbdaee0e00260bf9848817979e50427bb2cf8b",
+  "human_reference_bank_id": "92a0366c313d007c5d602cc8758c148a775b94d5c927416dd668121bcf447ae1",
+  "calibration_sha256": "4a71b081bbb05081a461d0968312aacd4472221fdeab9934d63202b2f8e6e039",
+  "operator_review_required": true,
+  "semantic_mmd": {
+    "mean": 0.0015667598764848023,
+    "std": 0.022579039399933686
+  },
+  "lexical_l2": {
+    "mean": 0.04533869430927019,
+    "std": 0.029060816759049642
+  },
+  "structural_dist": {
+    "mean": 0.4674470591915121,
+    "std": 0.08527179172851143
+  },
+  "outline_fact_recall": {
+    "mean": 0.25
+  },
+  "unsupported_claim_rate": {
+    "mean": 0.8542332081084832
+  }
 }

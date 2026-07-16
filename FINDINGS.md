@@ -1157,3 +1157,28 @@ required to standardize the complete sampler comparison.
 NEXT: Publish these exact reports, compute and independently transfer the
 default-sampler baseline proposal, then rerun all 45 cells with frozen
 provenance and accept only the preregistered mechanical outcome.
+
+## [2026-07-16] M1 / default-sampler-baseline-transfer
+HYPOTHESIS: The nine published default-sampler reports will deterministically
+produce an operator-transferable SFT baseline bound to the exact frozen human
+bank and calibration, breaking the former selection/baseline circularity.
+SETUP: Ran the published `baseline-stats` config twice against bootstrap index
+SHA `359c072d...`; both produced proposal SHA
+`8b1623c3368f9c6ec475a7a833a3cf0730807e41bd4690df1048a497a9f8c227`.
+The real locked `uv run harness prepare-baseline-transfer` command accepted
+the exact expected SHA. Reviewed and transferred the emitted semantic object
+into `harness/baseline_stats.json`. No new evaluation, raw-output read,
+provider call, compute, sampler selection, Tier 2/3, or M2 action occurred.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Direct reproduction | PASS | Two proposal runs were byte-identical at SHA `8b1623c3...c227`. |
+| Frozen provenance | PASS | Default sampler only; 9 reports; human bank ID `92a0366c...`; calibration SHA `4a71b081...`. |
+| Component baseline | PASS | Semantic MMD `0.00156676 +/- 0.0225790`; lexical L2 `0.0453387 +/- 0.0290608`; structural distance `0.467447 +/- 0.0852718`. |
+| Validity baseline | NEGATIVE | Mean outline-fact recall `0.25`; mean unsupported-claim rate `0.854233`, confirming the tiny SFT control is weak rather than establishing good quality. |
+| Immutable transfer | PASS | Harness baseline is ready and frozen; file SHA-256 `53de46c79b31a63262cc6c2329bb6acec81ae0a5e5ed77af1df2408b76f262fc`. |
+DECISION: keep as the required SFT control, not as a quality success. It gives
+the complete sampler comparison a fixed standardization and non-inferiority
+reference without depending on the eventual selected sampler.
+NEXT: Publish this exact transfer, preregister all 45 frozen-provenance reports
+with the fixed gateway judge, then run the full mechanical sampler comparison.
