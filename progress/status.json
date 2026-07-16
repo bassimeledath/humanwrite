@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-16T01:17:10Z",
-  "phase": "Infrastructure deployment",
-  "headline": "Deploying the research environment",
-  "summary": "The research scaffold, independent evaluators, storage, and provider boundaries are ready. Modal services are being deployed before M0 begins.",
+  "updated_at": "2026-07-16T01:22:30Z",
+  "phase": "M0 — foundation and smoke test",
+  "headline": "The research run is live",
+  "summary": "Codex 5.6-sol is executing M0 with high reasoning on the fast service tier. It is planning the fixed data pipeline, Tier 0 metrics, and constrained GPU smoke test.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
@@ -18,13 +18,14 @@
   ],
   "milestones": [
     {"id": "setup", "label": "Setup", "detail": "Harness, sources, storage, and guardrails", "status": "complete"},
-    {"id": "M0", "label": "M0", "detail": "Data pipeline and GPU contract smoke test", "status": "queued"},
+    {"id": "M0", "label": "M0", "detail": "Data pipeline and GPU contract smoke test", "status": "active"},
     {"id": "M1", "label": "M1", "detail": "SFT baseline and calibration freeze", "status": "queued"},
     {"id": "M2", "label": "M2", "detail": "Arms A-E at 64 and 128 tokens", "status": "queued"},
     {"id": "M3", "label": "M3", "detail": "Length curriculum and LoRA staging", "status": "queued"},
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {"at": "18:22", "title": "M0 Codex run started", "detail": "gpt-5.6-sol is live with high reasoning and fast service in an isolated capability-only environment.", "tone": "active"},
     {"at": "18:17", "title": "Setup merged", "detail": "The reviewed research infrastructure is now on main; the isolated M0 branch is ready.", "tone": "complete"},
     {"at": "18:17", "title": "Sealed endpoint deployed", "detail": "The private 7B independent evaluator is online and its hidden test split is being initialized.", "tone": "active"},
     {"at": "18:15", "title": "GPU gateway verified", "detail": "Authenticated budget and judge calls passed with the 40 dollar Modal cap enforced.", "tone": "complete"},
