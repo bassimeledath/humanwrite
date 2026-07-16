@@ -325,3 +325,38 @@ NEXT: Run an independent milestone-boundary audit, append its verdict, and
 wait for human sign-off/direction. Resumption requires a valid credential that
 can publish the exact M1 commit to the configured origin; after publication,
 restart at `infra/gpu budget` and the already-preregistered resolver smoke.
+
+## [2026-07-15] M1 / milestone-result
+HYPOTHESIS: M1 may be recorded as complete only if independently verified
+repository state contains the actual constrained-route 1.7B baseline,
+sampler-sweep/freeze evidence, and reproducible human-calibration proposal;
+safe workflow scaffolding alone is insufficient.
+SETUP: A fresh boundary tester audited current `agent/m1` HEAD, immutable
+contracts, git history/diff, ledger state, and checked-in artifacts without
+reading implementation/explorer logs. It made no source/config/data/harness/
+ledger/findings changes, launched no compute, and ran no Tier-1/Tier-2 eval.
+The fixed score format was `score=pass|fail`, with failure required when
+scientific M1 deliverables were incomplete even if safety checks passed.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Independent milestone verdict | FAIL | `.swarmy/results/m1-boundary.txt` reports `score=fail`. |
+| Boundary immutability | PASS | No branch diff under `harness/`, `sources/`, or fixed M0 artifacts; findings and ledger history are append-only. |
+| Commit provenance | PASS | M1 branch has five structured `[dftr]` commits above the published branch point at audit time. |
+| Publication blocker | CONFIRMED | Audit observed local HEAD `9f8b999` ahead of published `fc880fe`; exact candidate SHA is unavailable to the wrapper clone path. |
+| Post-prereg compute/eval activity | PASS | Ledger ends with the resolver preregistration; no M1 run/update row or Tier-1/Tier-2 result follows it. |
+| Successful remote plumbing | FAIL | Not run because exact-SHA publication failed. |
+| Pinned Qwen3-1.7B baseline/checkpoints | FAIL | No resolved immutable 1.7B revision or checkpoint provenance exists. |
+| Sampler sweep and frozen sampler | FAIL | No Tier-1 sampler reports or output-derived freeze artifact exists. |
+| Human calibration proposal | FAIL | Checked-in JSON is a fail-closed template pointing at missing reports, not an output-derived interval proposal. |
+DECISION: park M1 as safe but incomplete and externally blocked. Do not
+self-approve, do not reinterpret the pre-compute `score=pass` as milestone
+acceptance, and do not start M2. The verified candidate remains the resume
+point; no scientific conclusion about SFT-vs-human gaps or sampler quality is
+supported by this milestone state.
+NEXT: Wait for human sign-off/direction at the M1 boundary. To resume M1, the
+human must restore a valid GitHub credential (or otherwise authorize an exact-
+SHA publication path within the existing origin contract). Then publish HEAD,
+recheck `infra/gpu budget`, submit only the already-preregistered 0.6B resolver
+smoke, record it, pin/reverify/preregister the 1.7B configs, and continue the
+remaining M1 plan. No M2 work is authorized.
