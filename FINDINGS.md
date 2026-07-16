@@ -548,3 +548,29 @@ RESULTS:
 | Immutable revision resolution | PASS | `Qwen/Qwen3-1.7B` requested at `main` resolved to immutable revision `70d244cc86ccca08cf5af4e1e306ecf908b1ad5e`, with snapshot `/checkpoints/hf-cache/models--Qwen--Qwen3-1.7B/snapshots/70d244cc86ccca08cf5af4e1e306ecf908b1ad5e`. |
 | Boundary result | PASS | The audit launched no compute and no evaluation, found no protected/fixed-surface mutation, and explicitly confirmed the earlier publication failure is historical/resolved rather than a current finding. |
 DECISION: keep the Qwen3-1.7B resolver smoke as independently verified plumbing evidence only. It remains non-evidentiary for SFT and does not complete M1.
+
+## [2026-07-16] M1 / sft-prelaunch-verification-qwen3-1p7b
+HYPOTHESIS: The preregistered three-seed Qwen3-1.7B SFT screen can proceed
+only if the independent SFT prelaunch verdict is an unqualified pass, the
+tracked worktree is clean, and local `HEAD`, local upstream, and live
+`origin/agent/m1` all match the required published tip
+`c51cabedb3a1ffffa05a0105d3787f7ee6e733f4` before any new append-only
+mutation.
+SETUP: Read `CLAUDE.md`, `RESEARCH_CONTEXT.md`, the relevant M1 findings and
+SFT preregistration evidence, `ledger/ledger.py`, and
+`configs/m1/m1_sft_qwen3_1p7b_v1.yaml`; read only the terse independent
+verdict file `.swarmy/results/m1-sft-prelaunch.txt`; then checked git
+cleanliness and local/upstream/live-remote equality on branch `agent/m1`
+before appending this verification entry.
+RESULTS:
+| check | status | evidence |
+| --- | --- | --- |
+| Independent prelaunch verdict | PASS | `.swarmy/results/m1-sft-prelaunch.txt` reports `score=pass` and `failed_checks=none`. |
+| Required published tip before mutation | PASS | `git rev-parse HEAD`, `git rev-parse @{upstream}`, and `git ls-remote --heads origin agent/m1` each resolved to `c51cabedb3a1ffffa05a0105d3787f7ee6e733f4`. |
+| Tracked worktree cleanliness | PASS | `git status --short --branch` reported `## agent/m1...origin/agent/m1` with no tracked changes before this append. |
+| Preregistered SFT launch target | PASS | `configs/m1/m1_sft_qwen3_1p7b_v1.yaml` remains the exact preregistered SFT config for comparison `M1-sft-baseline-qwen3-1p7b`, budget `screen`, and seeds `[11,29,47]`. |
+| Ledger uniqueness | PASS | Existing prereg evidence records exactly one open prereg row and zero prior run rows for `M1-sft-baseline-qwen3-1p7b`; submit has not occurred yet. |
+DECISION: keep and proceed only with a single constrained `screen` submission
+of `configs/m1/m1_sft_qwen3_1p7b_v1.yaml` after this exact evidence tip is
+published cleanly. No sampler, Tier 1, Tier 2, Tier 3, M2, alternate compute,
+or bypass is authorized by this append.
