@@ -391,10 +391,6 @@ def brief_synthesis_worker(run_id: str, payload: dict) -> dict:
     output_path = _volume_path(str(data_config["output_uri"]))
     output_path.parent.mkdir(parents=True, exist_ok=True)
     max_records = int(data_config.get("max_records", 50_000))
-    model = os.environ["DFTR_OPENROUTER_MODEL"]
-    if str((config.get("api") or {}).get("model")) != model:
-        raise ValueError("brief synthesis model does not match the frozen deployment model")
-    api_key = os.environ["OPENROUTER_API_KEY"]
     cost_cap = float(payload["api_reserved_cost_usd"])
     spent = 0.0
     reported_spent = 0.0
@@ -404,6 +400,10 @@ def brief_synthesis_worker(run_id: str, payload: dict) -> dict:
     log_path = Path("/state/logs") / f"{run_id}.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)
     try:
+        model = os.environ["DFTR_OPENROUTER_MODEL"]
+        if str((config.get("api") or {}).get("model")) != model:
+            raise ValueError("brief synthesis model does not match the frozen deployment model")
+        api_key = os.environ["OPENROUTER_API_KEY"]
         checkpoint_volume.reload()
         if not input_path.is_file():
             raise FileNotFoundError(f"input artifact not found: {data_config['input_uri']}")
