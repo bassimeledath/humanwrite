@@ -701,3 +701,37 @@ sampler, evaluation, Tier 2/3, M2, or 14B work.
 NEXT: Wait for human direction on whether the operator materialization becomes
 the approved durable read path or whether a read-only gateway/CLI artifact
 surface should be added; do not resubmit the SFT screen.
+
+## [2026-07-16] M1 / sft-checkpoint-provenance-resolution
+HYPOTHESIS: The historical SFT checkpoint-provenance boundary from commit
+`a07f0f5` is resolved if the exact operator action requested by the explorer
+has now supplied the completed run's manifest bytes read-only, with no rerun,
+state mutation, new ledger append, sampling, evaluation, or protected-surface
+change.
+SETUP: Resolution-only pass. Read
+`.dispatch/tasks/m1-sft-boundary-recorder/ipc/blocker.md`, the
+operator-materialized
+`.swarmy/operator-materialized/dftr-1784180693-f3c7ab5c/checkpoints_manifest.json`,
+its `ATTESTATION.md`, the latest M1 findings and ledger rows, and commit
+`a07f0f586ab0fc504eea038eab25711f0e44fcbc`. Preserved `a07f0f5` and its
+historical blocked finding unchanged. Recomputed and checked the planned
+manifest fields offline with `jq` and SHA-256 only; did not run infra,
+compute, sampling, `harness eval`, Tier 2/3, M2, or 14B work.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Operator unblocker identity | PASS | The blocker says the operator materialized the existing Modal `checkpoints_manifest.json` read-only and superseded the stale active-boundary instruction; this is the exact artifact-read action requested by the prior explorer, not a rerun or state mutation. |
+| Canonical manifest hash | PASS | Recomputed canonical compact JSON SHA-256 as `2c255965575359ce8e92761befe0dd8db360b204b7385b924f4261194c0e2fb1`, matching the attestation and the required plan value. |
+| Protocol and model provenance | PASS | Manifest has `protocol_version=m1.checkpoints.v1`, `model_base=Qwen/Qwen3-1.7B`, and `model_revision=70d244cc86ccca08cf5af4e1e306ecf908b1ad5e`. |
+| Seed and token provenance | PASS | Exactly three checkpoint entries exist for seeds `[11,29,47]`, each with `train_tokens=474`; total manifest tokens `1422` match the SFT ledger terminal rows. |
+| Complete file maps | PASS | Every seed exposes the same complete SHA-256 map for `README.md`, `adapter_config.json`, `adapter_model.safetensors`, `added_tokens.json`, `chat_template.jinja`, `merges.txt`, `special_tokens_map.json`, `tokenizer.json`, `tokenizer_config.json`, `training_metrics.json`, and `vocab.json`. |
+| Distinct adapter hashes | PASS | `adapter_model.safetensors` hashes are distinct across the three seeds: `714876d1ca760a4f8013b3377cd104297971bf0ef45c41425b44e427712e86fd`, `e1fc8e1ee9069d3bb18c3dfe21196d223c3fb254989755a248e1798d7e357588`, and `d5665c4caa7e13eefc7e0c665292b433d25c38e3dbd0b9020556e402f0c34d8f`. |
+| Historical evidence preservation | PASS | The blocked finding in `a07f0f5` remains historical and unchanged; the SFT run row plus both identical completed terminal updates in `ledger/ledger.jsonl` were not modified or extended. |
+| Scope hygiene | PASS | Offline checks found no new ledger row, compute, sampling, Tier 1/2/3, M2, 14B, protected-surface, or immutable-surface action in this resolution pass. |
+DECISION: keep. The operator-materialized attested manifest resolves the
+checkpoint-provenance boundary and completes SFT checkpoint provenance for the
+single completed three-seed Qwen3-1.7B SFT run. Sampler preparation may proceed
+only after this resolution commit is published exactly.
+NEXT: Publish this resolution commit exactly before any sampler-preparation
+work. Do not treat unpublished local provenance resolution as authorization to
+prepare samples.
