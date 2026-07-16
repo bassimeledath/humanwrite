@@ -489,3 +489,16 @@ acceptance, does not create a pass verdict, and does not authorize submission
 by itself.
 NEXT: Independent published-tip/hash/prereg verification before a single
 submit of `configs/m1/m1_plumbing_revision_resolve_qwen3_1p7b_v1.yaml`.
+
+## [2026-07-16] M1 / resolver-1p7b-prelaunch-verification
+HYPOTHESIS: The 1.7B resolver batch can proceed only if the published 1.7B resolver preregistration exists, the independent resolver prelaunch verdict is an unqualified pass with no failures, and the publication tip is clean.
+SETUP: From branch `agent/m1` at published tip `f1def157881dd6c6520015770d5e33184fba112e` (`agent/m1` tracking and live remote `origin/agent/m1` are both `f1def157881dd6c6520015770d5e33184fba112e`), appended a verification check against `.swarmy/results/m1-1p7b-resolver-prelaunch.txt`, prereg row state, and repo cleanliness before any launch.
+RESULTS:
+| check | status | evidence |
+| --- | --- | --- |
+| Independent prelaunch verdict | PASS | `.swarmy/results/m1-1p7b-resolver-prelaunch.txt` reports `score=pass` and `failed_checks=none`. |
+| Repo cleanliness | PASS | `git status --short --branch` output is `## agent/m1...origin/agent/m1` (no tracked changes). |
+| Publish tracking integrity | PASS | `git rev-parse HEAD`, `git rev-parse @{upstream}`, and `git ls-remote --heads origin agent/m1` all resolve to `f1def157881dd6c6520015770d5e33184fba112e`. |
+| Preregistration state | PASS | `ledger/ledger.py query --comparison M1-plumbing-revision-resolve-qwen3-1p7b` returns exactly one open prereg row and no run rows. |
+| Config canonical hash pointer | PASS | Resolver YAML is `configs/m1/m1_plumbing_revision_resolve_qwen3_1p7b_v1.yaml` with expected canonical hash `c3cb91e5fa1c2f854f3e9307ec18c3129df15ab8963ee8de50cf04587608b0e9` from prior append-only prep evidence. |
+DECISION: keep and proceed only with constrained, single-submission resolver execution for Qwen3-1.7B.
