@@ -1663,3 +1663,21 @@ quotation list; keep the validator unchanged. Publish/deploy, then resume the
 same config so only nine missing IDs are called.
 NEXT: Require terminal 64/64 coverage and a full independent dev validation
 before train synthesis.
+
+## [2026-07-16] M1 / pilot-brief-synthesis-dev-missing-row-pass
+HYPOTHESIS: Explicit byte-for-byte quotation instructions will recover the
+eight grounding failures while preserving all 55 previously validated rows.
+SETUP: Published/deployed the prompt-only correction and resumed the unchanged
+dev config as `dftr-1784193252-fe023827` at git SHA `1020bf8`.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Grounding recovery | PASS | All eight quotation failures produced contract-valid rows; no prior row changed. |
+| Remaining failure | ISOLATED | The sole remaining ID, a public community-college governing-board campaign page, returned provider `content_filter` on both attempts. |
+| Independent partial audit | PASS | Exactly `63/64` unique known IDs validate, including all 16 exact empty-outline IDs; partial SHA `5a9721163eb3850946e6bb7e70cc65766cef39bb8103a99b91e48c2b08d5a738`. |
+| Spend | CONTAINED | `$0.013267` provider spend and `0` accelerator-seconds. |
+DECISION: preserve 63 rows. Add a retry-only neutral archival instruction
+after `content_filter`: prohibit persuasion, advocacy, voter targeting, calls
+to action, and imitated campaign copy; require a neutral factual user prompt
+and empty quotations. The frozen source and output validator stay unchanged.
+NEXT: Resume the one missing ID, then run the full 64-row dev validator.

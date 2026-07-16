@@ -361,11 +361,23 @@ def source_materialization_worker(run_id: str, payload: dict) -> dict:
         return {"run_id": run_id, "status": status, "records_processed": 0}
 
 
-def _brief_prompt(source_text: str, *, force_empty_outline: bool) -> str:
+def _brief_prompt(
+    source_text: str,
+    *,
+    force_empty_outline: bool,
+    safety_neutral: bool = False,
+) -> str:
     outline_instruction = (
         "For this record, outline must be the empty list []. "
         if force_empty_outline
         else "For this record, outline must contain at least one section. "
+    )
+    safety_instruction = (
+        "Treat this as neutral archival analysis. Do not create political persuasion, "
+        "campaign advocacy, voter targeting, calls to action, or imitated campaign copy. "
+        "The user_prompt must request a neutral factual summary, and quotations must be []. "
+        if safety_neutral
+        else ""
     )
     return (
         "Convert the supplied human web document into the disclosed DFT training brief. "
@@ -377,6 +389,7 @@ def _brief_prompt(source_text: str, *, force_empty_outline: bool) -> str:
         "use an empty quotations list when no exact quotation is needed. target_length is an integer token "
         "estimate. detail_mode must be strict or creative. "
         + outline_instruction
+        + safety_instruction
         + "Return no prose or Markdown outside the JSON object.\n\nDOCUMENT:\n"
         + source_text
     )
@@ -463,6 +476,7 @@ def brief_synthesis_worker(run_id: str, payload: dict) -> dict:
                     continue
                 brief = None
                 last_error = None
+                safety_neutral = False
                 for _attempt in range(2):
                     try:
                         response = requests.post(
@@ -480,6 +494,7 @@ def brief_synthesis_worker(run_id: str, payload: dict) -> dict:
                                     "content": _brief_prompt(
                                         text[:120_000],
                                         force_empty_outline=source_id in empty_outline_ids,
+                                        safety_neutral=safety_neutral,
                                     ),
                                 }],
                                 "response_format": brief_response_format(
@@ -501,6 +516,8 @@ def brief_synthesis_worker(run_id: str, payload: dict) -> dict:
                         choice = body["choices"][0]
                         finish_reason = str(choice.get("finish_reason") or "unknown")
                         if finish_reason != "stop":
+                            if finish_reason == "content_filter":
+                                safety_neutral = True
                             raise RuntimeError(f"provider finish_reason={finish_reason}")
                         content_value = choice["message"].get("content")
                         if not isinstance(content_value, str):
