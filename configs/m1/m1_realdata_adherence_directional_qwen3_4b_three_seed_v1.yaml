@@ -1,0 +1,53 @@
+run:
+  comparison_id: M1-realdata-adherence-4b-three-seed-directional-v1
+  arm: SFT-4B-confirmation
+  budget_class: screen
+  task_kind: experiment
+  command: [python, -m, experiments.runner]
+  seeds: [11, 29, 47]
+compute:
+  gpu: L40S
+  gpus: 1
+  timeout_min: 120
+model:
+  base: Qwen/Qwen3-4B
+  revision: 1cfa9a7208912126459214e8b04321603b3df60c
+  requested_revision: main
+data:
+  train_split_hash: 833b2c259a8e68c110d4668121213f3f98b47dac5f70f26047d69cbd2cca932e
+  dev_split_hash: 849f4e5bcbf1e78330f9d6f0e812b9d359d638ee5ed1a422e9d01c54b69e9722
+  train_path: /checkpoints/data/m1-realdata-adherence-v1/train_briefs.jsonl
+  dev_path: /checkpoints/data/m1-realdata-adherence-v1/dev_briefs.jsonl
+  prompt_format: "USER:\n{brief}\nASSISTANT:"
+  prompt_schema_version: dft.full-brief.v1
+  max_input_tokens: 1024
+  max_new_tokens: 384
+sampling:
+  stage: adherence_directional
+  checkpoints_manifest: /checkpoints/runs/dftr-1784216516-91130dd3/checkpoints_manifest.json
+  checkpoints_manifest_sha256: f15e8eccd10c049a60655a29ecd126dcdce0cbcb233b71d25acdcc81a98e1cff
+  sampler_grid: configs/m1/manifests/default_sampler_grid_v1.json
+  seeds: [101, 202, 303]
+  dev_subset_fingerprints:
+    - 1e49e0badf25b50e6365953720528468fffb78c600dd6b3f0011a39bd55690ef
+    - 3c2bf8f0d020186d3928182f7d3d9a61485c91b329af2d9dacfb83227267204d
+    - a8ccd0a6cdc0947ffa218b8a552f6d9d15778bedf558ce9aa5611accaf60146d
+    - cab5ba88856768c838488fbdda430ef295276a2f768759ae2f8294352d55102f
+    - 8dbf136564a2af2a556234e74651c79ebd42417d487711ea8e500ef99dd5944b
+    - 615d5e759d744cf623b145c4567a7287ca9c51289d30353097a28c10225cce85
+    - 128b2fe8eac242b3b683877c188a2266bdc2a93a13ad73f7d463c92262797ee5
+    - e963cf25efa7b09d0a767bb1e45cc7e17ca7d6a644e3b99c5184fa1300364284
+    - f65008351876eea1b295a18dae1722e45a1d8f40fc72dcdaa0aeb9026a02b1b9
+    - 290fdcd5ceb3c32b10db4de356a733987ae998118c2a64edcb3b3390252b752c
+    - eef536b21677fda7447b6e71924ee95cd2962e99059affb860653e563d88696a
+    - 9de58704512423e49c6adedb83be943439076192b0d4216d6092ff6e4536749e
+    - 03e1931062a03822bd242e92b094523b86171b84290c9eba9d6591fca4b06f71
+    - 33165134edbf2b8d72d8c965ad715924976dd6186d955ae613146a61861616b8
+    - e3bfa60c1004153eb8c527e8b031d7fcec9009ed2102e7711a68508ff0b46557
+    - 5f4cf7b67fd1f7f0a8d3738f73fadec24fc9326ea63a88548f40e20c347da056
+  dev_subset_hash: 18a8031ed63cf72636523974000af05e1d8bdd16f351b4f5a13fbe3dcfefe9e3
+workflow:
+  protocol_version: m1.realdata-adherence.v1
+  step: sample_sweep
+  fixed_manifest: configs/m1/manifests/m1_realdata_adherence_fixed_inputs_v1.json
+  fixed_manifest_sha256: a2e15653a0eb2f06c7ed33b86a97d27d42fe86dcb46f68e78d4c98117d4e9684
