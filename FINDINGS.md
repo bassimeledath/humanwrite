@@ -360,3 +360,93 @@ SHA publication path within the existing origin contract). Then publish HEAD,
 recheck `infra/gpu budget`, submit only the already-preregistered 0.6B resolver
 smoke, record it, pin/reverify/preregister the 1.7B configs, and continue the
 remaining M1 plan. No M2 work is authorized.
+
+## [2026-07-15] M1 / operator-authorized-resumption
+HYPOTHESIS: M1 can safely resume at the already-preregistered Qwen3-0.6B
+resolver smoke when the accepted scientific candidate remains published and
+unchanged in history, and the current cloneable branch tip differs only by an
+operator-owned progress record that explicitly authorizes automatic M1
+resumption.
+SETUP: The human operator explicitly authorized M1 to resume after publishing
+scientific candidate `7fb2e98af7ae0734007267368cffb73209cbe9ac`. A PI audit
+accepted current local and `origin/agent/m1` tip
+`7f5a16691c4b42065b77d080d2afd17688314835` as a cloneable descendant of that
+candidate; `git diff --name-status 7fb2e98..7f5a166` contains only
+`M progress/status.json`. The worktree was clean before this append-only entry.
+No prior blocker, milestone audit, finding, ledger row, config, protected
+surface, or scientific candidate commit was rewritten.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Human authorization | PASS | Explicit authorization resumes M1 only; M2 remains forbidden. |
+| Scientific candidate publication | PASS | Exact candidate `7fb2e98` remains an ancestor unchanged in published history. |
+| Cloneable branch boundary | PASS | Local HEAD and local `origin/agent/m1` both resolve to progress-only descendant `7f5a166`. |
+| Resumption scope | PASS | Continue only with the existing Qwen3-0.6B resolver config and `smoke` budget class through the constrained wrapper. |
+DECISION: resume the bounded M1 batch without reinterpreting or deleting the
+prior blocker and failed milestone result. Treat `7fb2e98` as the accepted
+scientific candidate and `7f5a166` as the current cloneable progress-only tip.
+NEXT: Run `infra/gpu budget`; only if sufficient, submit exact config
+`configs/m1/m1_plumbing_revision_resolve_qwen3_0p6b_v1.yaml` with
+`--budget-class smoke`, then monitor only with `infra/gpu status|logs|cancel`
+to a terminal state and record full provenance/accounting without bypass.
+
+## [2026-07-15] M1 / resolver-smoke-qwen3-0p6b
+HYPOTHESIS: The independently accepted wrapper-only plumbing path can clone the
+published M1 tip, resolve the requested Qwen3-0.6B upstream `main` revision to
+an immutable commit, and return complete terminal provenance and accounting
+within the preregistered smoke budget without using an alternate route.
+SETUP: After `infra/gpu budget` reported GPU cap/remaining `$40.00`, GPU
+committed `$0.00`, and API remaining `$99.999337`, exact unchanged config
+`configs/m1/m1_plumbing_revision_resolve_qwen3_0p6b_v1.yaml` was submitted once
+with `--budget-class smoke`. Run ID is `dftr-1784177307-97064e4f`; config hash
+is `8f0be62b88999d23143946f3c6dbf8db50d03e7eebf8032f924eb5fa1809f930`;
+clone git SHA is progress-only published tip
+`7f5a16691c4b42065b77d080d2afd17688314835`. Fixed split hashes are
+train=`c59c853cdc03c7378308c8f35baa874e0f484fa035d4297948c3f3b755afa1a6`
+and dev=`69dded207ccb2a7753666752ebcbdaee0e00260bf9848817979e50427bb2cf8b`.
+The run used one L4, `smoke`, and a 1,200-second timeout. Monitoring used only
+`infra/gpu status` and `infra/gpu logs`. The approved append-only ledger CLI
+recorded the terminal row after the gateway returned terminal accounting.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Submission/provenance gate | PASS | One authorized run; preregistered config hash, comparison, clone SHA, model, and split hashes agree. |
+| Terminal execution | PASS | `completed`, return code 0; started `1784177307.8026717`, finished `1784177323.6196373`. |
+| Immutable model resolution | PASS | `Qwen/Qwen3-0.6B` requested `main` resolved to `c1899de289a04d12100db370d81485cdf75e47ca`. |
+| Artifact provenance | PASS | Resolver artifact: `/__modal/volumes/vo-EY2fT0CaoNDuXGLZLNZcGg/runs/dftr-1784177307-97064e4f/resolved_revision.json`; snapshot: `/checkpoints/hf-cache/models--Qwen--Qwen3-0.6B/snapshots/c1899de289a04d12100db370d81485cdf75e47ca`. |
+| Terminal accounting | PASS | 11.589 accelerator-seconds, `$0.003087` actual GPU cost, 0 generated/train/total tokens; `$0.31968` was reserved. |
+| Data limitation | PASS | Resolver reported visible fixture counts train=6/dev=2 as a provenance limitation only. |
+| Scope/boundaries | PASS | No 1.7B job, Tier-1 eval, Tier-2/Tier-3 action, direct provider, alternate route, or protected/config mutation occurred. |
+DECISION: keep the resolver smoke as successful plumbing evidence only. It is
+not evidentiary SFT evidence, does not establish an SFT-to-human gap, and does
+not complete M1. Do not launch Qwen3-1.7B from this batch or infer that the
+0.6B repository revision is the immutable revision for a distinct 1.7B model.
+NEXT: Park this uncommitted append-only findings/ledger batch for independent
+PI verification. A later separately authorized batch must resolve and pin the
+exact Qwen3-1.7B revision, rehash and preregister the evidentiary configs, and
+pass its own pre-compute verification before any 1.7B launch. Do not begin M2.
+
+## [2026-07-15] M1 / resolver-smoke-independent-verification
+HYPOTHESIS: The successful Qwen3-0.6B resolver smoke is acceptable as plumbing
+evidence only if an independent gate confirms append-only provenance, exact
+publication/config/preregistration agreement, single-run terminal evidence,
+scope confinement, and clean diff hygiene.
+SETUP: The independent resolver gate audited the append-only FINDINGS/ledger
+batch, published ancestry and tip, canonical resolver hash, preregistration
+order, run cardinality, terminal wrapper evidence/accounting, protected scope,
+and `git diff --check`. It launched no compute or evaluation.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Independent verdict | PASS | `.swarmy/results/m1-resolver-gate.txt` reports `score=pass` with no failures. |
+| Append-only integrity | PASS | Prior FINDINGS and ledger bytes are unchanged; only 65 FINDINGS lines and two ledger rows were appended before this verdict. |
+| Publication and config provenance | PASS | Published ancestor `7fb2e98`, published run tip `7f5a166`, canonical hash `8f0be62b88999d23143946f3c6dbf8db50d03e7eebf8032f924eb5fa1809f930`, preregistration, and run row agree. |
+| Order and cardinality | PASS | Preregistration preceded launch by 6983.743112 seconds; exactly one resolver smoke run exists. |
+| Terminal evidence/accounting | PASS | Return code 0; immutable revision `c1899de289a04d12100db370d81485cdf75e47ca`; artifact/snapshot provenance; 11.589 accelerator-seconds, `$0.003087`, and zero tokens. |
+| Scope and hygiene | PASS | No protected/fixed, 1.7B, M2, Tier-2/3, or alternate-route action; `git diff --check` exits 0. |
+DECISION: keep and close the Qwen3-0.6B resolver batch as independently
+verified plumbing evidence only. This is not scientific SFT evidence and does
+not complete M1.
+NEXT: Publish this accepted resolver batch. Only after successful publication,
+prepare and separately preregister the exact Qwen3-1.7B resolver derivative;
+do not launch it in this preparation batch.
