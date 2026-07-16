@@ -1700,3 +1700,27 @@ produce persuasion/calls to action, uses empty quotations, remains under a
 `$0.25` cap, and must pass the unchanged validator.
 NEXT: Publish/deploy the allowlisted fallback, recover the one row, then run
 the full 64-row independent dev validation before train synthesis.
+
+## [2026-07-16] M1 / pilot-brief-synthesis-dev-completion
+HYPOTHESIS: The pinned neutral fallback will recover only the one
+GPT-5-mini-filtered row, yielding a complete hash-bound dev artifact that
+passes the independent source/brief validator.
+SETUP: Published recovery config hash `214c1659...` and ran
+`dftr-1784193575-4cd14c56` at git SHA `d1f1a4c`. The worker validated all 63
+existing rows, observed the primary content filter, invoked allowlisted
+`anthropic/claude-haiku-4.5` once with the neutral prompt, and committed one
+new row.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Recovery run | PASS | `1/1` missing record processed, `0` failed, `$0.001930`, `0` accelerator-seconds. |
+| Full dev cardinality | PASS | Exactly `64` unique source/brief IDs with all preserved source fields and generation mode. |
+| Brief contract | PASS | Every row passes schema/type/grounding validation; every quotation is a verbatim source substring. |
+| Empty-outline arm | PASS | Exactly `16/64 = 0.25`, matching the deterministic ID set. |
+| Immutable provenance | PASS | Source SHA `7012e7a8...`, split hash `849f4e5b...`, final dev brief SHA `524c224ab8215e6a696b0353c0acbae0daacdafd39190a9fd8bbc1c05bf1ef7f`. |
+| Total recovery spend | PASS | All dev synthesis, transport smokes, and retries cost `$0.190714`; total monthly provider spend is `$0.230235/$100`. GPU commitment remains `$0.683574/$40`. |
+DECISION: accept and freeze the 64-row dev brief artifact. The preregistered
+dev gate is satisfied; launch the exact 256-row train synthesis under its `$5`
+cap. No SFT GPU run is authorized until the combined 256/64 validator passes.
+NEXT: Run train synthesis, resume only contract-valid rows if needed, then
+publish the full pilot validation and mechanical three-seed SFT config.

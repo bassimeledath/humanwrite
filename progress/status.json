@@ -1,14 +1,14 @@
 {
-  "updated_at": "2026-07-16T09:03:18Z",
+  "updated_at": "2026-07-16T09:20:59Z",
   "phase": "M1 — SFT baseline and calibration",
-  "headline": "Brief transport validated; 64-row dev synthesis resumed",
-  "summary": "The first dev pass exposed a systemic basic-JSON transport failure and stopped after 0.069022 dollars; a second route check failed before billing and stopped within 24 seconds. A separate one-row strict-schema smoke then passed the full grounding contract for 0.001711 dollars. The corrected worker is now resuming the original 64-row dev job from two preserved valid rows under the same 2 dollar cap.",
+  "headline": "All 64 dev briefs validated; train synthesis is next",
+  "summary": "The complete dev artifact now has 64 unique source-matched briefs, exact schema and quotation grounding, and exactly 16 deterministic empty outlines. Its final SHA is 524c224a. All dev transport work and retries cost 0.190714 dollars; total provider spend is 0.230235 of 100 dollars. The preregistered 256-row train synthesis can now proceed under its 5 dollar cap, while GPU training remains closed until combined validation passes.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
     "modal_committed_usd": 0.683574,
     "openrouter_cap_usd": 100,
-    "openrouter_spend_usd": 0.110254
+    "openrouter_spend_usd": 0.230235
   },
   "services": [
     {"name": "GPU gateway", "detail": "Constrained launch API", "status": "online"},
@@ -19,12 +19,14 @@
   "milestones": [
     {"id": "setup", "label": "Setup", "detail": "Harness, sources, storage, and guardrails", "status": "complete"},
     {"id": "M0", "label": "M0", "detail": "Data pipeline and GPU contract smoke test", "status": "complete"},
-    {"id": "M1", "label": "M1", "detail": "Real-data recovery dev brief synthesis active", "status": "active"},
+    {"id": "M1", "label": "M1", "detail": "Dev validated; train brief synthesis next", "status": "active"},
     {"id": "M2", "label": "M2", "detail": "Arms A-E at 64 and 128 tokens", "status": "queued"},
     {"id": "M3", "label": "M3", "detail": "Length curriculum and LoRA staging", "status": "queued"},
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {"at": "02:20", "title": "Full 64-row dev artifact validated", "detail": "Independent validation passed exact ID and source preservation, schema and types, verbatim quotation grounding, and 16-of-64 empty-outline assignment. Final brief SHA is 524c224a; all dev synthesis and recovery calls cost 0.190714 dollars.", "tone": "complete"},
+    {"at": "02:19", "title": "One provider-policy row recovered safely", "detail": "GPT-5-mini consistently filtered one benign governing-board campaign page. A preregistered pinned Claude Haiku 4.5 fallback ran only for that missing row with a neutral non-persuasive prompt, passed the unchanged contract, and cost 0.001930 dollars.", "tone": "complete"},
     {"at": "02:03", "title": "Strict-schema dev synthesis resumed", "detail": "A one-record transport smoke independently passed source preservation, required types, non-empty outline, facts, and verbatim quotation grounding for 0.001711 dollars. The unsupported temperature field was removed and the original 64-record dev job is active as dftr-1784192598-f958d49d under its unchanged 2 dollar cap.", "tone": "active"},
     {"at": "02:01", "title": "Malformed provider output contained and repaired", "detail": "Attempt 1 stopped after 10 of 12 records failed basic JSON transport, costing 0.069022 dollars; attempt 2 revealed an incompatible route constraint and was cancelled before billing. No malformed row entered training and the train gate stayed closed.", "tone": "complete"},
     {"at": "01:48", "title": "Real-data pilot source reproduced and frozen", "detail": "Attempts 3 and 4 each produced exactly 320 records with identical train SHA 3884fdf0, dev SHA 7012e7a8, and manifest SHA 6b264d07. Independent validation confirmed 256/64 counts, 320 unique domains, and zero overlap with all published exclusions at zero GPU/provider spend.", "tone": "complete"},
@@ -59,5 +61,5 @@
     {"at": "17:46", "title": "Storage created", "detail": "Gateway state, checkpoints, sealed state, and sealed artifacts volumes are online.", "tone": "complete"},
     {"at": "17:40", "title": "Engineering checks passed", "detail": "Harness, infrastructure, and private evaluator suites are green.", "tone": "complete"}
   ],
-  "next_action": "Monitor dev run dftr-1784192598-f958d49d, download its terminal bytes, and require all 64 IDs, exact source preservation, grounded quotations, and exactly 16 empty outlines before automatically launching the capped train synthesis."
+  "next_action": "Launch the exact preregistered 256-row train brief synthesis under its 5 dollar provider cap, preserve and resume only validated rows if needed, then require combined 256/64 validation before any GPU training."
 }
