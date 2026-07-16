@@ -1,0 +1,32 @@
+{
+  "dev_count": 2,
+  "dev_path": "data/artifacts/m0/dev_briefs.jsonl",
+  "dev_split_hash": "69dded207ccb2a7753666752ebcbdaee0e00260bf9848817979e50427bb2cf8b",
+  "interval_settings": {
+    "confidence_level": 0.95,
+    "resampling_seeds": [
+      404,
+      505,
+      606
+    ],
+    "subset_fraction": 0.8
+  },
+  "max_input_tokens": 1024,
+  "max_new_tokens": 384,
+  "prompt_format": "USER: {user_prompt}\nASSISTANT:",
+  "provenance_note": "Visible M0 fixture size is train=6/dev=2 and is a provenance limitation only.",
+  "sampling_seeds": [
+    101,
+    202,
+    303
+  ],
+  "train_count": 6,
+  "train_path": "data/artifacts/m0/train_briefs.jsonl",
+  "train_split_hash": "c59c853cdc03c7378308c8f35baa874e0f484fa035d4297948c3f3b755afa1a6",
+  "training_seeds": [
+    11,
+    29,
+    47
+  ]
+}
+

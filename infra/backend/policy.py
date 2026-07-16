@@ -33,6 +33,7 @@ GPU_USD_PER_SECOND = {
 }
 ALLOWED_COMMAND_PREFIX = ["python", "-m", "experiments.runner"]
 TERMINAL = {"completed", "failed", "cancelled", "reaped", "launch_failed"}
+UNRESOLVED_REVISION_PREFIX = "__M1_RESOLVE_"
 
 
 class PolicyError(ValueError):
@@ -53,6 +54,13 @@ class LaunchPolicy:
 def canonical_hash(config: dict[str, Any]) -> str:
     payload = json.dumps(config, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def revision_is_unresolved(value: Any) -> bool:
+    if value is None:
+        return True
+    text = str(value).strip()
+    return not text or text.startswith(UNRESOLVED_REVISION_PREFIX)
 
 
 def validate_launch(payload: dict[str, Any]) -> LaunchPolicy:
@@ -92,8 +100,15 @@ def validate_launch(payload: dict[str, Any]) -> LaunchPolicy:
     if task_kind == "experiment" and gpu not in GPU_USD_PER_SECOND:
         raise PolicyError(f"unsupported GPU: {gpu}")
     base_model = str((config.get("model") or {}).get("base", ""))
+    workflow_step = str((config.get("workflow") or {}).get("step", "")).casefold()
     if "14B" in base_model.upper() and not payload.get("human_scaleup_approved"):
         raise PolicyError("14B scale-up lacks human approval")
+    if workflow_step in {"train_sft", "sample_sweep"} and revision_is_unresolved(
+        (config.get("model") or {}).get("revision")
+    ):
+        raise PolicyError(
+            "M1 evidentiary experiment jobs require model.revision to be a resolved immutable revision"
+        )
     api_reserved = 0.0
     if task_kind == "experiment":
         command = run.get("command", ALLOWED_COMMAND_PREFIX)

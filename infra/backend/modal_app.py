@@ -25,6 +25,7 @@ from .policy import (
     has_api_capacity,
     has_capacity,
     read_events,
+    revision_is_unresolved,
     run_snapshot,
     validate_launch,
 )
@@ -91,6 +92,37 @@ def _notify(event: str, details: dict) -> None:
         print(f"alert delivery failed: {type(exc).__name__}")
 
 
+def _artifact_dir(run_id: str) -> Path:
+    return Path(CHECKPOINT_PATH) / "runs" / run_id
+
+
+def _resolved_model_manifest_path(run_id: str) -> Path:
+    return _artifact_dir(run_id) / "resolved_model.json"
+
+
+def _count_artifact_tokens(artifact_dir: Path) -> int:
+    manifest_path = artifact_dir / "run_manifest.json"
+    if manifest_path.is_file():
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        accounting = manifest.get("token_accounting") or {}
+        if accounting.get("total_tokens") is not None:
+            return int(accounting["total_tokens"])
+    total = 0
+    for sample_path in sorted(artifact_dir.rglob("*.jsonl")):
+        for line in sample_path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            row = json.loads(line)
+            text = str(
+                row.get("output")
+                or row.get("generated_completion")
+                or row.get("completion")
+                or ""
+            )
+            total += len(re.findall(r"[^\W_]+(?:['’][^\W_]+)?", text, re.UNICODE))
+    return total
+
+
 @app.function(
     image=worker_image,
     secrets=[provider_secret],
@@ -125,14 +157,47 @@ def training_worker(run_id: str, payload: dict) -> dict:
         hf_token = os.environ.pop("HF_TOKEN", None)
         os.environ.pop("OPENROUTER_API_KEY", None)
         base_model = str((config.get("model") or {}).get("base", ""))
+        model_revision = (config.get("model") or {}).get("revision")
+        workflow_step = str((config.get("workflow") or {}).get("step", "")).casefold()
+        artifact_dir = _artifact_dir(run_id)
+        artifact_dir.mkdir(parents=True, exist_ok=True)
+        resolved_manifest_path = _resolved_model_manifest_path(run_id)
         if hf_token and base_model:
             from huggingface_hub import snapshot_download
-            snapshot_download(
-                repo_id=base_model,
-                token=hf_token,
-                cache_dir="/checkpoints/hf-cache",
-                allow_patterns=["*.json", "*.model", "*.safetensors", "*.txt"],
-            )
+            if workflow_step == "resolve_revision":
+                from huggingface_hub import HfApi
+
+                requested_revision = str((config.get("model") or {}).get("requested_revision") or "main")
+                model_info = HfApi(token=hf_token).model_info(base_model, revision=requested_revision)
+                resolved_revision = str(model_info.sha or requested_revision)
+                snapshot_path = snapshot_download(
+                    repo_id=base_model,
+                    revision=resolved_revision,
+                    token=hf_token,
+                    cache_dir="/checkpoints/hf-cache",
+                    allow_patterns=["*.json", "*.model", "*.safetensors", "*.txt"],
+                )
+                resolved_manifest_path.write_text(
+                    json.dumps(
+                        {
+                            "base_model": base_model,
+                            "requested_revision": requested_revision,
+                            "resolved_revision": resolved_revision,
+                            "resolved_at": time.time(),
+                            "snapshot_path": snapshot_path,
+                        },
+                        sort_keys=True,
+                    ),
+                    encoding="utf-8",
+                )
+            elif not revision_is_unresolved(model_revision):
+                snapshot_download(
+                    repo_id=base_model,
+                    revision=str(model_revision),
+                    token=hf_token,
+                    cache_dir="/checkpoints/hf-cache",
+                    allow_patterns=["*.json", "*.model", "*.safetensors", "*.txt"],
+                )
             checkpoint_volume.commit()
 
         config_path = worktree / ".dftr-run-config.json"
@@ -151,6 +216,8 @@ def training_worker(run_id: str, payload: dict) -> dict:
             "DFTR_RUN_ID": run_id,
             "DFTR_CHECKPOINT_DIR": f"/checkpoints/runs/{run_id}",
         }
+        if resolved_manifest_path.is_file():
+            clean_env["DFTR_RESOLVED_MODEL_MANIFEST"] = str(resolved_manifest_path)
         with log_path.open("w", encoding="utf-8") as logs:
             result = subprocess.run(
                 command,
@@ -174,6 +241,7 @@ def training_worker(run_id: str, payload: dict) -> dict:
         elapsed = max(0.0, time.time() - started)
         reserved = float(payload["reserved_cost_usd"])
         actual = min(reserved, reserved * elapsed / float(payload["timeout_seconds"]))
+        artifact_dir = _artifact_dir(run_id)
         _record({
             "kind": "run_update",
             "run_id": run_id,
@@ -181,7 +249,9 @@ def training_worker(run_id: str, payload: dict) -> dict:
             "return_code": return_code,
             "finished_at": time.time(),
             "accel_seconds": round(elapsed, 3),
+            "tokens": _count_artifact_tokens(artifact_dir),
             "actual_cost_usd": round(actual, 6),
+            "artifact_dir": str(artifact_dir.resolve()),
         })
         checkpoint_volume.commit()
     return {"run_id": run_id, "status": status, "return_code": return_code}
@@ -457,8 +527,12 @@ def gateway():
         timeout = max(1.0, float(state.get("timeout_seconds") or 1.0))
         reserved = float(state.get("reserved_cost_usd") or 0.0)
         actual = min(reserved, reserved * elapsed / timeout)
+        artifact_dir = _artifact_dir(run_id)
         _record({"kind": "run_update", "run_id": run_id, "status": "cancelled",
-                 "finished_at": time.time(), "actual_cost_usd": round(actual, 6)})
+                 "finished_at": time.time(), "accel_seconds": round(elapsed, 3),
+                 "tokens": _count_artifact_tokens(artifact_dir),
+                 "actual_cost_usd": round(actual, 6),
+                 "artifact_dir": str(artifact_dir.resolve())})
         return {"run_id": run_id, "status": "cancelled"}
 
     @api.get("/budget")

@@ -1,0 +1,13 @@
+{
+  "human_split_path": "data/artifacts/m0/dev_briefs.jsonl",
+  "interval_settings": {
+    "confidence_level": 0.95,
+    "resampling_seeds": [
+      404,
+      505,
+      606
+    ],
+    "subset_fraction": 0.8
+  },
+  "output_path": "experiments/m1/calibration_proposal_v1.json"
+}

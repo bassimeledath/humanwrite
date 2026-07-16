@@ -1,0 +1,6 @@
+{
+  "default_sampler_id": "default_t1.0_p1.0",
+  "output_path": "experiments/m1/freeze_sampler_v1.json",
+  "report_index": "__M1_REPLACE_WITH_TIER1_EVAL_INDEX__"
+}
+

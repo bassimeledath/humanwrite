@@ -60,21 +60,29 @@ def _artifact_dir(state_dir: Path, run_id: str) -> Path:
 
 
 def _count_generated_tokens(state_dir: Path, run_id: str) -> int:
-    samples_path = _artifact_dir(state_dir, run_id) / "samples.jsonl"
-    if not samples_path.exists():
+    artifact_dir = _artifact_dir(state_dir, run_id)
+    manifest_path = artifact_dir / "run_manifest.json"
+    if manifest_path.exists():
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        accounting = manifest.get("token_accounting") or {}
+        if accounting.get("total_tokens") is not None:
+            return int(accounting["total_tokens"])
+    sample_paths = sorted(artifact_dir.rglob("*.jsonl"))
+    if not sample_paths:
         return 0
     total = 0
-    for line in samples_path.read_text(encoding="utf-8").splitlines():
-        if not line.strip():
-            continue
-        row = json.loads(line)
-        text = str(
-            row.get("output")
-            or row.get("generated_completion")
-            or row.get("completion")
-            or ""
-        )
-        total += len(TOKEN_RE.findall(text))
+    for sample_path in sample_paths:
+        for line in sample_path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            row = json.loads(line)
+            text = str(
+                row.get("output")
+                or row.get("generated_completion")
+                or row.get("completion")
+                or ""
+            )
+            total += len(TOKEN_RE.findall(text))
     return total
 
 
@@ -204,6 +212,7 @@ def cancel_local(run_id: str, state_dir: str | Path | None = None) -> dict[str, 
             "accel_seconds": round(elapsed, 3),
             "tokens": _count_generated_tokens(state, run_id),
             "actual_cost_usd": round(actual, 6),
+            "artifact_dir": str(_artifact_dir(state, run_id).resolve()),
         },
     )
     return {"run_id": run_id, "status": "cancelled"}

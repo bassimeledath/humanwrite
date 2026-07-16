@@ -1,0 +1,33 @@
+run:
+  comparison_id: M1-sft-sampler-sweep-qwen3-1p7b
+  arm: SFT
+  budget_class: screen
+  task_kind: experiment
+  command: [python, -m, experiments.runner]
+  seeds: [11, 29, 47]
+compute:
+  gpu: L40S
+  gpus: 1
+  timeout_min: 120
+model:
+  base: Qwen/Qwen3-1.7B
+  revision: __M1_RESOLVE_QWEN3_1P7B_REVISION__
+  requested_revision: main
+data:
+  train_split_hash: c59c853cdc03c7378308c8f35baa874e0f484fa035d4297948c3f3b755afa1a6
+  dev_split_hash: 69dded207ccb2a7753666752ebcbdaee0e00260bf9848817979e50427bb2cf8b
+  train_path: data/artifacts/m0/train_briefs.jsonl
+  dev_path: data/artifacts/m0/dev_briefs.jsonl
+  prompt_format: "USER: {user_prompt}\nASSISTANT:"
+  max_input_tokens: 1024
+  max_new_tokens: 384
+sampling:
+  checkpoints_manifest: __M1_RESOLVE_CHECKPOINTS_MANIFEST__
+  sampler_grid: configs/m1/manifests/sampler_grid_v1.json
+  seeds: [101, 202, 303]
+workflow:
+  protocol_version: m1.v1
+  step: sample_sweep
+  fixed_manifest: configs/m1/manifests/fixed_inputs_v1.json
+  revision_manifest: configs/m1/manifests/revision_placeholders_v1.json
+

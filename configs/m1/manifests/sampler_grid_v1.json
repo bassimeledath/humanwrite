@@ -1,0 +1,37 @@
+{
+  "default_sampler_id": "default_t1.0_p1.0",
+  "points": [
+    {
+      "do_sample": true,
+      "id": "default_t1.0_p1.0",
+      "temperature": 1.0,
+      "top_p": 1.0
+    },
+    {
+      "do_sample": true,
+      "id": "cool_t0.8_p1.0",
+      "temperature": 0.8,
+      "top_p": 1.0
+    },
+    {
+      "do_sample": true,
+      "id": "narrow_t1.0_p0.95",
+      "temperature": 1.0,
+      "top_p": 0.95
+    },
+    {
+      "do_sample": true,
+      "id": "cool_narrow_t0.8_p0.95",
+      "temperature": 0.8,
+      "top_p": 0.95
+    },
+    {
+      "do_sample": true,
+      "id": "warm_t1.2_p0.95",
+      "temperature": 1.2,
+      "top_p": 0.95
+    }
+  ],
+  "protocol_version": "m1.sampler_grid.v1"
+}
+

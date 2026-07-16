@@ -1,0 +1,14 @@
+{
+  "protocol_version": "m1.revisions.v1",
+  "qwen3_0p6b": {
+    "base": "Qwen/Qwen3-0.6B",
+    "revision": "__M1_RESOLVE_QWEN3_0P6B_REVISION__",
+    "requested_revision": "main"
+  },
+  "qwen3_1p7b": {
+    "base": "Qwen/Qwen3-1.7B",
+    "revision": "__M1_RESOLVE_QWEN3_1P7B_REVISION__",
+    "requested_revision": "main"
+  }
+}
+

@@ -1,0 +1,6 @@
+{
+  "output_path": "experiments/m1/baseline_stats_v1.json",
+  "report_index": "__M1_REPLACE_WITH_TIER1_EVAL_INDEX__",
+  "selection_artifact": "__M1_REPLACE_WITH_FREEZE_ARTIFACT__"
+}
+

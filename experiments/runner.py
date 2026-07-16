@@ -9,6 +9,7 @@ import shutil
 from typing import Any
 
 from data.pipeline import DEFAULT_OUTPUT as DEFAULT_DATA_OUTPUT
+from experiments.m1.workflow import run_m1
 from experiments.tier0.metrics import batch_diagnostics
 
 
@@ -143,11 +144,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     config = _load_config(Path(args.config).resolve())
-    manifest = run_smoke(config, args.run_id)
+    workflow = config.get("workflow") or {}
+    if str(workflow.get("protocol_version", "")).casefold().startswith("m1"):
+        manifest = run_m1(config, args.run_id)
+    else:
+        manifest = run_smoke(config, args.run_id)
     print(json.dumps(manifest, indent=2, sort_keys=True))
     return 0
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
