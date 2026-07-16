@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-16T08:25:00Z",
+  "updated_at": "2026-07-16T08:39:29Z",
   "phase": "M1 — SFT baseline and calibration",
   "headline": "Real-data recovery pilot preregistered; source host temporarily down",
-  "summary": "The negative tiny-data M1 result is preserved and no scale-up is planned. A fixed 320-document real-FineWeb recovery pilot and a credential-safe Modal source path are now published and deployed. The first zero-cost source attempt selected no records because Hugging Face is reporting service downtime; the same frozen config will retry after recovery, before any provider or GPU spend.",
+  "summary": "The negative tiny-data M1 result is preserved and no scale-up is planned. A fixed 320-document real-FineWeb recovery pilot and credential-safe Modal source path are published. While Hugging Face remains unavailable, every downstream gate is now prepared: exact brief synthesis, independent artifact validation, hash-bound synthesis configs, a separate real-data training protocol, and mechanical Qwen3-1.7B config generation. The same frozen source config will retry before any provider or GPU spend.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
@@ -25,6 +25,7 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {"at": "01:39", "title": "Recovery pipeline prepared through SFT admission", "detail": "The outage window was used to complete fail-closed brief validation, source/brief provenance checks, synthesis config generation, and a separate hash-bound 256/64 Qwen3-1.7B training path without weakening the original fixture contract. Combined data and experiment tests pass 31/31; no provider or GPU reservation exists.", "tone": "complete"},
     {"at": "01:25", "title": "Pilot source attempt stopped by Hugging Face outage", "detail": "The new constrained source job was accepted with exact published provenance and a zero-dollar reservation, then failed before selecting records when both local and Modal routes timed out against Hugging Face. No data source was substituted and no paid call occurred; retry cadence is lengthened until the official service status recovers.", "tone": "blocked"},
     {"at": "01:22", "title": "Credential-safe real-data path deployed", "detail": "The gateway now supports preregistered, fully pinned FineWeb source materialization directly to the checkpoint volume without exposing the Hugging Face credential. All 16 infrastructure tests pass and the 320-document pilot excludes all 40 published M0/Tier-1 fingerprints and domains.", "tone": "complete"},
     {"at": "01:07", "title": "Full Tier-1 screen failed closed", "detail": "All 45 reports are complete and hash-valid, but no sampler passed every hard gate: human-calibrated no-collapse was 0/45 and unsupported-claim non-inferiority was 18/45. The preregistered freeze selected nothing. Provider spend is 0.039521 dollars and GPU commitment remains 0.683574 dollars; no scale-up is justified.", "tone": "blocked"},
