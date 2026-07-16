@@ -1,0 +1,9 @@
+{
+  "checkpoint_manifest_local_path": ".swarmy/operator-materialized/runs/dftr-1784196107-48549e4e/dftr-1784196107-48549e4e/checkpoints_manifest.json",
+  "checkpoint_manifest_volume_path": "/checkpoints/runs/dftr-1784196107-48549e4e/checkpoints_manifest.json",
+  "dev_briefs_local_path": ".swarmy/operator-materialized/m1-realdata-pilot-v1/dev_briefs.jsonl",
+  "fixed_manifest_path": "configs/m1/manifests/m1_realdata_pilot_fixed_inputs_v1.json",
+  "model_revision": "70d244cc86ccca08cf5af4e1e306ecf908b1ad5e",
+  "sampler_config_path": "configs/m1/m1_realdata_pilot_directional_qwen3_1p7b_v1.yaml",
+  "subset_manifest_path": "configs/m1/manifests/m1_realdata_pilot_directional_dev_subset_v1.json"
+}

@@ -1510,6 +1510,30 @@ distributional improvement versus the failed tiny-data baseline.
 NEXT: Continue source recovery; later generate this config mechanically from
 the real validated briefs and completed checkpoint manifest.
 
+## [2026-07-16] M1 / realdata-pilot-sft-completion
+HYPOTHESIS: Training Qwen3-1.7B on the validated 256-document real-FineWeb
+pilot will produce three healthy, distinct LoRA checkpoints suitable for the
+fixed directional quality screen, unlike the underpowered six-document
+baseline.
+SETUP: Completed preregistered run `dftr-1784196107-48549e4e` from published
+git SHA `23e1813` and canonical config hash `b57d06ba`. The run used one L40S,
+one epoch, rank-64 LoRA, seeds `[11,29,47]`, and pinned model revision
+`70d244cc86ccca08cf5af4e1e306ecf908b1ad5e`.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Completion | PASS | All three seeds completed with return code 0 in 146.721 accelerator-seconds for $0.095427. |
+| Token accounting | PASS | Each seed processed 46,732 tokens; aggregate train tokens are exactly 140,196. |
+| Checkpoint identity | PASS | Adapter SHA-256 values are `1323d1ea...`, `b2bd43f3...`, and `5d934d1b...`; all three differ. |
+| Training stability | PASS | Per-seed train losses were 3.003040, 2.999729, and 3.003341 with no non-finite loss or failed seed. |
+| Quality claim | PENDING | Loss and checkpoint integrity prove a valid tuning run, not writing-quality improvement. No promotion or scale-up follows without directional hard-gate evidence. |
+| Directional config | PASS | Mechanical builder bound the exact checkpoint manifest SHA `bb27ef80...`, fixed dev SHA, model revision, 16-document subset hash `18a8031e...`, and 144 expected outputs; focused tests pass 10/10. |
+DECISION: keep all three checkpoints and advance to the preregistered bounded
+directional screen. Do not interpret training loss as a model-quality result.
+NEXT: Publish and launch the fixed 144-document default-sampler evaluation,
+then compare validity, collapse, claim support, and distributional metrics
+against the failed tiny-data baseline before authorizing any larger sweep.
+
 ## [2026-07-16] M1 / realdata-pilot-source-attempt-2
 HYPOTHESIS: The recovered pinned resolver plus bounded worker timeouts will
 allow the unchanged 320-document source config to materialize.
