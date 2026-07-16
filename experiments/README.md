@@ -11,3 +11,7 @@ Rules:
   and a pointer to ledger entries. Commit everything; diffs are docs.
 - Rollout generation at the FROZEN deployment sampler unless the experiment
   is explicitly about sampling.
+
+Offline M0 entrypoints:
+- `python -m experiments.runner --config configs/m0_offline_smoke.yaml --run-id <run_id>`
+- `python -m experiments.verify_m0`

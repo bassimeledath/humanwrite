@@ -1,0 +1,21 @@
+{
+  "count": 2,
+  "fingerprints": [
+    "8b6b70da3f049e51e99c06b8b14f80f55a3602f0cf7bb8ecda0df8a6baac2bd8",
+    "db889fa71ad48cd3cb92677871ef6df9b05b595296c0a4b01d0973ae2c67eb22"
+  ],
+  "hash": "69dded207ccb2a7753666752ebcbdaee0e00260bf9848817979e50427bb2cf8b",
+  "records": [
+    {
+      "domain": "emberreview.example",
+      "fineweb_id": "fw-004",
+      "fingerprint": "8b6b70da3f049e51e99c06b8b14f80f55a3602f0cf7bb8ecda0df8a6baac2bd8"
+    },
+    {
+      "domain": "acme.example",
+      "fineweb_id": "fw-001",
+      "fingerprint": "db889fa71ad48cd3cb92677871ef6df9b05b595296c0a4b01d0973ae2c67eb22"
+    }
+  ],
+  "split": "dev"
+}

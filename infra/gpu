@@ -20,6 +20,17 @@ from urllib import error, parse, request
 
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from infra.backend.local_backend import (  # noqa: E402
+    budget_local,
+    cancel_local,
+    logs_local,
+    status_local,
+    submit_local,
+)
+
 LEDGER = ROOT / "ledger" / "ledger.py"
 BUDGET = {
     "smoke": {"max_min": 20, "max_gpus": 1},
@@ -33,7 +44,13 @@ def _die(message: str, code: int = 2) -> "None":
     raise SystemExit(code)
 
 
+def _use_local_backend() -> bool:
+    return os.environ.get("DFTR_GPU_BACKEND", "").casefold() == "local"
+
+
 def _gateway_config() -> tuple[str, str]:
+    if _use_local_backend():
+        return "local://offline", "local"
     url = os.environ.get("DFTR_GPU_GATEWAY_URL", "").rstrip("/")
     token = os.environ.get("DFTR_GPU_GATEWAY_TOKEN", "")
     if not url or not token:
@@ -47,6 +64,23 @@ def _gateway_config() -> tuple[str, str]:
 
 
 def _api(method: str, path: str, payload: dict | None = None) -> dict:
+    if _use_local_backend():
+        try:
+            if method == "POST" and path == "/submit":
+                return submit_local(payload or {})
+            if method == "GET" and path.startswith("/status/"):
+                return status_local(parse.unquote(path.rsplit("/", 1)[-1]))
+            if method == "GET" and path.startswith("/logs/"):
+                run_id, _, query = path.partition("?")
+                tail = int(parse.parse_qs(query).get("tail", ["200"])[0])
+                return logs_local(parse.unquote(run_id.rsplit("/", 1)[-1]), tail=tail)
+            if method == "POST" and path.startswith("/cancel/"):
+                return cancel_local(parse.unquote(path.rsplit("/", 1)[-1]))
+            if method == "GET" and path == "/budget":
+                return budget_local()
+        except Exception as exc:
+            _die(f"local backend rejected request: {exc}")
+        _die(f"unsupported local backend route: {method} {path}")
     base, token = _gateway_config()
     body = None if payload is None else json.dumps(payload).encode("utf-8")
     req = request.Request(
@@ -182,7 +216,8 @@ def _ledger_failure(run_id: str) -> None:
 def submit(args: argparse.Namespace) -> None:
     config = _load_config(args.config)
     comparison, prereg = _validate_submit(config, args.budget_class)
-    _gateway_config()  # fail before touching the append-only ledger
+    if not _use_local_backend():
+        _gateway_config()  # fail before touching the append-only ledger
     config_hash = _config_hash(config)
     git_sha = _git_sha()
     run_id = f"dftr-{int(time.time())}-{uuid.uuid4().hex[:8]}"

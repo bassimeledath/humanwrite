@@ -1,0 +1,14 @@
+run:
+  comparison_id: M0-offline-smoke
+  arm: M0
+  budget_class: smoke
+  task_kind: experiment
+  command: [python, -m, experiments.runner]
+compute:
+  gpu: L4
+  gpus: 1
+  timeout_min: 10
+model:
+  base: Qwen/Qwen3-1.7B
+data:
+  train_split_hash: c59c853cdc03c7378308c8f35baa874e0f484fa035d4297948c3f3b755afa1a6

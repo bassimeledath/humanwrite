@@ -50,3 +50,10 @@ Modal token / cloud keys live in the wrapper's deployment environment only.
 Never printed to logs, never passed through config.yaml, never in the agent's
 shell. If a run needs the HF token (gated embedder / rate limits), the wrapper
 injects it into the job env; the agent never sees it.
+
+## Offline smoke path
+
+For M0 repository verification only, `DFTR_GPU_BACKEND=local` routes the CLI
+through a no-network local backend that preserves preregistration, config-hash,
+budget, allowlist, status, logs, and artifact semantics while executing the
+same allowlisted `python -m experiments.runner` command locally.

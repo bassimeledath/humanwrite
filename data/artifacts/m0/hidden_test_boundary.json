@@ -1,0 +1,21 @@
+{
+  "dev_hash": "69dded207ccb2a7753666752ebcbdaee0e00260bf9848817979e50427bb2cf8b",
+  "excluded_fields": [
+    "completion",
+    "cleaned_text",
+    "original_text",
+    "outline"
+  ],
+  "local_fields": [
+    "comparison_id",
+    "split_seed",
+    "train_hash",
+    "dev_hash",
+    "excluded_fields"
+  ],
+  "materialized_locally": false,
+  "owned_by": "sealed_evaluator",
+  "policy": "Do not emit hidden test completions into the agent-readable tree.",
+  "split_seed": "dftr-m0-hidden-test-boundary-v1",
+  "train_hash": "c59c853cdc03c7378308c8f35baa874e0f484fa035d4297948c3f3b755afa1a6"
+}
