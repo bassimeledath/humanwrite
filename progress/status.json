@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-07-16T02:30:20Z",
+  "updated_at": "2026-07-16T04:43:16Z",
   "phase": "M1 — SFT baseline and calibration",
   "headline": "M1 research is live",
   "summary": "Codex 5.6-sol is planning the 1.7B SFT baseline, sampler sweep, deployment-sampler freeze, and human calibration intervals under the constrained compute contract.",
@@ -13,7 +13,7 @@
   "services": [
     {"name": "GPU gateway", "detail": "Constrained launch API", "status": "online"},
     {"name": "Reaper", "detail": "Five-minute independent enforcement", "status": "online"},
-    {"name": "Sealed evaluator", "detail": "Private endpoint; optimized hidden split bootstrapping", "status": "deploying"},
+    {"name": "Sealed evaluator", "detail": "Private endpoint and hidden split ready", "status": "online"},
     {"name": "Progress server", "detail": "Local live dashboard", "status": "online"}
   ],
   "milestones": [
@@ -25,6 +25,8 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {"at": "21:43", "title": "M1 automatically resumed", "detail": "The operator published the exact research commit and the lead resumed at the preregistered 0.6B resolver smoke.", "tone": "active"},
+    {"at": "19:31", "title": "Sealed evaluator ready", "detail": "The private FineWeb hidden split finished bootstrapping and remains outside the research agent environment.", "tone": "complete"},
     {"at": "19:30", "title": "M1 Codex run started", "detail": "The approved milestone is live on gpt-5.6-sol with high reasoning and fast service.", "tone": "active"},
     {"at": "19:29", "title": "Sealed bootstrap optimized", "detail": "The private loader now streams the target-year FineWeb crawl configurations directly instead of scanning from 2013.", "tone": "active"},
     {"at": "19:27", "title": "M0 approved and merged", "detail": "The passing M0 branch is on main and the M1 isolation branch is active.", "tone": "complete"},
@@ -41,5 +43,5 @@
     {"at": "17:46", "title": "Storage created", "detail": "Gateway state, checkpoints, sealed state, and sealed artifacts volumes are online.", "tone": "complete"},
     {"at": "17:40", "title": "Engineering checks passed", "detail": "Harness, infrastructure, and private evaluator suites are green.", "tone": "complete"}
   ],
-  "next_action": "Complete M1 planning, preregister the baseline comparisons, and run the smallest allowed plumbing smoke before any 1.7B screening spend."
+  "next_action": "Run the preregistered resolver smoke, pin exact model revisions, then proceed through the 1.7B SFT baseline and sampler sweep if every gate passes."
 }
