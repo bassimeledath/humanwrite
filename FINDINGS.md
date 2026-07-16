@@ -1533,3 +1533,48 @@ lexical guard, then retry the exact source config without changing scientific
 inputs or authorization.
 NEXT: Deploy the guard fix and launch attempt 3 under the same open
 preregistration; verify source manifest hashes before synthesis.
+
+## [2026-07-16] M1 / realdata-pilot-source-completion
+HYPOTHESIS: With the lexical volume guard deployed, the unchanged pinned source
+job will materialize a reproducible, excluded, domain-diverse 256/64 corpus.
+SETUP: Attempt 3 `dftr-1784191530-7f7fbd7f` used canonical config hash
+`42b0eeec...` at git SHA `5a413e5`; attempt 4
+`dftr-1784191623-36875c5d` repeated it unchanged. Both were CPU-only with zero
+GPU/API reservation. Downloaded the three artifacts to ignored operator
+staging and ran the independent source validator without inspecting document
+content.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Cardinality | PASS | Exactly 320 records: 256 train, 64 dev, 320 unique domains. |
+| Selection pool | PASS | Scanned 6,023 rows and rank-selected from 1,600 eligible unique records under the frozen filters/seeds. |
+| Train provenance | PASS | File SHA `3884fdf086520f1e295ecaa37ac4a866199399d659eb1f9ab2ad8886d9e2d704`; split hash `833b2c259a8e68c110d4668121213f3f98b47dac5f70f26047d69cbd2cca932e`. |
+| Dev provenance | PASS | File SHA `7012e7a84e11d14b6e8e46b827de77d44bc46401946a7cb848f0587633b05ac5`; split hash `849f4e5bcbf1e78330f9d6f0e812b9d359d638ee5ed1a422e9d01c54b69e9722`. |
+| Test-wall exclusions | PASS | Zero overlap with all 40 published M0/Tier-1 fingerprints and all 40 domains; sealed data remains unavailable. |
+| Reproducibility | PASS | Attempts 3 and 4 emitted identical train/dev SHAs and byte-identical manifest SHA `6b264d07d18309201604ad800bbfd4b5650c5b1dc452bb1dfd5355457f7fe89b`. |
+| Spend | PASS | Both completed with `0` accelerator-seconds, `0` tokens, `$0` GPU, and `$0` provider spend. |
+DECISION: accept and freeze this pilot source corpus. Do not rematerialize or
+change selection. Proceed to the independently capped dev brief synthesis
+before committing the larger train split.
+NEXT: Publish exact dev/train synthesis configs generated from the frozen
+manifest; preregister both and launch the 64-record dev contract proof first.
+
+## [2026-07-16] M1 / pilot-brief-synthesis-preregistration
+HYPOTHESIS: The fixed GPT-5-mini brief worker will produce 64 valid dev briefs
+with exactly 16 empty outlines inside a `$2` cap; only then should the 256-row
+train synthesis reserve up to `$5`.
+SETUP: Mechanically generated separate configs from manifest SHA `6b264d07...`.
+Both bind exact input file SHA, split hash, count, output URI, source revision,
+provider model, expected empty-outline count, 120-minute hard timeout, and the
+deployed schema/grounding/resume contract. No call or reservation occurred.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Dev config | PREREGISTERED | Canonical hash `dc8fd5a1c501275737e127cbed436f1ebe85e35b9afd6206a4c190c8a5bb3829`; 64 calls target; `$2` hard reservation. |
+| Train config | PREREGISTERED | Canonical hash `ea3548948c08aa8d9e46aae637161ff11d3b9c4cbe4d0851b1f939990106e543`; 256 calls target; `$5` hard reservation, conditional on dev validation. |
+| Spend order | PASS | Dev launches first; train remains unlaunched until exact dev ID/schema/grounding/empty-arm validation passes. |
+DECISION: publish these immutable configs. Open ledger preregistrations, then
+launch dev only. This uses the existing provider cap and is not budget
+expansion, model scale-up, Tier 2/3, or promotion.
+NEXT: Run dev synthesis, download and validate its exact bytes; launch train
+only after a clean result and cost review.

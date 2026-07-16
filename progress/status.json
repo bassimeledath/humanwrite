@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-16T08:39:29Z",
+  "updated_at": "2026-07-16T08:48:35Z",
   "phase": "M1 — SFT baseline and calibration",
-  "headline": "Real-data recovery pilot preregistered; source host temporarily down",
-  "summary": "The negative tiny-data M1 result is preserved and no scale-up is planned. A fixed 320-document real-FineWeb recovery pilot and credential-safe Modal source path are published. While Hugging Face remains unavailable, every downstream gate is now prepared: exact brief synthesis, independent artifact validation, hash-bound synthesis configs, a separate real-data training protocol, and mechanical Qwen3-1.7B config generation. The same frozen source config will retry before any provider or GPU spend.",
+  "headline": "Real-data pilot source frozen reproducibly; dev briefs next",
+  "summary": "Two unchanged zero-cost source runs produced byte-identical 256-train/64-dev artifacts from 320 unique domains, with zero overlap against every published M0/Tier-1 fingerprint and domain. The manifest and both split hashes passed independent validation. Exact dev and train synthesis configs are now prepared; the 64-record dev contract proof will run first under a 2 dollar cap before any train synthesis or GPU work.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
@@ -25,6 +25,7 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {"at": "01:48", "title": "Real-data pilot source reproduced and frozen", "detail": "Attempts 3 and 4 each produced exactly 320 records with identical train SHA 3884fdf0, dev SHA 7012e7a8, and manifest SHA 6b264d07. Independent validation confirmed 256/64 counts, 320 unique domains, and zero overlap with all published exclusions at zero GPU/provider spend.", "tone": "complete"},
     {"at": "01:39", "title": "Recovery pipeline prepared through SFT admission", "detail": "The outage window was used to complete fail-closed brief validation, source/brief provenance checks, synthesis config generation, and a separate hash-bound 256/64 Qwen3-1.7B training path without weakening the original fixture contract. Combined data and experiment tests pass 31/31; no provider or GPU reservation exists.", "tone": "complete"},
     {"at": "01:25", "title": "Pilot source attempt stopped by Hugging Face outage", "detail": "The new constrained source job was accepted with exact published provenance and a zero-dollar reservation, then failed before selecting records when both local and Modal routes timed out against Hugging Face. No data source was substituted and no paid call occurred; retry cadence is lengthened until the official service status recovers.", "tone": "blocked"},
     {"at": "01:22", "title": "Credential-safe real-data path deployed", "detail": "The gateway now supports preregistered, fully pinned FineWeb source materialization directly to the checkpoint volume without exposing the Hugging Face credential. All 16 infrastructure tests pass and the 320-document pilot excludes all 40 published M0/Tier-1 fingerprints and domains.", "tone": "complete"},
@@ -56,5 +57,5 @@
     {"at": "17:46", "title": "Storage created", "detail": "Gateway state, checkpoints, sealed state, and sealed artifacts volumes are online.", "tone": "complete"},
     {"at": "17:40", "title": "Engineering checks passed", "detail": "Harness, infrastructure, and private evaluator suites are green.", "tone": "complete"}
   ],
-  "next_action": "Wait for Hugging Face Hub/CDN recovery, then relaunch the unchanged zero-cost 320-document source config; verify exact train/dev hashes before preregistering any synthesis or Qwen3-1.7B training spend."
+  "next_action": "Publish and preregister the exact 64-record dev brief config, run it under a 2 dollar provider cap, and require full schema, grounding, ID, and 16-of-64 empty-outline validation before launching train synthesis."
 }

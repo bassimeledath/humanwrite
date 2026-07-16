@@ -1,0 +1,22 @@
+run:
+  comparison_id: M1-realdata-pilot-briefs-train-v1
+  arm: SFT
+  budget_class: screen
+  task_kind: brief_synthesis
+compute:
+  gpus: 1
+  timeout_min: 120
+data:
+  input_uri: modal-volume://humanwrite-checkpoints/data/m1-realdata-pilot-v1/train_source.jsonl
+  input_sha256: 3884fdf086520f1e295ecaa37ac4a866199399d659eb1f9ab2ad8886d9e2d704
+  max_records: 256
+  output_uri: modal-volume://humanwrite-checkpoints/data/m1-realdata-pilot-v1/train_briefs.jsonl
+  source_split_hash: 833b2c259a8e68c110d4668121213f3f98b47dac5f70f26047d69cbd2cca932e
+  expected_empty_outline_count: 64
+api:
+  model: openai/gpt-5-mini
+  max_cost_usd: 5.0
+provenance:
+  source_manifest_sha256: 6b264d07d18309201604ad800bbfd4b5650c5b1dc452bb1dfd5355457f7fe89b
+  source_revision: 9bb295ddab0e05d785b879661af7260fed5140fc
+  purpose: M1 real-data recovery pilot brief synthesis; not promotion evidence
