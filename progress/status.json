@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-16T10:07:36Z",
+  "updated_at": "2026-07-16T10:18:00Z",
   "phase": "M1 — SFT baseline and calibration",
   "headline": "The 144-output directional quality screen is running",
-  "summary": "The real-data SFT completed cleanly with three distinct adapters, 46,732 tokens per seed, and losses tightly near 3.00. Run dftr-1784196454-0822114d is now generating the preregistered 144-document directional screen across three training seeds, three sampling seeds, one default sampler, and 16 fixed dev documents. This is the first run that can show whether the tuning improved writing quality and hard-gate behavior.",
+  "summary": "The real-data SFT completed cleanly with three distinct adapters, 46,732 tokens per seed, and losses tightly near 3.00. Directional run dftr-1784196454-0822114d has durably completed all 48 outputs for checkpoint seed 11 and is transitioning to seed 29. The full preregistered screen contains 144 documents across three training seeds, three sampling seeds, one default sampler, and 16 fixed dev documents.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
@@ -25,6 +25,7 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {"at": "03:18", "title": "First directional checkpoint cell group complete", "detail": "Checkpoint seed 11 completed all three sampling seeds for 48 of 144 durable outputs. The worker remains healthy and is transitioning to checkpoint seed 29 with no budget or integrity issue.", "tone": "active"},
     {"at": "03:07", "title": "Directional quality screen launched", "detail": "Run dftr-1784196454-0822114d is active from published git SHA 3544b3d and canonical config hash 483d9dff. It will generate exactly 144 outputs from three distinct adapters, three sampling seeds, the default sampler, and 16 fixed dev briefs under a 4.682880 dollar worst-case reservation.", "tone": "active"},
     {"at": "03:06", "title": "Real-data SFT completed with three distinct adapters", "detail": "All three seeds completed at 46,732 training tokens each with losses 3.0030, 2.9997, and 3.0033. Adapter hashes differ across seeds, total training was 140,196 tokens and 146.721 L40S-seconds, and actual cost was 0.095427 dollars. The checkpoint-bound 144-document directional config passed 10 focused tests.", "tone": "complete"},
     {"at": "03:02", "title": "Three-seed real-data SFT launched", "detail": "Run dftr-1784196107-48549e4e is active on one L40S from published git SHA 23e1813 and canonical config hash b57d06ba. It trains Qwen3-1.7B revision 70d244cc for seeds 11, 29, and 47 with a 4.682880 dollar worst-case reservation.", "tone": "active"},
