@@ -1,14 +1,14 @@
 {
-  "updated_at": "2026-07-16T09:33:18Z",
+  "updated_at": "2026-07-16T09:38:41Z",
   "phase": "M1 — SFT baseline and calibration",
-  "headline": "Train synthesis checkpointed at 100/256 valid rows",
-  "summary": "The complete dev artifact has 64 independently validated briefs and final SHA 524c224a. Train run dftr-1784193698-9f68c860 has durably committed 100 contract-valid rows; four additional rows were rejected for non-verbatim quotations and will be retried after the bulk pass. Cumulative train cost is 0.153342 dollars and actual total provider spend is 0.383577 of 100 dollars. GPU training remains closed until combined validation passes.",
+  "headline": "Train synthesis checkpointed at 150/256 valid rows",
+  "summary": "The complete dev artifact has 64 independently validated briefs and final SHA 524c224a. Train run dftr-1784193698-9f68c860 has durably committed 150 contract-valid rows; five additional rows were rejected for non-verbatim quotations and will be retried after the bulk pass. Cumulative train cost is 0.225038 dollars and actual total provider spend is 0.455273 of 100 dollars. GPU training remains closed until combined validation passes.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
     "modal_committed_usd": 0.683574,
     "openrouter_cap_usd": 100,
-    "openrouter_spend_usd": 0.383577
+    "openrouter_spend_usd": 0.455273
   },
   "services": [
     {"name": "GPU gateway", "detail": "Constrained launch API", "status": "online"},
@@ -25,6 +25,7 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {"at": "02:38", "title": "Train synthesis checkpoint 150 is durable", "detail": "A slow provider call resolved inside its timeout and the run resumed without intervention. One hundred fifty valid rows are committed; five quotation-rejected rows remain for retry and cumulative train cost is 0.225038 dollars.", "tone": "active"},
     {"at": "02:33", "title": "Train synthesis checkpoint 100 is durable", "detail": "One hundred contract-valid train briefs are committed. Four of 104 attempted rows failed only the verbatim-quotation check and remain absent for a later missing-row retry; cumulative train cost is 0.153342 dollars.", "tone": "active"},
     {"at": "02:26", "title": "Train synthesis checkpoint 50 is clean", "detail": "The first 50 of 256 train briefs are durably committed with zero schema, grounding, routing, or content-filter failures. Incremental provider cost is 0.069670 dollars.", "tone": "active"},
     {"at": "02:21", "title": "Capped 256-row train synthesis launched", "detail": "Run dftr-1784193698-9f68c860 is active from published git SHA bc95fb1 with canonical config hash ea354894, exact frozen train source SHA 3884fdf0, and a 5 dollar provider reservation. GPU reservation is zero.", "tone": "active"},
