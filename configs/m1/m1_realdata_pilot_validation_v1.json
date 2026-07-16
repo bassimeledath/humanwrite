@@ -1,0 +1,9 @@
+{
+  "source_manifest_path": ".swarmy/operator-materialized/m1-realdata-pilot-v1/source_manifest.json",
+  "source_config_path": "configs/m1/m1_realdata_pilot_source_modal_v1.yaml",
+  "train_source_path": ".swarmy/operator-materialized/m1-realdata-pilot-v1/train_source.jsonl",
+  "dev_source_path": ".swarmy/operator-materialized/m1-realdata-pilot-v1/dev_source.jsonl",
+  "train_briefs_path": ".swarmy/operator-materialized/m1-realdata-pilot-v1/train_briefs.jsonl",
+  "dev_briefs_path": ".swarmy/operator-materialized/m1-realdata-pilot-v1/dev_briefs.jsonl",
+  "output_path": "data/artifacts/m1/realdata_pilot_validation_v1.json"
+}

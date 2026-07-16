@@ -1,0 +1,8 @@
+{
+  "validation_path": "data/artifacts/m1/realdata_pilot_validation_v1.json",
+  "fixed_manifest_path": "configs/m1/manifests/m1_realdata_pilot_fixed_inputs_v1.json",
+  "training_config_path": "configs/m1/m1_realdata_pilot_sft_qwen3_1p7b_v1.yaml",
+  "train_briefs_volume_path": "/checkpoints/data/m1-realdata-pilot-v1/train_briefs.jsonl",
+  "dev_briefs_volume_path": "/checkpoints/data/m1-realdata-pilot-v1/dev_briefs.jsonl",
+  "model_revision": "70d244cc86ccca08cf5af4e1e306ecf908b1ad5e"
+}

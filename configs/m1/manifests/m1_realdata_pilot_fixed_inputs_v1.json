@@ -1,0 +1,27 @@
+{
+  "artifact_schema": "dftr.realdata_pilot_fixed_inputs.v1",
+  "dev_briefs_sha256": "524c224ab8215e6a696b0353c0acbae0daacdafd39190a9fd8bbc1c05bf1ef7f",
+  "dev_count": 64,
+  "dev_path": "/checkpoints/data/m1-realdata-pilot-v1/dev_briefs.jsonl",
+  "dev_split_hash": "849f4e5bcbf1e78330f9d6f0e812b9d359d638ee5ed1a422e9d01c54b69e9722",
+  "max_input_tokens": 1024,
+  "max_new_tokens": 384,
+  "prompt_format": "USER: {user_prompt}\nASSISTANT:",
+  "provenance_note": "Validated 256/64 real-FineWeb recovery pilot; distinct from visible Tier-1 and sealed evaluator data; not promotion evidence.",
+  "sampling_seeds": [
+    101,
+    202,
+    303
+  ],
+  "source_manifest_sha256": "6b264d07d18309201604ad800bbfd4b5650c5b1dc452bb1dfd5355457f7fe89b",
+  "train_briefs_sha256": "498294a865db2b8c7d9466aad562e187c0475b84051c59453c4a030f2041d1d8",
+  "train_count": 256,
+  "train_path": "/checkpoints/data/m1-realdata-pilot-v1/train_briefs.jsonl",
+  "train_split_hash": "833b2c259a8e68c110d4668121213f3f98b47dac5f70f26047d69cbd2cca932e",
+  "training_seeds": [
+    11,
+    29,
+    47
+  ],
+  "validation_sha256": "ffe015c599c6c245d6df9b52829eb22811b9d31fb34912741d0aa270d6a81ba5"
+}

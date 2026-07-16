@@ -616,9 +616,12 @@ def test_baseline_transfer_requires_default_sampler_and_positive_stds(tmp_path):
         cli.prepare_baseline_transfer(path, cli._file_sha256(path))
 
 
-def test_checked_in_calibration_and_baseline_placeholders_fail_closed():
-    assert not cli._calibration_ready(json.loads(cli.CALIBRATION_PATH.read_text()))
-    assert not cli._baseline_ready(json.loads(cli.BASELINE_PATH.read_text()))
+def test_checked_in_frozen_calibration_and_baseline_are_ready_and_bound():
+    calibration = json.loads(cli.CALIBRATION_PATH.read_text())
+    baseline = json.loads(cli.BASELINE_PATH.read_text())
+    assert cli._calibration_ready(calibration)
+    assert cli._baseline_ready(baseline)
+    assert baseline["calibration_sha256"] == cli._file_sha256(cli.CALIBRATION_PATH)
 
 
 def test_environment_judge_posts_aggregate_request_with_bearer_token(monkeypatch):

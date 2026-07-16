@@ -1,14 +1,14 @@
 {
-  "updated_at": "2026-07-16T09:52:14Z",
+  "updated_at": "2026-07-16T10:00:54Z",
   "phase": "M1 — SFT baseline and calibration",
-  "headline": "Train bulk pass complete with 248/256 valid rows",
-  "summary": "The complete dev artifact has 64 independently validated briefs and final SHA 524c224a. The train bulk pass durably committed 248 contract-valid rows; exactly eight additional rows were rejected for non-verbatim quotations and will now be retried without repeating valid work. Independent partial validation passed, including all 64 deterministic empty outlines. Train cost is 0.382337 dollars and actual total provider spend is 0.612572 of 100 dollars. GPU training remains closed.",
+  "headline": "All 320 real-data briefs validated; three-seed SFT ready",
+  "summary": "Combined validation passed all 256 train and 64 dev briefs with exact source hashes, unique IDs, schema and grounding, and 25 percent deterministic empty outlines. The hash-bound Qwen3-1.7B three-seed SFT config is preregistered after 112 of 112 tests passed. Total provider spend is 0.640997 of 100 dollars; GPU commitment remains 0.683574 of 40 dollars before the screen reservation.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
     "modal_committed_usd": 0.683574,
     "openrouter_cap_usd": 100,
-    "openrouter_spend_usd": 0.612572
+    "openrouter_spend_usd": 0.640997
   },
   "services": [
     {"name": "GPU gateway", "detail": "Constrained launch API", "status": "online"},
@@ -19,12 +19,13 @@
   "milestones": [
     {"id": "setup", "label": "Setup", "detail": "Harness, sources, storage, and guardrails", "status": "complete"},
     {"id": "M0", "label": "M0", "detail": "Data pipeline and GPU contract smoke test", "status": "complete"},
-    {"id": "M1", "label": "M1", "detail": "Dev validated; train brief synthesis next", "status": "active"},
+    {"id": "M1", "label": "M1", "detail": "Real-data briefs validated; three-seed SFT ready", "status": "active"},
     {"id": "M2", "label": "M2", "detail": "Arms A-E at 64 and 128 tokens", "status": "queued"},
     {"id": "M3", "label": "M3", "detail": "Length curriculum and LoRA staging", "status": "queued"},
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {"at": "03:00", "title": "Combined 256/64 brief validation passed", "detail": "All 320 briefs passed exact ID, source preservation, schema, grounding, split-hash, and deterministic 25 percent empty-outline checks. Train SHA is 498294a8 and dev SHA is 524c224a; the generated Qwen3-1.7B SFT config hash is b57d06ba and the full test gate passed 112 of 112.", "tone": "complete"},
     {"at": "02:52", "title": "Train bulk pass preserved 248 valid rows", "detail": "The terminal bulk pass committed 248 of 256 rows. Independent partial validation passed exact IDs, source preservation, schema, quotation grounding, and all 64 empty-outline IDs; eight missing rows will be retried for 0.382337 dollars spent so far.", "tone": "active"},
     {"at": "02:45", "title": "Train synthesis checkpoint 200 is durable", "detail": "Two hundred valid train briefs are committed. Seven quotation-rejected rows remain absent for retry; slow provider responses stayed inside their timeout policy and cumulative train cost is 0.303997 dollars.", "tone": "active"},
     {"at": "02:38", "title": "Train synthesis checkpoint 150 is durable", "detail": "A slow provider call resolved inside its timeout and the run resumed without intervention. One hundred fifty valid rows are committed; five quotation-rejected rows remain for retry and cumulative train cost is 0.225038 dollars.", "tone": "active"},
@@ -67,5 +68,5 @@
     {"at": "17:46", "title": "Storage created", "detail": "Gateway state, checkpoints, sealed state, and sealed artifacts volumes are online.", "tone": "complete"},
     {"at": "17:40", "title": "Engineering checks passed", "detail": "Harness, infrastructure, and private evaluator suites are green.", "tone": "complete"}
   ],
-  "next_action": "Resume the immutable train config so only eight missing IDs are called, then require exact 256/64 combined validation before publishing or launching any GPU training config."
+  "next_action": "Publish and launch the preregistered three-seed Qwen3-1.7B real-data SFT screen, verify its checkpoint manifest, then run the fixed 16-document directional default-sampler evaluation."
 }

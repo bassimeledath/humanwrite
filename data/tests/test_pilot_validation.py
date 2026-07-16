@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 import pytest
+import yaml
 
 from data.pilot_validation import PilotValidationError, validate_pilot
 from data.pipeline import split_hash
@@ -112,6 +113,27 @@ def test_validate_pilot_binds_source_and_briefs(tmp_path):
     assert result["source"]["train"]["count"] == 8
     assert result["briefs"]["train"]["empty_outline_count"] == 2
     assert result["briefs"]["dev"]["empty_outline_count"] == 1
+
+
+def test_validate_pilot_can_reuse_frozen_source_config(tmp_path):
+    config_path = _fixture(tmp_path)
+    config = json.loads(config_path.read_text())
+    source_config_path = tmp_path / "source.yaml"
+    source_config_path.write_text(
+        yaml.safe_dump(
+            {
+                "source": config.pop("expected_source"),
+                "exclusions": {
+                    "fingerprints": config.pop("excluded_fingerprints"),
+                    "domains": config.pop("excluded_domains"),
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    config["source_config_path"] = str(source_config_path)
+    config_path.write_text(json.dumps(config), encoding="utf-8")
+    assert validate_pilot(config_path)["source"]["train"]["count"] == 8
 
 
 def test_validate_pilot_rejects_mutated_completion(tmp_path):

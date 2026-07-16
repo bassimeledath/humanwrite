@@ -1766,3 +1766,31 @@ array with `[]` before the unchanged brief validator. The gateway must reject
 the mode unless the checkpoint proves no more than three IDs are missing.
 NEXT: Publish/deploy the bounded recovery, complete 256/256, and run the full
 combined validator.
+
+## [2026-07-16] M1 / realdata-pilot-validation-and-sft-preregistration
+HYPOTHESIS: The bounded quote-free recovery will complete the final three
+train rows, after which a mechanically generated three-seed Qwen3-1.7B SFT
+screen can test whether real data fixes the tiny-data collapse failure.
+SETUP: Published recovery config hash `edbf5be4...` and ran
+`dftr-1784195793-aeb8eca5` at git SHA `f43d784`. The gateway independently
+verified that exactly three IDs were missing before allowing optional
+quotation arrays to be emptied. Downloaded terminal train bytes and ran the
+combined source/brief validator, then generated fixed inputs and SFT config
+only from that validation artifact.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Recovery | PASS | `3/3` processed, `0` failed, `$0.005067`, `0` accelerator-seconds. Sections and supported facts were preserved; only optional quotation arrays were deterministically cleared. |
+| Combined cardinality | PASS | Exactly 256 train and 64 dev briefs, unique and source-matched. |
+| Contract and arms | PASS | Every row passes schema/grounding/source preservation; exactly 64/256 train and 16/64 dev outlines are empty. |
+| Brief provenance | PASS | Train SHA `498294a865db2b8c7d9466aad562e187c0475b84051c59453c4a030f2041d1d8`; dev SHA `524c224ab8215e6a696b0353c0acbae0daacdafd39190a9fd8bbc1c05bf1ef7f`. |
+| Validation provenance | PASS | Artifact SHA `ffe015c599c6c245d6df9b52829eb22811b9d31fb34912741d0aa270d6a81ba5`; fixed-manifest SHA `3c8776b6321eefebce6f4b616042c6146ead6ff6f0695eb64a9be4e2810ec46b`. |
+| SFT config | PREREGISTERED | Canonical hash `b57d06bafdddb9f546b8df21e7d61c4f729b8766fd647336b6f5abc1d46adcad`; Qwen3-1.7B revision `70d244cc...`; seeds `[11,29,47]`; one epoch; L40S screen cap. |
+| Verification | PASS | Data, experiment, infrastructure, and harness suites pass `112/112`; stale placeholder-era harness assertion was updated to verify the now-frozen calibration/baseline hash binding. |
+| Budget | PASS | Total provider spend `$0.640997/$100`; GPU commitment remains `$0.683574/$40` before SFT reservation. |
+DECISION: freeze the validated 256/64 brief artifacts and publish the exact
+SFT inputs/config. This is the first model-training run capable of producing
+directional recovery evidence; it remains a 1.7B screen, not 14B scale-up,
+Tier 2/3, or promotion.
+NEXT: Launch the three-seed SFT screen, verify checkpoint manifest/provenance,
+then run the fixed 16-document directional default-sampler evaluation.

@@ -6,6 +6,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 from data.pipeline import split_hash
 from infra.backend.brief_contract import exact_empty_outline_ids, record_id, validate_brief
 
@@ -38,6 +40,17 @@ def _load_json(path: str | Path) -> dict[str, Any]:
     return value
 
 
+def _load_mapping(path: str | Path) -> dict[str, Any]:
+    resolved = _resolve(path)
+    if resolved.suffix.casefold() in {".yaml", ".yml"}:
+        value = yaml.safe_load(resolved.read_text(encoding="utf-8"))
+    else:
+        value = json.loads(resolved.read_text(encoding="utf-8"))
+    if not isinstance(value, dict):
+        raise PilotValidationError(f"expected mapping: {resolved}")
+    return value
+
+
 def _load_jsonl(path: str | Path) -> tuple[Path, list[dict[str, Any]]]:
     resolved = _resolve(path)
     rows = []
@@ -65,7 +78,12 @@ def validate_source_artifacts(config: dict[str, Any]) -> dict[str, Any]:
     manifest = _load_json(config["source_manifest_path"])
     if manifest.get("artifact_schema") != "dftr.realdata_pilot_source.manifest.v1":
         raise PilotValidationError("unexpected source manifest schema")
-    expected_source = config.get("expected_source") or {}
+    source_config = (
+        _load_mapping(config["source_config_path"])
+        if config.get("source_config_path")
+        else {}
+    )
+    expected_source = config.get("expected_source") or source_config.get("source") or {}
     for field in ("dataset_id", "dataset_config", "revision", "split", "files"):
         if manifest.get("source", {}).get(field) != expected_source.get(field):
             raise PilotValidationError(f"source manifest {field} mismatch")
@@ -108,8 +126,20 @@ def validate_source_artifacts(config: dict[str, Any]) -> dict[str, Any]:
         raise PilotValidationError("source dev count mismatch")
     if len(all_domains) != int(counts.get("unique_domain_count", -1)):
         raise PilotValidationError("source unique-domain count mismatch")
-    excluded_fingerprints = set(config.get("excluded_fingerprints") or [])
-    excluded_domains = {str(value).casefold() for value in config.get("excluded_domains") or []}
+    source_exclusions = source_config.get("exclusions") or {}
+    excluded_fingerprints = set(
+        config["excluded_fingerprints"]
+        if "excluded_fingerprints" in config
+        else source_exclusions.get("fingerprints") or []
+    )
+    excluded_domains = {
+        str(value).casefold()
+        for value in (
+            config["excluded_domains"]
+            if "excluded_domains" in config
+            else source_exclusions.get("domains") or []
+        )
+    }
     if all_fingerprints.intersection(excluded_fingerprints):
         raise PilotValidationError("source overlaps excluded fingerprints")
     if all_domains.intersection(excluded_domains):
