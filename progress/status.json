@@ -1,12 +1,12 @@
 {
-  "updated_at": "2026-07-16T10:23:43Z",
+  "updated_at": "2026-07-16T14:16:41Z",
   "phase": "M1 — SFT baseline and calibration",
-  "headline": "The 144-output directional quality screen is running",
-  "summary": "The real-data SFT completed cleanly with three distinct adapters, 46,732 tokens per seed, and losses tightly near 3.00. Directional run dftr-1784196454-0822114d has durably completed all 96 outputs for checkpoint seeds 11 and 29. Only checkpoint seed 47 remains in the 144-document preregistered screen before artifact validation and Tier-1 hard-gate scoring.",
-  "run_state": "active",
+  "headline": "Directional generation completed; Tier-1 scoring is next",
+  "summary": "Directional run dftr-1784196454-0822114d completed successfully at 03:30 PDT. All nine checkpoint-by-sampling-seed files are present with exactly 144 generated documents. The run produced 22,759 tokens in 1,364.672 L40S-seconds for 0.887583 dollars. Generation is complete; quality improvement remains unproven until the Tier-1 hard-gate reports are computed.",
+  "run_state": "complete",
   "budget": {
     "modal_cap_usd": 40,
-    "modal_committed_usd": 5.461881,
+    "modal_committed_usd": 1.666584,
     "openrouter_cap_usd": 100,
     "openrouter_spend_usd": 0.640997
   },
@@ -25,6 +25,7 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {"at": "03:30", "title": "Directional generation completed 144 of 144", "detail": "Run dftr-1784196454-0822114d completed with return code 0. Nine JSONL cells contain exactly 144 documents and 22,759 generated tokens. Actual cost was 0.887583 dollars over 1,364.672 L40S-seconds; Tier-1 scoring is the next evidence boundary.", "tone": "complete"},
     {"at": "03:23", "title": "Directional screen reached 96 of 144 outputs", "detail": "Checkpoint seeds 11 and 29 have each completed all three sampling seeds. Only checkpoint seed 47 remains; the worker, immutable inputs, and budget are healthy.", "tone": "active"},
     {"at": "03:18", "title": "First directional checkpoint cell group complete", "detail": "Checkpoint seed 11 completed all three sampling seeds for 48 of 144 durable outputs. The worker remains healthy and is transitioning to checkpoint seed 29 with no budget or integrity issue.", "tone": "active"},
     {"at": "03:07", "title": "Directional quality screen launched", "detail": "Run dftr-1784196454-0822114d is active from published git SHA 3544b3d and canonical config hash 483d9dff. It will generate exactly 144 outputs from three distinct adapters, three sampling seeds, the default sampler, and 16 fixed dev briefs under a 4.682880 dollar worst-case reservation.", "tone": "active"},
@@ -73,5 +74,5 @@
     {"at": "17:46", "title": "Storage created", "detail": "Gateway state, checkpoints, sealed state, and sealed artifacts volumes are online.", "tone": "complete"},
     {"at": "17:40", "title": "Engineering checks passed", "detail": "Harness, infrastructure, and private evaluator suites are green.", "tone": "complete"}
   ],
-  "next_action": "Monitor directional run dftr-1784196454-0822114d, validate all 144 generated outputs and seed coverage, then run the Tier-1 hard-gate comparison against the failed tiny-data baseline."
+  "next_action": "Run one terminal validation-and-scoring job over the completed 144-document artifact, publish the Tier-1 hard-gate comparison, and only then decide whether a larger sweep is justified."
 }

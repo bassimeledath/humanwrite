@@ -1534,6 +1534,26 @@ NEXT: Publish and launch the fixed 144-document default-sampler evaluation,
 then compare validity, collapse, claim support, and distributional metrics
 against the failed tiny-data baseline before authorizing any larger sweep.
 
+## [2026-07-16] M1 / realdata-directional-generation-completion
+HYPOTHESIS: The fixed 16-document directional screen can produce a complete,
+seed-balanced artifact suitable for a bounded hard-gate comparison before any
+larger sampler sweep.
+SETUP: Completed run `dftr-1784196454-0822114d` from immutable git SHA
+`3544b3d` and canonical config hash `483d9dff`, covering three checkpoint seeds,
+three sampling seeds, one default sampler, and 16 fixed dev documents.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Run completion | PASS | Return code 0 after 1,364.672 L40S-seconds for $0.887583. |
+| Cell coverage | PASS | Nine JSONL files exist: 3 checkpoint seeds × 3 sampling seeds. |
+| Document coverage | PASS | Exact total is 144 rows, matching the preregistered design. |
+| Token accounting | PASS | Terminal wrapper accounting reports 22,759 generated tokens. |
+| Quality conclusion | PENDING | Generation completeness is not evidence of improvement; Tier-1 hard-gate scoring remains required. |
+DECISION: preserve the complete directional artifact and proceed only to the
+bounded Tier-1 scoring boundary. Do not authorize a full sweep or scale-up yet.
+NEXT: Validate record-level provenance and compute the directional Tier-1
+comparison against the failed tiny-data baseline in one terminal job.
+
 ## [2026-07-16] M1 / realdata-pilot-source-attempt-2
 HYPOTHESIS: The recovered pinned resolver plus bounded worker timeouts will
 allow the unchanged 320-document source config to materialize.
