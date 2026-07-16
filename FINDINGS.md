@@ -1051,3 +1051,27 @@ NEXT: Before any model scoring, independently preregister and verify a
 metric-specific calibration contract: retain deterministic central quantiles
 for continuous metrics and use a deterministic binomial interval for the
 repetition incidence rate. Produce a new candidate only after publication.
+
+## [2026-07-16] M1 / visible-bank-calibration-candidate-2
+HYPOTHESIS: The metric-specific v2 proposal and exact transfer validator will
+agree across the repository's system-Python analysis runtime and the harness's
+independently locked uv runtime.
+SETUP: Integrated independently tested commit `1dbccdb`, reproduced proposal
+SHA-256 `06e3a8ee5f4038c26161fcc43e6baa2959c1db50a9991fcfe48875afd07de420`,
+then invoked the actual operator path `uv run harness
+prepare-calibration-transfer` with that exact expected hash. No sampler report
+or output was read and no transfer occurred after the command failed closed.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Repetition method | PASS | Wilson point estimate is `1/32 = 0.03125`; 95% interval is `[0.005537860164003122,0.15744263820012555]`, so zero correctly fails. |
+| Same-runtime tests | PASS | Full harness `44/44`; focused tests `8/8`; system-Python proposal rerun was byte-identical. |
+| Cross-runtime transfer | FAIL | System Python serialized `z=1.9599639845400536`, while the harness uv runtime computed `1.9599639845400534`; exact method-object equality rejected the reviewed artifact. |
+| Fail-closed behavior | PASS | No immutable calibration file was changed and no model scoring began. |
+DECISION: discard candidate 2 for transfer while retaining its correct
+statistical result. Derived floating-point constants cannot be treated as
+exact cross-runtime schema identity.
+NEXT: Freeze the 95% z value as an explicit schema constant (or remove it from
+exact identity and validate numerically), create a distinct v3 proposal, and
+prove generation plus transfer across the two actual runtimes before any
+calibration mutation.
