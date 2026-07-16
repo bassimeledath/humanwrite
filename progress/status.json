@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-16T10:18:00Z",
+  "updated_at": "2026-07-16T10:23:43Z",
   "phase": "M1 — SFT baseline and calibration",
   "headline": "The 144-output directional quality screen is running",
-  "summary": "The real-data SFT completed cleanly with three distinct adapters, 46,732 tokens per seed, and losses tightly near 3.00. Directional run dftr-1784196454-0822114d has durably completed all 48 outputs for checkpoint seed 11 and is transitioning to seed 29. The full preregistered screen contains 144 documents across three training seeds, three sampling seeds, one default sampler, and 16 fixed dev documents.",
+  "summary": "The real-data SFT completed cleanly with three distinct adapters, 46,732 tokens per seed, and losses tightly near 3.00. Directional run dftr-1784196454-0822114d has durably completed all 96 outputs for checkpoint seeds 11 and 29. Only checkpoint seed 47 remains in the 144-document preregistered screen before artifact validation and Tier-1 hard-gate scoring.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
@@ -25,6 +25,7 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {"at": "03:23", "title": "Directional screen reached 96 of 144 outputs", "detail": "Checkpoint seeds 11 and 29 have each completed all three sampling seeds. Only checkpoint seed 47 remains; the worker, immutable inputs, and budget are healthy.", "tone": "active"},
     {"at": "03:18", "title": "First directional checkpoint cell group complete", "detail": "Checkpoint seed 11 completed all three sampling seeds for 48 of 144 durable outputs. The worker remains healthy and is transitioning to checkpoint seed 29 with no budget or integrity issue.", "tone": "active"},
     {"at": "03:07", "title": "Directional quality screen launched", "detail": "Run dftr-1784196454-0822114d is active from published git SHA 3544b3d and canonical config hash 483d9dff. It will generate exactly 144 outputs from three distinct adapters, three sampling seeds, the default sampler, and 16 fixed dev briefs under a 4.682880 dollar worst-case reservation.", "tone": "active"},
     {"at": "03:06", "title": "Real-data SFT completed with three distinct adapters", "detail": "All three seeds completed at 46,732 training tokens each with losses 3.0030, 2.9997, and 3.0033. Adapter hashes differ across seeds, total training was 140,196 tokens and 146.721 L40S-seconds, and actual cost was 0.095427 dollars. The checkpoint-bound 144-document directional config passed 10 focused tests.", "tone": "complete"},
