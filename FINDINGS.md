@@ -574,3 +574,53 @@ DECISION: keep and proceed only with a single constrained `screen` submission
 of `configs/m1/m1_sft_qwen3_1p7b_v1.yaml` after this exact evidence tip is
 published cleanly. No sampler, Tier 1, Tier 2, Tier 3, M2, alternate compute,
 or bypass is authorized by this append.
+
+## [2026-07-16] M1 / sft-publication-boundary-qwen3-1p7b
+HYPOTHESIS: The preregistered three-seed Qwen3-1.7B SFT screen can advance to
+the budget gate only if the exact prelaunch evidence commit is published to
+`origin/agent/m1` and the live remote equals the local clean tip before any
+submit.
+SETUP: From clean published tip `c51cabedb3a1ffffa05a0105d3787f7ee6e733f4`,
+committed the append-only prelaunch evidence as local commit
+`3bb756579a8926961cd30f709353c7fec597a048` with message
+`[dftr] i=7 arm=SFT score=pass status=keep | verify three-seed SFT prelaunch`.
+Attempted only the normal publication route `git push origin agent/m1`; after
+local HTTPS credential failure, polled `git ls-remote --heads origin agent/m1`
+three times over roughly 10 seconds for operator-side publication of the exact
+SHA.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Local prelaunch evidence commit | PASS | Commit `3bb756579a8926961cd30f709353c7fec597a048` exists locally and contains the append-only `FINDINGS.md` prelaunch verification entry. |
+| Normal publication route | FAIL | `git push origin agent/m1` returned `fatal: could not read Username for 'https://github.com': Device not configured`. |
+| Remote exact-tip equality | FAIL | `git ls-remote --heads origin agent/m1` remained `c51cabedb3a1ffffa05a0105d3787f7ee6e733f4` on polls 1, 2, and 3, so the required exact SHA publication did not occur. |
+| Submission gate | BLOCKED | Per the constrained contract, `infra/gpu budget`, `infra/gpu submit`, `infra/gpu status`, `infra/gpu logs`, and `ledger/ledger.py update` for SFT were not run after publication failed. |
+| Boundary compliance | PASS | No alternate publish route, no bypass, no compute, no sampler, no Tier 1, no Tier 2, no Tier 3, no M2, and no protected-surface edit were used after the failure. |
+DECISION: stop here with a negative infrastructure result. The three-seed SFT
+screen was not submitted because the exact evidence tip was not published to
+the live remote.
+NEXT: Wait for the exact commit `3bb756579a8926961cd30f709353c7fec597a048` to
+be published on `origin/agent/m1` or for local push credentials to be restored,
+then restart from the publication/budget gate on a clean exact-match tip.
+
+## [2026-07-16] M1 / sft-publication-resumption-qwen3-1p7b
+HYPOTHESIS: The publication-only SFT boundary is resolved once the operator
+publishes the exact independently accepted prelaunch evidence commit, without
+changing the preregistered config, fixed inputs, sampler grid, or run
+cardinality.
+SETUP: The operator publication path pushed exact commit
+`3bb756579a8926961cd30f709353c7fec597a048` to `origin/agent/m1` after the
+isolated executor's HTTPS credential failure. Live `git ls-remote` then
+returned that exact SHA. This append preserves the negative infrastructure
+record above and records its resolution; no compute or evaluation was run by
+this recovery action.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Exact evidence-tip publication | PASS | Local `HEAD`, local tracking ref, and live remote were synchronized to `3bb756579a8926961cd30f709353c7fec597a048` before this append. |
+| Scientific configuration | UNCHANGED | The preregistered SFT YAML, immutable model revision, seeds, fixed manifests, and budget class were not changed. |
+| SFT run cardinality | UNCHANGED | No SFT submit or run row occurred during publication recovery. |
+| Boundary handling | PASS | The prior failure remains recorded append-only and is now historical rather than an active blocker. |
+DECISION: resume M1 from a newly published clean record tip. Require a fresh
+independent publication/config/preregistration/budget check on that exact tip
+before the single three-seed SFT submit; do not bypass or reuse a stale verdict.
