@@ -1,0 +1,250 @@
+#!/usr/bin/env python3
+"""Constrained client for the human-operated Modal GPU gateway.
+
+The research agent may invoke this file, but it never receives Modal, Hugging
+Face, or OpenRouter credentials.  Its only credential is a capability token
+for the gateway, whose server repeats every policy check before launching.
+"""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import time
+import uuid
+from urllib import error, parse, request
+
+
+ROOT = Path(__file__).resolve().parents[1]
+LEDGER = ROOT / "ledger" / "ledger.py"
+BUDGET = {
+    "smoke": {"max_min": 20, "max_gpus": 1},
+    "screen": {"max_min": 120, "max_gpus": 1},
+    "promo": {"max_min": 480, "max_gpus": 1},
+}
+
+
+def _die(message: str, code: int = 2) -> "None":
+    print(message, file=sys.stderr)
+    raise SystemExit(code)
+
+
+def _gateway_config() -> tuple[str, str]:
+    url = os.environ.get("DFTR_GPU_GATEWAY_URL", "").rstrip("/")
+    token = os.environ.get("DFTR_GPU_GATEWAY_TOKEN", "")
+    if not url or not token:
+        _die(
+            "DFTR_GPU_GATEWAY_URL and DFTR_GPU_GATEWAY_TOKEN must be set. "
+            "Provider credentials must not be placed in this shell."
+        )
+    if parse.urlparse(url).scheme != "https":
+        _die("DFTR_GPU_GATEWAY_URL must use https")
+    return url, token
+
+
+def _api(method: str, path: str, payload: dict | None = None) -> dict:
+    base, token = _gateway_config()
+    body = None if payload is None else json.dumps(payload).encode("utf-8")
+    req = request.Request(
+        f"{base}{path}",
+        data=body,
+        method=method,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+            "User-Agent": "dftr-gpu-client/1",
+        },
+    )
+    try:
+        with request.urlopen(req, timeout=60) as response:
+            return json.load(response)
+    except error.HTTPError as exc:
+        try:
+            detail = json.loads(exc.read().decode("utf-8")).get("detail")
+        except Exception:
+            detail = None
+        _die(f"gateway rejected request ({exc.code}): {detail or exc.reason}")
+    except error.URLError as exc:
+        _die(f"gateway unavailable: {exc.reason}")
+
+
+def _load_config(path: str) -> dict:
+    try:
+        import yaml
+    except ImportError:
+        _die("PyYAML is required: python -m pip install pyyaml")
+    config_path = Path(path).resolve()
+    if not config_path.is_file():
+        _die(f"config not found: {config_path}")
+    try:
+        value = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        _die(f"invalid YAML config: {exc}")
+    if not isinstance(value, dict):
+        _die("config must be a YAML mapping")
+    return value
+
+
+def _config_hash(config: dict) -> str:
+    canonical = json.dumps(config, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _git_sha() -> str:
+    try:
+        return subprocess.check_output(
+            ["git", "-C", str(ROOT), "rev-parse", "HEAD"], text=True
+        ).strip()
+    except subprocess.CalledProcessError:
+        _die("repository has no git commit; commit the experiment code first")
+
+
+def _preregistration(comparison_id: str) -> dict:
+    try:
+        output = subprocess.check_output(
+            [sys.executable, str(LEDGER), "query", "--comparison", comparison_id, "--open"],
+            text=True,
+        )
+        rows = json.loads(output or "[]")
+    except Exception:
+        rows = []
+    if not rows:
+        _die(
+            f"REJECTED: no open preregistration for comparison_id={comparison_id}. "
+            f"Run: ledger/ledger.py add --comparison {comparison_id} --hypothesis ... first."
+        )
+    return rows[-1]
+
+
+def _validate_submit(config: dict, budget_class: str) -> tuple[str, dict]:
+    if budget_class not in BUDGET:
+        _die(f"unknown budget class {budget_class}")
+    run = config.get("run")
+    if not isinstance(run, dict) or not run.get("comparison_id"):
+        _die("config.run.comparison_id is required")
+    if run.get("budget_class") not in (None, budget_class):
+        _die("budget_class mismatch between flag and config")
+    compute = config.get("compute") or {}
+    if int(compute.get("gpus", 1)) != 1:
+        _die("REJECTED: single-GPU rule; compute.gpus must equal 1")
+    requested_min = int(compute.get("timeout_min", BUDGET[budget_class]["max_min"]))
+    if requested_min <= 0 or requested_min > BUDGET[budget_class]["max_min"]:
+        _die(
+            f"REJECTED: timeout_min={requested_min} exceeds {budget_class} limit "
+            f"of {BUDGET[budget_class]['max_min']}"
+        )
+    base_model = str((config.get("model") or {}).get("base", ""))
+    if "14B" in base_model.upper() and os.environ.get("DFTR_ALLOW_SCALEUP") != "1":
+        _die("REJECTED: 14B/scale-up requires human DFTR_ALLOW_SCALEUP=1")
+    task_kind = str(run.get("task_kind", "experiment"))
+    if task_kind == "experiment":
+        command = run.get("command", ["python", "-m", "experiments.runner"])
+        if not isinstance(command, list) or command[:3] != ["python", "-m", "experiments.runner"]:
+            _die("run.command must begin with: python -m experiments.runner")
+    elif task_kind == "brief_synthesis":
+        api_cap = float((config.get("api") or {}).get("max_cost_usd", 0.0))
+        if api_cap <= 0 or api_cap > 100:
+            _die("brief_synthesis requires 0 < api.max_cost_usd <= 100")
+    else:
+        _die("run.task_kind must be experiment or brief_synthesis")
+    return str(run["comparison_id"]), _preregistration(str(run["comparison_id"]))
+
+
+def _ledger_add(run_id: str, comparison: str, config_hash: str, git_sha: str,
+                budget_class: str, config: dict) -> None:
+    data_hash = str((config.get("data") or {}).get("train_split_hash", ""))
+    subprocess.run(
+        [
+            sys.executable, str(LEDGER), "add",
+            "--run-id", run_id,
+            "--comparison", comparison,
+            "--config-hash", config_hash,
+            "--git-sha", git_sha,
+            "--budget-class", budget_class,
+            "--data-split-hash", data_hash,
+        ],
+        check=True,
+    )
+
+
+def _ledger_failure(run_id: str) -> None:
+    subprocess.run(
+        [sys.executable, str(LEDGER), "update", "--run-id", run_id,
+         "--status", "launch_failed"],
+        check=False,
+    )
+
+
+def submit(args: argparse.Namespace) -> None:
+    config = _load_config(args.config)
+    comparison, prereg = _validate_submit(config, args.budget_class)
+    _gateway_config()  # fail before touching the append-only ledger
+    config_hash = _config_hash(config)
+    git_sha = _git_sha()
+    run_id = f"dftr-{int(time.time())}-{uuid.uuid4().hex[:8]}"
+    _ledger_add(run_id, comparison, config_hash, git_sha, args.budget_class, config)
+    try:
+        result = _api("POST", "/submit", {
+            "run_id": run_id,
+            "config": config,
+            "config_hash": config_hash,
+            "git_sha": git_sha,
+            "budget_class": args.budget_class,
+            "preregistration": prereg,
+            "human_scaleup_approved": os.environ.get("DFTR_ALLOW_SCALEUP") == "1",
+        })
+    except SystemExit:
+        _ledger_failure(run_id)
+        raise
+    print(json.dumps(result, indent=2, sort_keys=True))
+
+
+def status(args: argparse.Namespace) -> None:
+    print(json.dumps(_api("GET", f"/status/{parse.quote(args.run_id)}"), indent=2))
+
+
+def logs(args: argparse.Namespace) -> None:
+    query = parse.urlencode({"tail": args.tail})
+    result = _api("GET", f"/logs/{parse.quote(args.run_id)}?{query}")
+    print(result.get("logs", ""))
+
+
+def cancel(args: argparse.Namespace) -> None:
+    result = _api("POST", f"/cancel/{parse.quote(args.run_id)}", {})
+    print(json.dumps(result, indent=2))
+
+
+def budget(args: argparse.Namespace) -> None:
+    print(json.dumps(_api("GET", "/budget"), indent=2, sort_keys=True))
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(prog="gpu")
+    sub = parser.add_subparsers(dest="cmd", required=True)
+    ps = sub.add_parser("submit")
+    ps.add_argument("--config", required=True)
+    ps.add_argument("--budget-class", required=True)
+    ps.set_defaults(func=submit)
+    pstatus = sub.add_parser("status")
+    pstatus.add_argument("run_id")
+    pstatus.set_defaults(func=status)
+    plogs = sub.add_parser("logs")
+    plogs.add_argument("run_id")
+    plogs.add_argument("--tail", type=int, default=200)
+    plogs.set_defaults(func=logs)
+    pcancel = sub.add_parser("cancel")
+    pcancel.add_argument("run_id")
+    pcancel.set_defaults(func=cancel)
+    pbudget = sub.add_parser("budget")
+    pbudget.set_defaults(func=budget)
+    args = parser.parse_args(argv)
+    args.func(args)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

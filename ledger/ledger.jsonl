@@ -1,0 +1,3 @@
+{"kind": "prereg", "comparison": "M2-armA-vs-SFT-len64", "hypothesis": "score-fn MMD beats SFT at 64 tok", "arms": "A,SFT", "status": "open", "ts": 1784099618.4854095}
+{"kind": "run", "run_id": "dftr-1784161814-d44eb046", "comparison": "M2-armA-vs-SFT-len64", "config_hash": "3792857aa928a4ae6d77dd478094df6850300116c42791fd738f847ff0032ce8", "git_sha": "1ea17d5cc651ba932791d947b791d2a36ba7e48b", "budget_class": "screen", "seed": null, "data_split_hash": "<sha256 from data pipeline>", "status": "launched", "ts": 1784161814.4650738}
+{"kind": "run_update", "run_id": "dftr-1784161814-d44eb046", "status": "launch_failed", "cost": null, "accel_seconds": null, "tokens": null, "metrics_ptr": null, "ts": 1784161814.4882739}

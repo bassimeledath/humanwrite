@@ -1,0 +1,13 @@
+{
+  "_comment": "Human-freeze before checkpoint generation. Any null field or frozen=false fails closed.",
+  "frozen": false,
+  "prompt_bank": null,
+  "prompt_format": null,
+  "seed": null,
+  "batch_size": null,
+  "max_input_tokens": null,
+  "max_new_tokens": null,
+  "do_sample": null,
+  "temperature": null,
+  "top_p": null
+}
