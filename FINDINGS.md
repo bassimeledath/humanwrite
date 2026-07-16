@@ -535,3 +535,16 @@ RESULTS:
 | Protected/fixed surfaces | PRESERVED | No `harness/`, `sources/`, fixed M0 data artifacts, sampler sweep config, or M2 surface was mutated. |
 DECISION: keep this as preparation and preregistration evidence only. It does not self-accept the launch tip and does not authorize compute without a separate tester.
 NEXT: Separate tester must verify published-tip equality, allowed diff scope, exact hash/preregistration agreement, fixed-manifest hashes, and clean tracked worktree before any single `screen` SFT submit. Do not begin sampler, evaluation, or M2 work from this batch.
+
+## [2026-07-16] M1 / resolver-independent-verification-qwen3-1p7b
+HYPOTHESIS: The recorded Qwen3-1.7B resolver smoke remains acceptable as plumbing evidence only if an independent blind audit passed on exact published-tip provenance, source-run ancestry, terminal accounting, immutable revision resolution, and M1 boundary confinement without launching any new compute or evaluation.
+SETUP: Reviewed `.swarmy/results/m1-1p7b-resolver-terminal.txt`, `.swarmy/logs/test-m1-1p7b-resolver-terminal.log`, the prior M1 resolver entries above, and local commit `a15077ebca1293e1912c07084f40794a392b2fc8`. The independent audit itself was executed read-only from clean published `agent/m1` tip `3d52149f2d309bdb2fb5da259b66324910d02c3d`, with local tracking and live remote `origin/agent/m1` equal to that same SHA, and it checked resolver run source SHA `a66d34615f8c4fce4ecf7d18358852ac8e83337b`.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Blind independent verdict | PASS | `.swarmy/results/m1-1p7b-resolver-terminal.txt` reports exact blind result `score=pass` and `failed_checks=none`. |
+| Published/source resolver evidence | PASS | Audit `HEAD`, local upstream, and live remote all matched published `3d52149f2d309bdb2fb5da259b66324910d02c3d`; resolver run `dftr-1784178967-307cd34f` reports source `git_sha=a66d34615f8c4fce4ecf7d18358852ac8e83337b`, which the audit confirmed is an ancestor of the published tip. |
+| Terminal accounting | PASS | Resolver terminal state was `completed` with `return_code=0`, `accel_seconds=43.702`, `actual_cost_usd=0.011642`, `tokens=0`, and `metrics_ptr=/__modal/volumes/vo-EY2fT0CaoNDuXGLZLNZcGg/runs/dftr-1784178967-307cd34f/resolved_revision.json`. |
+| Immutable revision resolution | PASS | `Qwen/Qwen3-1.7B` requested at `main` resolved to immutable revision `70d244cc86ccca08cf5af4e1e306ecf908b1ad5e`, with snapshot `/checkpoints/hf-cache/models--Qwen--Qwen3-1.7B/snapshots/70d244cc86ccca08cf5af4e1e306ecf908b1ad5e`. |
+| Boundary result | PASS | The audit launched no compute and no evaluation, found no protected/fixed-surface mutation, and explicitly confirmed the earlier publication failure is historical/resolved rather than a current finding. |
+DECISION: keep the Qwen3-1.7B resolver smoke as independently verified plumbing evidence only. It remains non-evidentiary for SFT and does not complete M1.
