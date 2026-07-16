@@ -1,0 +1,28 @@
+{
+  "artifact_schema": "dftr.sealed_submission.v1",
+  "arm": "SFT",
+  "comparison_id": "M4-promotion",
+  "train_embedder_id": "none",
+  "artifact_snapshot_generation": "2026-07-16T18:29:49Z",
+  "artifact_uri": "modal-volume://humanwrite-sealed-artifacts/checkpoints/m2-sealed-4b-seed29-merged-v5",
+  "deployment_sampler": {
+    "id": "default_t1.0_p1.0",
+    "do_sample": true,
+    "temperature": 1.0,
+    "top_p": 1.0,
+    "max_new_tokens": 384
+  },
+  "model": {
+    "base": "Qwen/Qwen3-4B",
+    "revision": "1cfa9a7208912126459214e8b04321603b3df60c",
+    "adapter_run_id": "dftr-1784216516-91130dd3",
+    "merge_run_id": "dftr-1784224462-c1f83ed3",
+    "training_seed": 29
+  },
+  "source": {
+    "adapter_sha256": "a34c14230f4847001a3a0c4362a3bc26b3a43c1d0ef049e12a7a0d029aacea91",
+    "tier1_report_index_sha256": "f2f52d49cdb9e53e74623b4de47852bc28774bd6888bc2155e397b8a57ccb28d"
+  },
+  "sealed_evaluator_revision": "cc9f748",
+  "operator_gate": "One audited quota credit; batched deterministic generation; no metric, hidden-data, threshold, or embedder changes."
+}
