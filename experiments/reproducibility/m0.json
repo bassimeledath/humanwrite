@@ -1,0 +1,14 @@
+{
+  "version": "m0-offline-v1",
+  "data_fixture": "data/fixtures/fineweb_fixture.jsonl",
+  "data_artifacts_dir": "data/artifacts/m0",
+  "fixture_sha256": "5ded0780a3fed78e30e288fd47c3bdc093b61d0e5f406b092bb76aab58d717f3",
+  "train_split_hash": "c59c853cdc03c7378308c8f35baa874e0f484fa035d4297948c3f3b755afa1a6",
+  "dev_split_hash": "69dded207ccb2a7753666752ebcbdaee0e00260bf9848817979e50427bb2cf8b",
+  "runner_entrypoint": "python -m experiments.runner --config configs/m0_offline_smoke.yaml --run-id <run_id>",
+  "verification_entrypoint": "python -m experiments.verify_m0",
+  "notes": [
+    "Offline M0 only. No network, no sealed evaluator, and no harness edits.",
+    "The checked-in fixture has 8 deduped records with an exact 6/2 train-dev split and 2 empty outlines."
+  ]
+}

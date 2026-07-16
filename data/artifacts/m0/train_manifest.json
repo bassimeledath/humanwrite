@@ -1,0 +1,45 @@
+{
+  "count": 6,
+  "fingerprints": [
+    "0b5c78f1d9d770e80f1cfea74474899d3adeb5c82eed0c9e2ac4bd9c27789f2e",
+    "64a6da14c8d26de1461c4f1c4562fd8d208a39010fc1bcb3f481c89d3142ddcd",
+    "780e31bd7f1190329d9ababd99d06c415fb190a37cac67e1ec00943180374df9",
+    "7c59c23421f8bc775f2de9d05f92edd1c814a9cf67d34a620b0be804b3bc5923",
+    "a686947309d4b254c55792fb2b74f993b40f9bdfe70e459cc5424db388fa1223",
+    "ca8314a9f01771f22e9faa13bd6c6d7cf23ac5682fc434a5ae7ab193d2a63810"
+  ],
+  "hash": "c59c853cdc03c7378308c8f35baa874e0f484fa035d4297948c3f3b755afa1a6",
+  "records": [
+    {
+      "domain": "helpdesk.example",
+      "fineweb_id": "fw-006",
+      "fingerprint": "0b5c78f1d9d770e80f1cfea74474899d3adeb5c82eed0c9e2ac4bd9c27789f2e"
+    },
+    {
+      "domain": "mosaicstudio.example",
+      "fineweb_id": "fw-007",
+      "fingerprint": "64a6da14c8d26de1461c4f1c4562fd8d208a39010fc1bcb3f481c89d3142ddcd"
+    },
+    {
+      "domain": "orbitguide.example",
+      "fineweb_id": "fw-003",
+      "fingerprint": "780e31bd7f1190329d9ababd99d06c415fb190a37cac67e1ec00943180374df9"
+    },
+    {
+      "domain": "northportnews.example",
+      "fineweb_id": "fw-002",
+      "fingerprint": "7c59c23421f8bc775f2de9d05f92edd1c814a9cf67d34a620b0be804b3bc5923"
+    },
+    {
+      "domain": "fieldnotes.example",
+      "fineweb_id": "fw-005",
+      "fingerprint": "a686947309d4b254c55792fb2b74f993b40f9bdfe70e459cc5424db388fa1223"
+    },
+    {
+      "domain": "ledgerweekly.example",
+      "fineweb_id": "fw-008",
+      "fingerprint": "ca8314a9f01771f22e9faa13bd6c6d7cf23ac5682fc434a5ae7ab193d2a63810"
+    }
+  ],
+  "split": "train"
+}

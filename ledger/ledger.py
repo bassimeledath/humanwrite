@@ -1,28 +1,38 @@
 #!/usr/bin/env python3
-"""Append-only ledger for preregistration + run registry (STUB-complete
-enough to preregister and query; run-lifecycle fields are written by the gpu
-wrapper). JSONL, one object per line, append-only. Never rewrite history."""
-import argparse, json, os, sys, time, hashlib
+"""Append-only ledger for preregistration + run registry."""
+import argparse
+import json
+import os
+import time
 
-PATH = os.path.join(os.path.dirname(__file__), "ledger.jsonl")
+DEFAULT_PATH = os.path.join(os.path.dirname(__file__), "ledger.jsonl")
+
+
+def _path():
+    return os.environ.get("DFTR_LEDGER_PATH", DEFAULT_PATH)
 
 
 def _append(obj):
     obj["ts"] = time.time()
-    with open(PATH, "a") as f:
-        f.write(json.dumps(obj) + "\n")
+    path = _path()
+    with open(path, "a", encoding="utf-8") as handle:
+        handle.write(json.dumps(obj, sort_keys=True) + "\n")
+        handle.flush()
+        os.fsync(handle.fileno())
     # cheap backup
     try:
-        with open(PATH) as src, open(PATH + ".bak", "w") as dst:
+        with open(path, encoding="utf-8") as src, open(path + ".bak", "w", encoding="utf-8") as dst:
             dst.write(src.read())
     except OSError:
         pass
 
 
 def _read():
-    if not os.path.exists(PATH):
+    path = _path()
+    if not os.path.exists(path):
         return []
-    return [json.loads(l) for l in open(PATH) if l.strip()]
+    with open(path, encoding="utf-8") as handle:
+        return [json.loads(line) for line in handle if line.strip()]
 
 
 def add(args):
