@@ -1,7 +1,7 @@
 {
   "output_path": "experiments/m1/baseline_stats_v1.json",
-  "report_index": "__M1_REPLACE_WITH_TIER1_EVAL_INDEX__",
+  "report_index": "experiments/m1/tier1/bootstrap_v1/index.json",
   "baseline_sampler_id": "default_t1.0_p1.0",
-  "expected_calibration_sha256": "__M1_REPLACE_WITH_FROZEN_CALIBRATION_SHA256__",
-  "expected_human_reference_bank_id": "__M1_REPLACE_WITH_FROZEN_HUMAN_BANK_ID__"
+  "expected_calibration_sha256": "4a71b081bbb05081a461d0968312aacd4472221fdeab9934d63202b2f8e6e039",
+  "expected_human_reference_bank_id": "92a0366c313d007c5d602cc8758c148a775b94d5c927416dd668121bcf447ae1"
 }

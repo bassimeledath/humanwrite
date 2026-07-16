@@ -1127,3 +1127,33 @@ DECISION: keep as preparation only. The runner must pass focused tests and be
 published before loading the embedder or producing any bootstrap report.
 NEXT: Test and publish this exact runner/config, then run the nine-cell
 bootstrap once and build the default-sampler baseline proposal.
+
+## [2026-07-16] M1 / default-sampler-bootstrap-results
+HYPOTHESIS: The preregistered default sampler will provide stable raw SFT
+component statistics and reveal whether the tiny M1 SFT baseline lies inside
+the independently calibrated human diversity ranges before any alternate
+sampler is compared.
+SETUP: From published runner/config commit `a0e93f0`, evaluated exactly nine
+default-sampler cells: checkpoint seeds `[11,29,47]` times sampling seeds
+`[101,202,303]`. Loaded frozen `BAAI/bge-small-en-v1.5` once and used the exact
+32-human bank, calibration SHA `4a71b081...`, placeholder baseline SHA
+`2eb736f9...`, and neutral quality judge. Reports contain metrics only; no
+additional raw completion was printed or inspected. No GPU/provider spend,
+sampler selection, freeze, Tier 2/3, or M2 action occurred.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Report completeness | PASS | Exactly 9 reports and one index; index SHA `359c072ddc163004e5c2e35df42bef6366c34361865427a193d1b095a4e749fc`; one bank/calibration/baseline provenance tuple. |
+| Raw component stability | PASS | Across nine cells: semantic MMD mean `0.00156676` (SD `0.0225790`), lexical L2 mean `0.0453387` (SD `0.0290608`), structural distance mean `0.467447` (SD `0.0852718`). |
+| Semantic floor delta | DESCRIPTIVE | Mean `-0.0547374`, range `[-0.0747365,-0.0138923]`; with only two generated documents per cell and an unbiased estimator, this is not evidence of human equivalence. |
+| Language integrity | PASS | `9/9` cells lie inside the frozen non-target-script interval. |
+| Human-calibrated collapse gate | FAIL | `0/9` pass. Generated self-BLEU mean `0.0129224`, below human range `[0.0323373,0.0769309]`; repetition mean `0.388889`, above human range `[0.00553786,0.157443]`. |
+| Validity non-inferiority | BOOTSTRAP ONLY | Recall/unsupported gates remain fail-closed `0/9` because the baseline has not yet been transferred; raw sample metrics will populate the default baseline proposal. |
+| Authorship probe | DESCRIPTIVE | AUC mean `0.300347` with high cell variance; secondary only and not a promotion claim. |
+DECISION: keep as the required default-sampler bootstrap and as a negative SFT
+quality signal. It does not justify budget expansion, promotion, or a claim
+that tuning improved human-likeness. The component statistics are still
+required to standardize the complete sampler comparison.
+NEXT: Publish these exact reports, compute and independently transfer the
+default-sampler baseline proposal, then rerun all 45 cells with frozen
+provenance and accept only the preregistered mechanical outcome.

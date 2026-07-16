@@ -1,0 +1,34 @@
+{
+  "checkpoint_id": "ddc29beabb141a7e",
+  "harness_version": "0.1.0",
+  "S": 0.17487229378000627,
+  "semantic_mmd": 0.03572151844088456,
+  "semantic_mmd_delta_vs_human_floor": -0.020582593743924384,
+  "lexical_l2": 0.036125717773420704,
+  "structural_dist": 0.5919204204648353,
+  "gate_outline_fact_recall": false,
+  "gate_unsupported_claim_rate": false,
+  "gate_language_integrity": true,
+  "gate_no_collapse": false,
+  "quality_pref_winrate": 0.5,
+  "jmq": 1.0,
+  "authorship_auc": 0.453125,
+  "authorship_auc_ci": [
+    0.28125,
+    0.625
+  ],
+  "diversity_self_bleu": 0.015715277122548457,
+  "repetition_rate": 0.5,
+  "human_reference_bank_id": "92a0366c313d007c5d602cc8758c148a775b94d5c927416dd668121bcf447ae1",
+  "calibration_sha256": "4a71b081bbb05081a461d0968312aacd4472221fdeab9934d63202b2f8e6e039",
+  "baseline_sha256": "2eb736f91f3dd47be7efd57bc634bc3cd8e5bbf9ea0618303565f42137597e89",
+  "notes": [
+    "human-floor 95% CI: [0.0381321, 0.0898469]",
+    "SFT validity baselines unavailable; non-inferiority gates fail closed",
+    "quality judge not supplied; neutral placeholders reported",
+    "authorship AUC uses a fresh deterministic character n-gram out-of-fold probe",
+    "semantic_mmd baseline mean/std unavailable; S uses the raw component",
+    "lexical_l2 baseline mean/std unavailable; S uses the raw component",
+    "structural_dist baseline mean/std unavailable; S uses the raw component"
+  ]
+}
