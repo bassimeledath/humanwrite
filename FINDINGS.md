@@ -1746,3 +1746,23 @@ same immutable config once so only the eight absent IDs are called; use a
 separate preregistered recovery only if any remain.
 NEXT: Complete 256/256, run the combined source/brief validator, and only then
 publish the mechanical three-seed SFT config.
+
+## [2026-07-16] M1 / pilot-brief-synthesis-train-missing-row-pass
+HYPOTHESIS: An unchanged stochastic resume will recover the eight quotation
+failures without revisiting 248 valid rows.
+SETUP: Relaunched the canonical train config as
+`dftr-1784195557-df9c869d` at git SHA `6ef4c35`; the worker first validated all
+248 existing rows and called only the eight missing IDs.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Recovery | PARTIAL PASS | Five rows recovered and committed; exactly three IDs still altered at least one quotation after two attempts. |
+| Checkpoint | PASS | `253/256` rows are now present; no existing row changed and no invalid row was admitted. |
+| Spend | CONTAINED | `$0.023358` provider spend, `0` accelerator-seconds. |
+DECISION: stop stochastic retries. Preregister a smoke-only recovery bounded
+to at most three missing IDs. Preserve each generated section and
+`supported_facts`, but deterministically replace its optional `quotations`
+array with `[]` before the unchanged brief validator. The gateway must reject
+the mode unless the checkpoint proves no more than three IDs are missing.
+NEXT: Publish/deploy the bounded recovery, complete 256/256, and run the full
+combined validator.

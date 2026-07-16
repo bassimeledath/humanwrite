@@ -136,6 +136,29 @@ def test_brief_synthesis_requires_hash_count_and_model_binding():
         validate_launch(value)
 
 
+def test_quote_free_brief_recovery_is_tightly_bounded():
+    value = payload()
+    value["config"]["run"]["task_kind"] = "brief_synthesis"
+    value["config"]["data"] = {
+        "input_uri": "modal-volume://humanwrite-checkpoints/data/clean.jsonl",
+        "output_uri": "modal-volume://humanwrite-checkpoints/data/briefs.jsonl",
+        "input_sha256": "a" * 64,
+        "max_records": 256,
+    }
+    value["config"]["api"] = {
+        "max_cost_usd": 0.25,
+        "model": "openai/gpt-5-mini",
+        "force_empty_quotations": True,
+    }
+    value["config"]["recovery"] = {"max_missing_records": 3}
+    value["config_hash"] = canonical_hash(value["config"])
+    assert validate_launch(value).api_reserved_cost_usd == 0.25
+    value["config"]["recovery"]["max_missing_records"] = 17
+    value["config_hash"] = canonical_hash(value["config"])
+    with pytest.raises(PolicyError, match="1..16"):
+        validate_launch(value)
+
+
 def test_source_materialization_requires_pinned_source_and_volume_outputs():
     value = payload()
     value["config"]["run"]["task_kind"] = "source_materialization"

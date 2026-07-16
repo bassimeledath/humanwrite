@@ -32,6 +32,7 @@ from .policy import (
 from .source_materializer import materialize_rows
 from .brief_contract import (
     brief_response_format,
+    empty_brief_quotations,
     exact_empty_outline_ids,
     record_id,
     validate_brief,
@@ -414,6 +415,7 @@ def brief_synthesis_worker(run_id: str, payload: dict) -> dict:
     output_path = _volume_path(str(data_config["output_uri"]))
     output_path.parent.mkdir(parents=True, exist_ok=True)
     max_records = int(data_config.get("max_records", 50_000))
+    force_empty_quotations = bool((config.get("api") or {}).get("force_empty_quotations"))
     cost_cap = float(payload["api_reserved_cost_usd"])
     spent = 0.0
     reported_spent = 0.0
@@ -467,6 +469,13 @@ def brief_synthesis_worker(run_id: str, payload: dict) -> dict:
                 if bool(row.get("outline")) == (source_id in empty_outline_ids):
                     raise ValueError("existing brief output has wrong empty-outline assignment")
                 completed_ids.add(source_id)
+        if force_empty_quotations:
+            max_missing = int((config.get("recovery") or {}).get("max_missing_records", 0))
+            missing_count = len(target_ids - completed_ids)
+            if max_missing <= 0 or missing_count > max_missing:
+                raise ValueError(
+                    "quote-free recovery exceeds the preregistered missing-record bound"
+                )
         with output_path.open("a", encoding="utf-8") as sink:
             for record in records:
                 source_id = record_id(record)
@@ -535,8 +544,11 @@ def brief_synthesis_worker(run_id: str, payload: dict) -> dict:
                         content = content_value.strip()
                         if content.startswith("```"):
                             content = content.split("\n", 1)[1].rsplit("```", 1)[0]
+                        brief_value = json.loads(content)
+                        if force_empty_quotations:
+                            brief_value = empty_brief_quotations(brief_value)
                         brief = validate_brief(
-                            json.loads(content),
+                            brief_value,
                             source_text=text,
                             force_empty_outline=source_id in empty_outline_ids,
                         )

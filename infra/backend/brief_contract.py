@@ -78,6 +78,26 @@ def brief_response_format(*, force_empty_outline: bool) -> dict[str, Any]:
     }
 
 
+def empty_brief_quotations(value: Any) -> Any:
+    """Clear optional quotations while preserving every other generated field."""
+    if not isinstance(value, dict):
+        return value
+    result = dict(value)
+    outline = result.get("outline")
+    if not isinstance(outline, list):
+        return result
+    cleaned_outline = []
+    for item in outline:
+        if isinstance(item, dict):
+            cleaned = dict(item)
+            cleaned["quotations"] = []
+            cleaned_outline.append(cleaned)
+        else:
+            cleaned_outline.append(item)
+    result["outline"] = cleaned_outline
+    return result
+
+
 def _nonempty_string(value: Any, field: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise BriefContractError(f"{field} must be a non-empty string")

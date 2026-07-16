@@ -5,6 +5,7 @@ import pytest
 from backend.brief_contract import (
     BriefContractError,
     brief_response_format,
+    empty_brief_quotations,
     exact_empty_outline_ids,
     validate_brief,
 )
@@ -52,6 +53,16 @@ def test_provider_schema_is_strict_and_tracks_outline_assignment():
     assert "one or more" in schema["properties"]["outline"]["description"]
     empty_outline = empty["json_schema"]["schema"]["properties"]["outline"]
     assert "empty list" in empty_outline["description"]
+
+
+def test_quote_recovery_preserves_every_field_except_quotations():
+    original = _brief()
+    recovered = empty_brief_quotations(original)
+    assert recovered["outline"][0]["quotations"] == []
+    expected = _brief()
+    expected["outline"][0]["quotations"] = []
+    assert recovered == expected
+    assert original["outline"][0]["quotations"] == ["The pilot launched."]
 
 
 def test_brief_contract_validates_and_forces_empty_outline():

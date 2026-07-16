@@ -117,6 +117,7 @@ def validate_launch(payload: dict[str, Any]) -> LaunchPolicy:
         worst = round(timeout_seconds * GPU_USD_PER_SECOND[gpu] * 1.20, 6)
     elif task_kind == "brief_synthesis":
         data = config.get("data") or {}
+        api = config.get("api") or {}
         for field in ("input_uri", "output_uri"):
             if not str(data.get(field, "")).startswith("modal-volume://humanwrite-checkpoints/"):
                 raise PolicyError(f"brief_synthesis data.{field} must use the checkpoint volume")
@@ -126,9 +127,15 @@ def validate_launch(payload: dict[str, Any]) -> LaunchPolicy:
         max_records = int(data.get("max_records", 0))
         if max_records <= 0 or max_records > 50_000:
             raise PolicyError("brief_synthesis data.max_records must be between 1 and 50000")
-        if not str((config.get("api") or {}).get("model", "")):
+        if not str(api.get("model", "")):
             raise PolicyError("brief_synthesis requires a frozen api.model")
-        api_reserved = float((config.get("api") or {}).get("max_cost_usd", 0.0))
+        if api.get("force_empty_quotations") is True:
+            max_missing = int((config.get("recovery") or {}).get("max_missing_records", 0))
+            if budget_class != "smoke" or not 1 <= max_missing <= 16:
+                raise PolicyError(
+                    "quote-free recovery requires smoke budget and 1..16 max missing records"
+                )
+        api_reserved = float(api.get("max_cost_usd", 0.0))
         if api_reserved <= 0 or api_reserved > MONTHLY_API_CAP_USD:
             raise PolicyError("brief_synthesis requires api.max_cost_usd within the monthly cap")
         worst = 0.0
