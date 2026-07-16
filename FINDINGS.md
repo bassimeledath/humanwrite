@@ -1023,3 +1023,31 @@ DECISION: keep as preparation only. The prior two-document proposal remains
 valid descriptive history but will not be activated for Tier-1 selection.
 NEXT: Run focused tests, publish this preparation commit, produce and rerun the
 32-human proposal, then transfer only its exact reviewed bytes.
+
+## [2026-07-16] M1 / visible-bank-calibration-candidate-1
+HYPOTHESIS: The preregistered central-quantile procedure will yield usable
+human ranges for all five calibrated metrics when applied to the frozen
+32-document visible bank.
+SETUP: Ran the published entrypoint from commit `267c712` twice against exact
+bank SHA `ebcff5bca1e6c75ab482aa831453a79986ffd700ee4a729de57fc8c496c6dc68`.
+No sampler report or additional raw output was read. Review checked direct
+byte reproduction, sample/subset cardinality, source hashes, point estimates,
+intervals, and consistency with the preregistered principle that a
+zero-repetition model is a failure rather than an optimum.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Direct reproduction | PASS | Both complete entrypoint runs produced artifact SHA-256 `25a77dd5ee2be521ad3daf235e9b70360d0478cc4c65d9a0a387a39a6bd7fef2` byte-for-byte. |
+| Bank and subsets | PASS | 32 unique human documents; three distinct deterministic 26-document subsets for seeds `[404,505,606]`. |
+| Self-BLEU | PASS | Human point estimate `0.0536711`; descriptive range `[0.0323373,0.0769309]`. |
+| Script integrity | PASS | Human point estimate and range are exactly zero non-target-script characters. |
+| Length ranges | PASS | Paragraph interval `[50,202]` tokens and sentence interval `[3,37]` tokens. |
+| Repetition calibration | FAIL | Human point estimate is `1/32 = 0.03125`, but the per-document order-statistic interval is `[0,0]`; transferring it would make the observed human corpus fail its own aggregate rate and contradict the frozen requirement that zero repetition is failure. |
+DECISION: discard candidate 1 for transfer while retaining it as a negative
+calibration result. Direct reproducibility is fixed, but a single interval
+method is not statistically appropriate for both continuous document metrics
+and a rare binary per-document incidence rate.
+NEXT: Before any model scoring, independently preregister and verify a
+metric-specific calibration contract: retain deterministic central quantiles
+for continuous metrics and use a deterministic binomial interval for the
+repetition incidence rate. Produce a new candidate only after publication.

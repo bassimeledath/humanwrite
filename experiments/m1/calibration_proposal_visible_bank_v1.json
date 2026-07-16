@@ -1,0 +1,253 @@
+{
+  "analysis_entrypoint": "python -m experiments.m1.analysis calibration-proposal --config configs/m1/m1_calibration_proposal_visible_bank_v1.json",
+  "artifact_schema": "m1.calibration_proposal.review.v1",
+  "confidence_level": 0.95,
+  "config_path": "configs/m1/m1_calibration_proposal_visible_bank_v1.json",
+  "config_sha256": "ed994d6d7ce1515e3e7d62ef1c28b2f564f47fed2d51b60c76921f48a423eee9",
+  "human_bank_source": {
+    "dataset_config": "CC-MAIN-2024-10",
+    "dataset_id": "HuggingFaceFW/fineweb",
+    "revision": "9bb295ddab0e05d785b879661af7260fed5140fc",
+    "split": "train"
+  },
+  "human_manifest_path": "data/artifacts/m1/tier1_human_bank_v1.manifest.json",
+  "human_manifest_sha256": "92a0366c313d007c5d602cc8758c148a775b94d5c927416dd668121bcf447ae1",
+  "human_split_path": "data/artifacts/m1/tier1_human_bank_v1.jsonl",
+  "human_split_sha256": "ebcff5bca1e6c75ab482aa831453a79986ffd700ee4a729de57fc8c496c6dc68",
+  "interval_method": "deterministic central quantile interval",
+  "intervals": {
+    "non_target_script_char_rate": {
+      "high": 0.0,
+      "low": 0.0
+    },
+    "paragraph_len_tokens": {
+      "high": 202.0,
+      "low": 50.0
+    },
+    "repeated_sentence_start_rate": {
+      "high": 0.0,
+      "low": 0.0
+    },
+    "self_bleu": {
+      "high": 0.07693087958956342,
+      "low": 0.032337252870941774
+    },
+    "sentence_len_tokens": {
+      "high": 37.0,
+      "low": 3.0
+    }
+  },
+  "point_estimates": {
+    "non_target_script_char_rate": 0.0,
+    "repeated_sentence_start_rate": 0.03125,
+    "self_bleu": 0.05367114144313259
+  },
+  "provenance_note": "Visible public FineWeb Tier-1 human bank only; no generated outputs or hidden-test data.",
+  "resampling_seeds": [
+    404,
+    505,
+    606
+  ],
+  "review_limitations": [
+    "This calibration proposal describes the frozen visible Tier-1 human bank and is not a population-level estimate.",
+    "The 32-document bank is domain-diverse but selected from one pinned Common Crawl snapshot.",
+    "Values are not active until separately reviewed and transferred into immutable harness/calibration.json."
+  ],
+  "sample_count": 32,
+  "sensitivity": [
+    {
+      "fingerprints": [
+        "8970738cfc8e6863712f032d7540ed6995486fc311bc3b697284b682f1bbfc6e",
+        "d609d4b3f72b65fea45fe7d198b32a61b59c4654b8d49728252a936c531a4cbe",
+        "39caba9c310ce0f8035cba042942322fa0229d89bf69af29cd9268d2ef37b5fb",
+        "c9d970ca6b673b625ecf891b52665a55b2cc362693f61bf8eb8a095393774b91",
+        "1cb2e27c3c5119e148bd41cf13812a29ba3ff5953401d5d5be4569179475a918",
+        "953f83f4c8d828ac53d4aeecf1fb6d828ac9210b57b7e86667ba55e09bfd5883",
+        "81e371b016e56ebead2e297f8bba2358403b3f3f74f3bc95e7d63199646b259c",
+        "ea26d23dba1a8e737f4bcd1b107b7b769b724444c08180213cc56c2840db0b7e",
+        "cf3a97610767c4623d3a67b984edaa15174c5d705db73baefd1cc1e7d518e750",
+        "5d6b47ed232acc52488e302c4b5a70b6f6efb446a155091f06b228e30e51f9b9",
+        "25da5edb376ff3f7ad43fad975be2c6f004a0655b0e5ea5fd5268269b6de125a",
+        "3f56425de175529c9ca19519c286a3e2fde969f969e72d14bf743d7e41307ca5",
+        "3a40ab754d373beaafc963c13f37642601561b3b35df3bed4254e551966f175b",
+        "f06a2b2fddba4e91d2f4c0ecf2132780e28daa4c3bd477826fa6b9431684ca9c",
+        "8e739cb62e8f327c1e89ba1802da09a81ed4de31bad8fdab14b7b8e24807d272",
+        "8d705e134852b66b02fe0191173e2d51c211ff73313507215af0e46804f8b90f",
+        "3a954b89a42ef95b8c3d71e3bf9f4666ccae36cc9f8a2958c271a63cdb6b4299",
+        "21ea77933ea04455577739c91fff5183e48d6055ee834b8437f0ba41423f19b9",
+        "acc97635d3e27f2ffaa76b8c64cfe09c90a77514482bca3d5967a479504bf3d3",
+        "889ca560c56c0ec33ed62911115b3ba12742d45162eef25fd77369340c5ad4ad",
+        "7d52e84b5e943dad0ecb12eedb61d7a1197e21317e98fd153bad2803340b82ed",
+        "67daa352fba8fed17871e814e24bd526b0e7855568c240d73f4657fca8fac783",
+        "249f4f63a1247765fb407cff6cbbb718c6b6318914e2c7aff408389c1865634c",
+        "0d25b23f091efeed91cbec6bfb9326a940790c41d52de08979d3056901c0a4dc",
+        "ed4face93b7d5b7f665a3ec6544df9b406e2bdcf0a6e34bd3846af6010860204",
+        "452dd67edc01cedd74d6673c861de5584e15647fb65958f1c45b1fab927ddc64"
+      ],
+      "seed": 404,
+      "subset_hash": "911afcc55dda8f0aceb5be54544bcfa9394dbce7adb98a96d45fb47d215169d0",
+      "subset_intervals": {
+        "non_target_script_char_rate": {
+          "high": 0.0,
+          "low": 0.0
+        },
+        "paragraph_len_tokens": {
+          "high": 191.0,
+          "low": 50.0
+        },
+        "repeated_sentence_start_rate": {
+          "high": 0.0,
+          "low": 0.0
+        },
+        "self_bleu": {
+          "high": 0.06920182720487178,
+          "low": 0.031275562979833964
+        },
+        "sentence_len_tokens": {
+          "high": 37.0,
+          "low": 3.0
+        }
+      },
+      "subset_point_estimates": {
+        "non_target_script_char_rate": 0.0,
+        "repeated_sentence_start_rate": 0.038461538461538464,
+        "self_bleu": 0.047583094729563284
+      },
+      "subset_size": 26
+    },
+    {
+      "fingerprints": [
+        "8970738cfc8e6863712f032d7540ed6995486fc311bc3b697284b682f1bbfc6e",
+        "a5d3186526f9854cdafc6f2770fb936d49dd265ce73d0e12ca96cbcb43f36bf3",
+        "d609d4b3f72b65fea45fe7d198b32a61b59c4654b8d49728252a936c531a4cbe",
+        "39caba9c310ce0f8035cba042942322fa0229d89bf69af29cd9268d2ef37b5fb",
+        "1cb2e27c3c5119e148bd41cf13812a29ba3ff5953401d5d5be4569179475a918",
+        "2e7c8f5ee0e14448f15803e41f37b87920bfceb91f8da90838ad7f1729d5f0dc",
+        "953f83f4c8d828ac53d4aeecf1fb6d828ac9210b57b7e86667ba55e09bfd5883",
+        "81e371b016e56ebead2e297f8bba2358403b3f3f74f3bc95e7d63199646b259c",
+        "ea26d23dba1a8e737f4bcd1b107b7b769b724444c08180213cc56c2840db0b7e",
+        "cf3a97610767c4623d3a67b984edaa15174c5d705db73baefd1cc1e7d518e750",
+        "5d6b47ed232acc52488e302c4b5a70b6f6efb446a155091f06b228e30e51f9b9",
+        "f235db28fd0b8034bfb9eda6d5b796a3e0744d845c9bc2821728055f8384e2da",
+        "25da5edb376ff3f7ad43fad975be2c6f004a0655b0e5ea5fd5268269b6de125a",
+        "3a40ab754d373beaafc963c13f37642601561b3b35df3bed4254e551966f175b",
+        "f06a2b2fddba4e91d2f4c0ecf2132780e28daa4c3bd477826fa6b9431684ca9c",
+        "8e739cb62e8f327c1e89ba1802da09a81ed4de31bad8fdab14b7b8e24807d272",
+        "8d705e134852b66b02fe0191173e2d51c211ff73313507215af0e46804f8b90f",
+        "3a954b89a42ef95b8c3d71e3bf9f4666ccae36cc9f8a2958c271a63cdb6b4299",
+        "21ea77933ea04455577739c91fff5183e48d6055ee834b8437f0ba41423f19b9",
+        "889ca560c56c0ec33ed62911115b3ba12742d45162eef25fd77369340c5ad4ad",
+        "7d52e84b5e943dad0ecb12eedb61d7a1197e21317e98fd153bad2803340b82ed",
+        "249f4f63a1247765fb407cff6cbbb718c6b6318914e2c7aff408389c1865634c",
+        "0d25b23f091efeed91cbec6bfb9326a940790c41d52de08979d3056901c0a4dc",
+        "ed4face93b7d5b7f665a3ec6544df9b406e2bdcf0a6e34bd3846af6010860204",
+        "452dd67edc01cedd74d6673c861de5584e15647fb65958f1c45b1fab927ddc64",
+        "f23374f1ad5c43cb0d19667da9c409482049107774e3ada72e755b41aa5188b5"
+      ],
+      "seed": 505,
+      "subset_hash": "4bdf477ea4ce05111d05541a79b59bbd4556f98aec219849b5c51cd07a27b300",
+      "subset_intervals": {
+        "non_target_script_char_rate": {
+          "high": 0.0,
+          "low": 0.0
+        },
+        "paragraph_len_tokens": {
+          "high": 202.0,
+          "low": 50.0
+        },
+        "repeated_sentence_start_rate": {
+          "high": 0.0,
+          "low": 0.0
+        },
+        "self_bleu": {
+          "high": 0.0715589138827088,
+          "low": 0.02559294583686936
+        },
+        "sentence_len_tokens": {
+          "high": 41.0,
+          "low": 3.0
+        }
+      },
+      "subset_point_estimates": {
+        "non_target_script_char_rate": 0.0,
+        "repeated_sentence_start_rate": 0.038461538461538464,
+        "self_bleu": 0.04810834108203133
+      },
+      "subset_size": 26
+    },
+    {
+      "fingerprints": [
+        "8970738cfc8e6863712f032d7540ed6995486fc311bc3b697284b682f1bbfc6e",
+        "a5d3186526f9854cdafc6f2770fb936d49dd265ce73d0e12ca96cbcb43f36bf3",
+        "39caba9c310ce0f8035cba042942322fa0229d89bf69af29cd9268d2ef37b5fb",
+        "c9d970ca6b673b625ecf891b52665a55b2cc362693f61bf8eb8a095393774b91",
+        "1cb2e27c3c5119e148bd41cf13812a29ba3ff5953401d5d5be4569179475a918",
+        "03a15984140d49294bb1e9c6e1ab71f1fd62a9ea4016dbed09640c584d623117",
+        "2e7c8f5ee0e14448f15803e41f37b87920bfceb91f8da90838ad7f1729d5f0dc",
+        "953f83f4c8d828ac53d4aeecf1fb6d828ac9210b57b7e86667ba55e09bfd5883",
+        "81e371b016e56ebead2e297f8bba2358403b3f3f74f3bc95e7d63199646b259c",
+        "ea26d23dba1a8e737f4bcd1b107b7b769b724444c08180213cc56c2840db0b7e",
+        "cf3a97610767c4623d3a67b984edaa15174c5d705db73baefd1cc1e7d518e750",
+        "5d6b47ed232acc52488e302c4b5a70b6f6efb446a155091f06b228e30e51f9b9",
+        "f235db28fd0b8034bfb9eda6d5b796a3e0744d845c9bc2821728055f8384e2da",
+        "0822b371a61936f75229b1f09e90b52121ddfe235d6203bfd8357658ae571c41",
+        "25da5edb376ff3f7ad43fad975be2c6f004a0655b0e5ea5fd5268269b6de125a",
+        "3f56425de175529c9ca19519c286a3e2fde969f969e72d14bf743d7e41307ca5",
+        "3a40ab754d373beaafc963c13f37642601561b3b35df3bed4254e551966f175b",
+        "8e739cb62e8f327c1e89ba1802da09a81ed4de31bad8fdab14b7b8e24807d272",
+        "3a954b89a42ef95b8c3d71e3bf9f4666ccae36cc9f8a2958c271a63cdb6b4299",
+        "21ea77933ea04455577739c91fff5183e48d6055ee834b8437f0ba41423f19b9",
+        "889ca560c56c0ec33ed62911115b3ba12742d45162eef25fd77369340c5ad4ad",
+        "67daa352fba8fed17871e814e24bd526b0e7855568c240d73f4657fca8fac783",
+        "249f4f63a1247765fb407cff6cbbb718c6b6318914e2c7aff408389c1865634c",
+        "0d25b23f091efeed91cbec6bfb9326a940790c41d52de08979d3056901c0a4dc",
+        "ed4face93b7d5b7f665a3ec6544df9b406e2bdcf0a6e34bd3846af6010860204",
+        "452dd67edc01cedd74d6673c861de5584e15647fb65958f1c45b1fab927ddc64"
+      ],
+      "seed": 606,
+      "subset_hash": "375e617ed03c4400271551e328d574100ebf219fba2ee9b76ec08b78a187e2f0",
+      "subset_intervals": {
+        "non_target_script_char_rate": {
+          "high": 0.0,
+          "low": 0.0
+        },
+        "paragraph_len_tokens": {
+          "high": 186.0,
+          "low": 50.0
+        },
+        "repeated_sentence_start_rate": {
+          "high": 0.0,
+          "low": 0.0
+        },
+        "self_bleu": {
+          "high": 0.07604135576816552,
+          "low": 0.024337333513344633
+        },
+        "sentence_len_tokens": {
+          "high": 33.0,
+          "low": 3.0
+        }
+      },
+      "subset_point_estimates": {
+        "non_target_script_char_rate": 0.0,
+        "repeated_sentence_start_rate": 0.038461538461538464,
+        "self_bleu": 0.05014158890354993
+      },
+      "subset_size": 26
+    }
+  ],
+  "sensitivity_summary": {
+    "computed_subset_size": 26,
+    "subset_fraction": 0.8,
+    "unique_subset_count": 3,
+    "unique_subset_hashes": [
+      "375e617ed03c4400271551e328d574100ebf219fba2ee9b76ec08b78a187e2f0",
+      "4bdf477ea4ce05111d05541a79b59bbd4556f98aec219849b5c51cd07a27b300",
+      "911afcc55dda8f0aceb5be54544bcfa9394dbce7adb98a96d45fb47d215169d0"
+    ]
+  },
+  "split_hashes": {
+    "dev": "69dded207ccb2a7753666752ebcbdaee0e00260bf9848817979e50427bb2cf8b",
+    "train": "c59c853cdc03c7378308c8f35baa874e0f484fa035d4297948c3f3b755afa1a6"
+  }
+}
