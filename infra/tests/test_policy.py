@@ -111,6 +111,35 @@ def test_brief_synthesis_rejects_unsafe_volume_uri():
         validate_launch(value)
 
 
+def test_source_materialization_requires_pinned_source_and_volume_outputs():
+    value = payload()
+    value["config"]["run"]["task_kind"] = "source_materialization"
+    value["config"]["source"] = {
+        "dataset_id": "HuggingFaceFW/fineweb",
+        "dataset_config": "CC-MAIN-2024-10",
+        "revision": "a" * 40,
+        "split": "train",
+        "files": ["data/CC-MAIN-2024-10/000_00000.parquet"],
+    }
+    value["config"]["selection"] = {"corpus_size": 320}
+    value["config"]["data"] = {
+        "train_output_uri": "modal-volume://humanwrite-checkpoints/data/pilot/train.jsonl",
+        "dev_output_uri": "modal-volume://humanwrite-checkpoints/data/pilot/dev.jsonl",
+        "manifest_output_uri": "modal-volume://humanwrite-checkpoints/data/pilot/manifest.json",
+    }
+    value["config_hash"] = canonical_hash(value["config"])
+    policy = validate_launch(value)
+    assert policy.task_kind == "source_materialization"
+    assert policy.gpu == "CPU"
+    assert policy.worst_case_cost_usd == 0
+    assert policy.api_reserved_cost_usd == 0
+
+    value["config"]["data"]["manifest_output_uri"] = "file:///tmp/manifest.json"
+    value["config_hash"] = canonical_hash(value["config"])
+    with pytest.raises(PolicyError, match="checkpoint volume"):
+        validate_launch(value)
+
+
 def test_append_only_state_and_budget(tmp_path):
     path = tmp_path / "events.jsonl"
     append_event(path, {

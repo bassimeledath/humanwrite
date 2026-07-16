@@ -29,6 +29,7 @@ from .policy import (
     run_snapshot,
     validate_launch,
 )
+from .source_materializer import materialize_rows
 
 
 APP_NAME = "humanwrite-gpu-gateway"
@@ -268,6 +269,85 @@ def _volume_path(uri: str) -> Path:
     return path
 
 
+@app.function(
+    image=worker_image,
+    secrets=[provider_secret],
+    volumes={"/state": state_volume, CHECKPOINT_PATH: checkpoint_volume},
+    timeout=2 * 60 * 60,
+    retries=0,
+    single_use_containers=True,
+)
+def source_materialization_worker(run_id: str, payload: dict) -> dict:
+    """Privileged fixed-code FineWeb selection with no token in research code."""
+    config = payload["config"]
+    source = config["source"]
+    data = config["data"]
+    log_path = Path("/state/logs") / f"{run_id}.log"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    status = "failed"
+    try:
+        from datasets import load_dataset
+
+        token = os.environ.pop("HF_TOKEN", None)
+        files = source.get("files") or []
+        base = f"https://huggingface.co/datasets/{source['dataset_id']}/resolve/{source['revision']}"
+        urls = [f"{base}/{str(path).lstrip('/')}" for path in files]
+        rows = load_dataset(
+            "parquet",
+            data_files={str(source["split"]): urls},
+            split=str(source["split"]),
+            streaming=True,
+            token=token,
+        )
+        payloads, manifest = materialize_rows(rows, config)
+        train_path = _volume_path(str(data["train_output_uri"]))
+        dev_path = _volume_path(str(data["dev_output_uri"]))
+        manifest_path = _volume_path(str(data["manifest_output_uri"]))
+        for path in (train_path, dev_path, manifest_path):
+            path.parent.mkdir(parents=True, exist_ok=True)
+        train_path.write_text(payloads["train"], encoding="utf-8")
+        dev_path.write_text(payloads["dev"], encoding="utf-8")
+        manifest["train"]["uri"] = str(data["train_output_uri"])
+        manifest["dev"]["uri"] = str(data["dev_output_uri"])
+        manifest["manifest_uri"] = str(data["manifest_output_uri"])
+        manifest_path.write_text(
+            json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        checkpoint_volume.commit()
+        status = "completed"
+        with log_path.open("a", encoding="utf-8") as logs:
+            logs.write(
+                f"selected={manifest['counts']['corpus_size']} "
+                f"train={manifest['counts']['train_count']} "
+                f"dev={manifest['counts']['dev_count']}\n"
+            )
+        _record({
+            "kind": "run_update",
+            "run_id": run_id,
+            "status": status,
+            "finished_at": time.time(),
+            "records_processed": int(manifest["counts"]["corpus_size"]),
+            "train_sha256": manifest["train"]["sha256"],
+            "dev_sha256": manifest["dev"]["sha256"],
+        })
+        return {
+            "run_id": run_id,
+            "status": status,
+            "records_processed": int(manifest["counts"]["corpus_size"]),
+        }
+    except Exception as exc:
+        with log_path.open("a", encoding="utf-8") as logs:
+            logs.write(f"source materialization failure: {type(exc).__name__}: {exc}\n")
+        _record({
+            "kind": "run_update",
+            "run_id": run_id,
+            "status": status,
+            "finished_at": time.time(),
+        })
+        return {"run_id": run_id, "status": status, "records_processed": 0}
+
+
 def _brief_prompt(source_text: str) -> str:
     return (
         "Convert the supplied human web document into the disclosed DFT training brief. "
@@ -466,6 +546,10 @@ def gateway():
         try:
             if policy.task_kind == "brief_synthesis":
                 call = brief_synthesis_worker.with_options(
+                    timeout=policy.timeout_seconds + 120,
+                ).spawn(run_id, worker_payload)
+            elif policy.task_kind == "source_materialization":
+                call = source_materialization_worker.with_options(
                     timeout=policy.timeout_seconds + 120,
                 ).spawn(run_id, worker_payload)
             else:

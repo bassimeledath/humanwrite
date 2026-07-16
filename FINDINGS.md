@@ -1295,3 +1295,27 @@ DECISION: keep as a transport-only preregistration amendment made before any
 candidate content was materialized.
 NEXT: Publish the amendment, then make one exact materialization attempt and
 verify reproducibility before any synthesis call.
+
+## [2026-07-16] M1 / privileged-source-materialization-preregistration
+HYPOTHESIS: Moving the exact frozen FineWeb source pull behind the constrained
+gateway will recover from the local Hugging Face outage while preserving the
+credential boundary and making the future full corpus path reproducible.
+SETUP: Added a third fixed-code gateway task kind,
+`source_materialization`. It accepts only a fully pinned source, a maximum of
+5,000 records, three checkpoint-volume output URIs, one GPU field fixed at the
+existing single-resource policy, and a preregistered smoke/screen budget. It
+does not execute repository experiment code, reserve GPU/API spend, or expose
+the Hugging Face token. The exact pilot config embeds the 40 excluded M0/Tier-1
+fingerprints and domains and freezes one revision-qualified Parquet shard.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Gateway policy | PASS | New task is fail-closed on unpinned sources, unsafe outputs, and corpus sizes above 5,000. |
+| Credential boundary | PASS | HF token is consumed only inside the deployed fixed-code worker and removed from its environment before selection; no research subprocess is launched. |
+| Pilot config | PREREGISTERED | Canonical config hash `42b0eeec347c9078926ca9bddd4462e68af78bb24a1f5a83d88a50b5bf8e9fff`; 40/40 fingerprint and 40/40 domain exclusions exactly match the published manifests. |
+| Verification | PASS | All 16 infrastructure tests pass, including deterministic/hash-bound source selection and policy rejection of non-volume outputs. |
+| Budget | PASS | Source selection reserves `$0` GPU and `$0` provider spend; the Modal workspace cap remains authoritative for service overhead. |
+DECISION: publish and deploy this reviewed gateway revision. This is a source
+transport repair, not a model-result change and not permission to scale.
+NEXT: Add the open ledger preregistration, launch one 320-document source job,
+verify its manifest and reproducibility, then separately preregister synthesis.

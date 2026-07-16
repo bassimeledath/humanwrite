@@ -190,8 +190,15 @@ def _validate_submit(config: dict, budget_class: str) -> tuple[str, dict]:
         api_cap = float((config.get("api") or {}).get("max_cost_usd", 0.0))
         if api_cap <= 0 or api_cap > 100:
             _die("brief_synthesis requires 0 < api.max_cost_usd <= 100")
+    elif task_kind == "source_materialization":
+        data = config.get("data") or {}
+        for field in ("train_output_uri", "dev_output_uri", "manifest_output_uri"):
+            if not str(data.get(field, "")).startswith(
+                "modal-volume://humanwrite-checkpoints/"
+            ):
+                _die(f"source_materialization data.{field} must use the checkpoint volume")
     else:
-        _die("run.task_kind must be experiment or brief_synthesis")
+        _die("run.task_kind must be experiment, brief_synthesis, or source_materialization")
     return str(run["comparison_id"]), _preregistration(str(run["comparison_id"]))
 
 

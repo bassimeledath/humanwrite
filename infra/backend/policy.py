@@ -94,7 +94,7 @@ def validate_launch(payload: dict[str, Any]) -> LaunchPolicy:
     if timeout_seconds <= 0 or timeout_seconds > BUDGET_CLASSES[budget_class]["max_seconds"]:
         raise PolicyError("requested timeout exceeds budget class")
     task_kind = str(run.get("task_kind", "experiment"))
-    if task_kind not in {"experiment", "brief_synthesis"}:
+    if task_kind not in {"experiment", "brief_synthesis", "source_materialization"}:
         raise PolicyError("unsupported task_kind")
     gpu = str(compute.get("gpu", "L40S")).upper() if task_kind == "experiment" else "CPU"
     if task_kind == "experiment" and gpu not in GPU_USD_PER_SECOND:
@@ -115,7 +115,7 @@ def validate_launch(payload: dict[str, Any]) -> LaunchPolicy:
         if not isinstance(command, list) or command[:3] != ALLOWED_COMMAND_PREFIX:
             raise PolicyError("command is outside the allowlist")
         worst = round(timeout_seconds * GPU_USD_PER_SECOND[gpu] * 1.20, 6)
-    else:
+    elif task_kind == "brief_synthesis":
         data = config.get("data") or {}
         for field in ("input_uri", "output_uri"):
             if not str(data.get(field, "")).startswith("modal-volume://humanwrite-checkpoints/"):
@@ -123,6 +123,19 @@ def validate_launch(payload: dict[str, Any]) -> LaunchPolicy:
         api_reserved = float((config.get("api") or {}).get("max_cost_usd", 0.0))
         if api_reserved <= 0 or api_reserved > MONTHLY_API_CAP_USD:
             raise PolicyError("brief_synthesis requires api.max_cost_usd within the monthly cap")
+        worst = 0.0
+    else:
+        source = config.get("source") or {}
+        data = config.get("data") or {}
+        for field in ("train_output_uri", "dev_output_uri", "manifest_output_uri"):
+            if not str(data.get(field, "")).startswith("modal-volume://humanwrite-checkpoints/"):
+                raise PolicyError(f"source_materialization data.{field} must use the checkpoint volume")
+        required_source = ("dataset_id", "dataset_config", "revision", "split", "files")
+        if any(not source.get(field) for field in required_source):
+            raise PolicyError("source_materialization requires a fully pinned source")
+        selection = config.get("selection") or {}
+        if int(selection.get("corpus_size", 0)) <= 0 or int(selection.get("corpus_size", 0)) > 5000:
+            raise PolicyError("source_materialization corpus_size must be between 1 and 5000")
         worst = 0.0
     return LaunchPolicy(
         comparison_id, budget_class, timeout_seconds, gpu, worst,
