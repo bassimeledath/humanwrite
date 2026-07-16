@@ -502,3 +502,21 @@ RESULTS:
 | Preregistration state | PASS | `ledger/ledger.py query --comparison M1-plumbing-revision-resolve-qwen3-1p7b` returns exactly one open prereg row and no run rows. |
 | Config canonical hash pointer | PASS | Resolver YAML is `configs/m1/m1_plumbing_revision_resolve_qwen3_1p7b_v1.yaml` with expected canonical hash `c3cb91e5fa1c2f854f3e9307ec18c3129df15ab8963ee8de50cf04587608b0e9` from prior append-only prep evidence. |
 DECISION: keep and proceed only with constrained, single-submission resolver execution for Qwen3-1.7B.
+
+## [2026-07-16] M1 / resolver-1p7b-terminal
+HYPOTHESIS: The first registered Qwen3-1.7B resolver smoke can clone from published `agent/m1` and resolve `Qwen/Qwen3-1.7B` `main` to an immutable revision within the existing budget while preserving Qwen3-1.7B scope confinement and complete terminal accounting.
+SETUP: Single constrained wrapper launch of `configs/m1/m1_plumbing_revision_resolve_qwen3_1p7b_v1.yaml` under `smoke` using one exact pre-registered comparison row (`M1-plumbing-revision-resolve-qwen3-1p7b`) with expected config hash `c3cb91e5fa1c2f854f3e9307ec18c3129df15ab8963ee8de50cf04587608b0e9` and fixed split hashes (`train=c59c853cdc03c7378308c8f35baa874e0f484fa035d4297948c3f3b755afa1a6`, `dev=69dded207ccb2a7753666752ebcbdaee0e00260bf9848817979e50427bb2cf8b`). Monitoring used only `infra/gpu status|logs`.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Budget gate | PASS | `infra/gpu budget` reported GPU `$40.00` remaining and API `$99.999337` remaining before launch. |
+| Config hash/prereg agreement | PASS | Launch used exact config path and canonical hash from prereg; run row `dftr-1784178967-307cd34f` was created for comparison `M1-plumbing-revision-resolve-qwen3-1p7b`. |
+| Publication/chain integrity | PASS | `git rev-parse HEAD`, `git rev-parse @{upstream}`, and live remote ref all resolve to `a66d34615f8c4fce4ecf7d18358852ac8e83337b`; run payload reports the same `git_sha`. |
+| Terminal execution | PASS | One attempt. `status` and `logs` reached terminal state `completed` with `return_code=0`. |
+| Start/finish | PASS | Started `1784178968.09574`, finished `1784179018.336987`. |
+| Immutable revision resolution | PASS | Base `Qwen/Qwen3-1.7B` requested `main` resolved to immutable revision `70d244cc86ccca08cf5af4e1e306ecf908b1ad5e`. |
+| Artifact/snapshot provenance | PASS | Resolver artifact `/__modal/volumes/vo-EY2fT0CaoNDuXGLZLNZcGg/runs/dftr-1784178967-307cd34f/resolved_revision.json`; snapshot `/checkpoints/hf-cache/models--Qwen--Qwen3-1.7B/snapshots/70d244cc86ccca08cf5af4e1e306ecf908b1ad5e`. |
+| Terminal accounting | PASS | `accel_seconds=43.702`, `actual_cost_usd=0.011642`, `tokens=0` in `ledger/ledger.py update` (`metrics_ptr` set to resolved revision artifact path). |
+| Scope/boundaries | PASS | No local accelerator, no SFT, no harness eval, no Tier-2/3, no M2, and no alternate route. |
+DECISION: keep.
+NEXT: Use resolved immutable revision `70d244cc86ccca08cf5af4e1e306ecf908b1ad5e` to preregister and run exact 1.7B preparatory SFT configs only through approved M1 routes.
