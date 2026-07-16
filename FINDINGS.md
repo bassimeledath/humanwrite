@@ -1406,3 +1406,30 @@ brief, provider call, model run, or evaluation was produced here.
 NEXT: On host recovery, download the three source artifacts to the ignored
 operator staging area, run this validator after capped synthesis, and publish
 only its metadata result plus training config hashes.
+
+## [2026-07-16] M1 / synthesis-input-binding-preparation
+HYPOTHESIS: Binding each paid synthesis job to the exact recovered source SHA,
+record count, split hash, and deployed provider model will prevent stale or
+cross-split volume artifacts from consuming budget or entering training.
+SETUP: Preparation only. Extended both client and server policy to require a
+lowercase 64-character input SHA, bounded record count, and frozen API model.
+The privileged worker now recomputes the volume input SHA before any call and
+fully validates every existing output row against the current source before
+resuming. Added a deterministic config builder that consumes the eventual
+source manifest and emits separate 256-train and 64-dev synthesis configs with
+exact hashes, counts, output URIs, model, cost caps, and provenance.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Input binding | PASS | Wrong source SHA fails before provider access; max records must be `1..50000`. |
+| Model binding | PASS | Config API model must exactly match the frozen deployment model. |
+| Resume safety | PASS | Existing rows must have known unique IDs, unchanged source fields, valid briefs, and correct empty-outline assignment. |
+| Config generation | PASS | Train/dev configs inherit source SHA/split hash/count and exact expected empty counts (`64/256`, `16/64`). |
+| Verification | PASS | All 15 data tests and 23 infrastructure tests pass. |
+DECISION: keep and deploy this policy before host recovery. Proposed pilot caps
+remain `$5` train plus `$2` dev inside the existing `$100` provider ceiling;
+they are not reserved or authorized until real source hashes are present and
+the generated configs are separately preregistered.
+NEXT: Continue source backoff. On recovery, materialize and validate source,
+generate exact synthesis configs, review canonical hashes, preregister, and
+launch dev before train as the cheapest contract proof.

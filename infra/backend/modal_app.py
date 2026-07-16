@@ -125,6 +125,16 @@ def _count_artifact_tokens(artifact_dir: Path) -> int:
     return total
 
 
+def _file_sha256(path: Path) -> str:
+    import hashlib
+
+    hasher = hashlib.sha256()
+    with path.open("rb") as source:
+        for chunk in iter(lambda: source.read(1 << 20), b""):
+            hasher.update(chunk)
+    return hasher.hexdigest()
+
+
 @app.function(
     image=worker_image,
     secrets=[provider_secret],
@@ -382,6 +392,8 @@ def brief_synthesis_worker(run_id: str, payload: dict) -> dict:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     max_records = int(data_config.get("max_records", 50_000))
     model = os.environ["DFTR_OPENROUTER_MODEL"]
+    if str((config.get("api") or {}).get("model")) != model:
+        raise ValueError("brief synthesis model does not match the frozen deployment model")
     api_key = os.environ["OPENROUTER_API_KEY"]
     cost_cap = float(payload["api_reserved_cost_usd"])
     spent = 0.0
@@ -395,12 +407,8 @@ def brief_synthesis_worker(run_id: str, payload: dict) -> dict:
         checkpoint_volume.reload()
         if not input_path.is_file():
             raise FileNotFoundError(f"input artifact not found: {data_config['input_uri']}")
-        completed_ids = set()
-        if output_path.exists():
-            for line in output_path.read_text(encoding="utf-8").splitlines():
-                if line.strip():
-                    row = json.loads(line)
-                    completed_ids.add(str(row.get("fingerprint") or row.get("fineweb_id")))
+        if _file_sha256(input_path) != str(data_config["input_sha256"]):
+            raise ValueError("brief synthesis input SHA-256 mismatch")
         records = [
             json.loads(line)
             for line in input_path.read_text(encoding="utf-8").splitlines()
@@ -408,6 +416,31 @@ def brief_synthesis_worker(run_id: str, payload: dict) -> dict:
         ][:max_records]
         target_ids = {record_id(record) for record in records}
         empty_outline_ids = exact_empty_outline_ids(records)
+        source_index = {record_id(record): record for record in records}
+        completed_ids = set()
+        if output_path.exists():
+            for line in output_path.read_text(encoding="utf-8").splitlines():
+                if not line.strip():
+                    continue
+                row = json.loads(line)
+                source_id = record_id(row)
+                if source_id in completed_ids or source_id not in source_index:
+                    raise ValueError("existing brief output has duplicate or unknown record ID")
+                source = source_index[source_id]
+                for field in (
+                    "completion", "domain", "fineweb_id", "fingerprint", "source_config",
+                    "source_revision", "split", "url", "word_count",
+                ):
+                    if row.get(field) != source.get(field):
+                        raise ValueError("existing brief output changed a source field")
+                validate_brief(
+                    row,
+                    source_text=str(source["completion"]),
+                    force_empty_outline=source_id in empty_outline_ids,
+                )
+                if bool(row.get("outline")) == (source_id in empty_outline_ids):
+                    raise ValueError("existing brief output has wrong empty-outline assignment")
+                completed_ids.add(source_id)
         with output_path.open("a", encoding="utf-8") as sink:
             for record in records:
                 source_id = record_id(record)

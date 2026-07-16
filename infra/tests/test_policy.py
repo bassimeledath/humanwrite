@@ -89,8 +89,10 @@ def test_brief_synthesis_reserves_api_not_gpu():
     value["config"]["data"] = {
         "input_uri": "modal-volume://humanwrite-checkpoints/data/clean.jsonl",
         "output_uri": "modal-volume://humanwrite-checkpoints/data/briefs.jsonl",
+        "input_sha256": "a" * 64,
+        "max_records": 320,
     }
-    value["config"]["api"] = {"max_cost_usd": 25.0}
+    value["config"]["api"] = {"max_cost_usd": 25.0, "model": "openai/gpt-5-mini"}
     value["config_hash"] = canonical_hash(value["config"])
     policy = validate_launch(value)
     assert policy.task_kind == "brief_synthesis"
@@ -104,10 +106,33 @@ def test_brief_synthesis_rejects_unsafe_volume_uri():
     value["config"]["data"] = {
         "input_uri": "file:///tmp/leak.jsonl",
         "output_uri": "modal-volume://humanwrite-checkpoints/data/briefs.jsonl",
+        "input_sha256": "a" * 64,
+        "max_records": 320,
     }
-    value["config"]["api"] = {"max_cost_usd": 25.0}
+    value["config"]["api"] = {"max_cost_usd": 25.0, "model": "openai/gpt-5-mini"}
     value["config_hash"] = canonical_hash(value["config"])
     with pytest.raises(PolicyError, match="checkpoint volume"):
+        validate_launch(value)
+
+
+def test_brief_synthesis_requires_hash_count_and_model_binding():
+    value = payload()
+    value["config"]["run"]["task_kind"] = "brief_synthesis"
+    value["config"]["data"] = {
+        "input_uri": "modal-volume://humanwrite-checkpoints/data/clean.jsonl",
+        "output_uri": "modal-volume://humanwrite-checkpoints/data/briefs.jsonl",
+        "input_sha256": "bad",
+        "max_records": 320,
+    }
+    value["config"]["api"] = {"max_cost_usd": 5.0, "model": "openai/gpt-5-mini"}
+    value["config_hash"] = canonical_hash(value["config"])
+    with pytest.raises(PolicyError, match="input_sha256"):
+        validate_launch(value)
+
+    value["config"]["data"]["input_sha256"] = "a" * 64
+    value["config"]["api"]["model"] = ""
+    value["config_hash"] = canonical_hash(value["config"])
+    with pytest.raises(PolicyError, match="api.model"):
         validate_launch(value)
 
 

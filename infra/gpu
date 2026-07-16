@@ -190,6 +190,12 @@ def _validate_submit(config: dict, budget_class: str) -> tuple[str, dict]:
         api_cap = float((config.get("api") or {}).get("max_cost_usd", 0.0))
         if api_cap <= 0 or api_cap > 100:
             _die("brief_synthesis requires 0 < api.max_cost_usd <= 100")
+        data = config.get("data") or {}
+        input_sha = str(data.get("input_sha256", ""))
+        if len(input_sha) != 64 or any(character not in "0123456789abcdef" for character in input_sha):
+            _die("brief_synthesis requires lowercase data.input_sha256")
+        if not str((config.get("api") or {}).get("model", "")):
+            _die("brief_synthesis requires a frozen api.model")
     elif task_kind == "source_materialization":
         data = config.get("data") or {}
         for field in ("train_output_uri", "dev_output_uri", "manifest_output_uri"):

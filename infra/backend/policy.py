@@ -120,6 +120,14 @@ def validate_launch(payload: dict[str, Any]) -> LaunchPolicy:
         for field in ("input_uri", "output_uri"):
             if not str(data.get(field, "")).startswith("modal-volume://humanwrite-checkpoints/"):
                 raise PolicyError(f"brief_synthesis data.{field} must use the checkpoint volume")
+        input_sha = str(data.get("input_sha256", ""))
+        if len(input_sha) != 64 or any(character not in "0123456789abcdef" for character in input_sha):
+            raise PolicyError("brief_synthesis requires lowercase data.input_sha256")
+        max_records = int(data.get("max_records", 0))
+        if max_records <= 0 or max_records > 50_000:
+            raise PolicyError("brief_synthesis data.max_records must be between 1 and 50000")
+        if not str((config.get("api") or {}).get("model", "")):
+            raise PolicyError("brief_synthesis requires a frozen api.model")
         api_reserved = float((config.get("api") or {}).get("max_cost_usd", 0.0))
         if api_reserved <= 0 or api_reserved > MONTHLY_API_CAP_USD:
             raise PolicyError("brief_synthesis requires api.max_cost_usd within the monthly cap")
