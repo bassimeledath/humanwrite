@@ -858,3 +858,49 @@ does not support any claim beyond the two visible dev records.
 NEXT: Human review may transfer approved values into immutable
 `harness/calibration.json`; the agent must not perform that transfer or use
 these proposal values as if they were harness calibration.
+
+## [2026-07-16] M1 / milestone-hard-boundary
+HYPOTHESIS: M1 can be recorded as complete only if the independently published
+tip satisfies the milestone's legal Tier-1 reporting, frozen-sampler, and
+calibration-transfer requirements. If the authoritative independent verifier
+returns `score=fail` with `hard_boundary=yes`, then the completed SFT,
+sampler, and proposal-only calibration artifacts must be preserved as evidence
+while M1 itself remains incomplete.
+SETUP: Recorder-only pass from published tip
+`a8482acb634317b57a591b3748fd85466d91390b`. Read `CLAUDE.md`,
+`RESEARCH_CONTEXT.md`, all append-only M1 entries in `FINDINGS.md`, current
+`git status`, `git log`, and `git rev-parse HEAD`, authoritative verdict
+files `.swarmy/results/m1-final-boundary.txt` and
+`.dispatch/tasks/m1-final-boundary-test/output.md`, the concise completed SFT
+and sampler evidence already recorded in `ledger/ledger.jsonl` and prior M1
+findings for runs `dftr-1784180693-f3c7ab5c` and
+`dftr-1784183624-2e567266`, and the proposal-only calibration artifact
+`experiments/m1/calibration_proposal_v1.json`. No infra command, no
+`harness eval`, no sampler freeze, no Tier 2, no Tier 3, no M2, no 14B, no
+hidden data, no duplicated references, and no protected/fixed-surface edits
+were performed.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Published-tip audit target | PASS | Local `HEAD` is `a8482acb634317b57a591b3748fd85466d91390b`, matching the authoritative final-boundary verifier's `published_tip`. |
+| Completed SFT evidence | PASS | Prior append-only M1 evidence already records one completed three-seed Qwen3-1.7B SFT run `dftr-1784180693-f3c7ab5c` with checkpoint-manifest provenance, `accel_seconds=36.292`, `actual_cost_usd=0.023604`, and `tokens=1422`. |
+| Completed sampler evidence | PASS | Prior append-only M1 evidence already records one completed sampler run `dftr-1784183624-2e567266` with `45` cells, `90` generated documents, `accel_seconds=992.069`, `actual_cost_usd=0.645241`, and `tokens=26618`. |
+| Proposal-only calibration evidence | PASS | `experiments/m1/calibration_proposal_v1.json` is the completed human-only review artifact with schema `m1.calibration_proposal.review.v1` and SHA-256 `d8cfe3bdc1825f8c03717ceb78bb79efd022d9dc1a7a3ce706039cc4da2f3c48`; it remains proposal-only evidence, not a transferred harness calibration. |
+| Independent milestone verification | FAIL | `.swarmy/results/m1-final-boundary.txt` is authoritative and reports `score=fail`, `hard_boundary=yes`, and `published_tip=a8482acb634317b57a591b3748fd85466d91390b`. |
+| Failed checks | FAIL | Tester failed checks exactly: `legal_tier1_reports_missing,frozen_sampler_missing,baseline_freeze_order_nonexecutable,sampler_artifacts_nonlocal,calibration_review_artifact_not_directly_reproduced`. |
+| Legal Tier-1 report gate | FAIL | The authoritative tester records that current sampler rows inline `reference_completion`, immutable `harness eval` requires `4` human documents, the visible dev split has only `2` unique humans, and the sampler bytes/index are not local, so legal Tier-1 reports do not exist. |
+| Freeze and baseline ordering gate | FAIL | The authoritative tester records that `harness/baseline_stats.json` is missing, `harness/calibration.json` still has null bounds, `harness/deployment_sampler.json` is unfrozen, and the checked-in `freeze_sampler()` -> `build_baseline_stats()` path is nonexecutable/circular. |
+| Calibration transfer reproducibility gate | FAIL | The authoritative tester records that the checked-in calibration artifact is acceptable as a proposal-only descriptive review artifact, but it is not directly reproduced byte-for-byte by the checked-in calibration entrypoint alone. |
+| Boundary compliance | PASS | No Tier-1 eval report or sampler freeze was run in this pass because bypassing the independent-human and immutable-harness gates is forbidden. |
+DECISION: park M1 at a hard boundary. The SFT run, sampler run, and
+proposal-only calibration artifact remain valid completed evidence, but the
+milestone is incomplete because the authoritative independent verifier failed
+the milestone on legal Tier-1 reporting, frozen-sampler absence,
+baseline/freeze nonexecutability, remote-only sampler artifacts, and direct
+calibration-artifact reproduction. Do not reinterpret this fail verdict as
+permission to repair immutable boundaries inside this batch.
+NEXT: Wait for the smallest lawful external unblockers only: a legal Tier-1
+path that yields locally readable sampler artifacts and four independent human
+references without duplication or hidden-data leakage, plus an operator-owned
+immutable transfer path that makes baseline/freeze/calibration execution
+lawful. Until those exist, do not run Tier-1 eval/freeze and do not start M2.
