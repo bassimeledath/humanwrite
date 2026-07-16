@@ -1182,3 +1182,29 @@ the complete sampler comparison a fixed standardization and non-inferiority
 reference without depending on the eventual selected sampler.
 NEXT: Publish this exact transfer, preregister all 45 frozen-provenance reports
 with the fixed gateway judge, then run the full mechanical sampler comparison.
+
+## [2026-07-16] M1 / full-tier1-sampler-preregistration
+HYPOTHESIS: At least one of the five preregistered decoding settings may reduce
+the standardized distributional gap while remaining non-inferior to the weak
+default SFT validity baseline and inside the human-calibrated diversity ranges.
+If none passes every gate, the correct outcome is no frozen deployment sampler.
+SETUP: Preparation-only batch after frozen baseline commit `4a03489`. Bound all
+45 existing sampler cells to source index SHA `3fe0cade...`, bank ID
+`92a0366c...`, calibration SHA `4a71b081...`, and baseline SHA `53de46c7...`.
+The exact five sampler IDs, three checkpoint seeds, and three sampling seeds
+remain unchanged. Full reports use the fixed gateway quality judge as a
+secondary metric; the mechanical freeze rule remains all gates, then lowest
+mean standardized S, with preregistered uncertainty tie-breaks. No report,
+provider call, raw-output read, freeze, Tier 2/3, or M2 action occurred here.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Full factorial | PREREGISTERED | 3 checkpoints x 5 samplers x 3 sampling seeds = 45 reports. |
+| Immutable inputs | PREREGISTERED | Exact source index, human bank, calibration, and baseline hashes are mandatory per report. |
+| Judge role | PREREGISTERED | Fixed randomized-order gateway judge is secondary only and cannot select by itself. |
+| Failure outcome | PREREGISTERED | If no setting passes all four hard gates across its reports, freeze must fail closed; do not choose the least-bad sampler. |
+DECISION: keep as preparation only. Publish before any gateway judge call or
+full standardized report.
+NEXT: Run focused tests and publish; then execute the 45 reports once, audit
+provider cost/provenance, and apply the mechanical freeze rule without manual
+sample inspection.

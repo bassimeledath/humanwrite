@@ -1,8 +1,8 @@
 {
   "default_sampler_id": "default_t1.0_p1.0",
   "output_path": "experiments/m1/freeze_sampler_v1.json",
-  "report_index": "__M1_REPLACE_WITH_TIER1_EVAL_INDEX__",
-  "expected_baseline_sha256": "__M1_REPLACE_WITH_FROZEN_BASELINE_SHA256__",
-  "expected_calibration_sha256": "__M1_REPLACE_WITH_FROZEN_CALIBRATION_SHA256__",
-  "expected_human_reference_bank_id": "__M1_REPLACE_WITH_FROZEN_HUMAN_BANK_ID__"
+  "report_index": "experiments/m1/tier1/full_v1/index.json",
+  "expected_baseline_sha256": "53de46c79b31a63262cc6c2329bb6acec81ae0a5e5ed77af1df2408b76f262fc",
+  "expected_calibration_sha256": "4a71b081bbb05081a461d0968312aacd4472221fdeab9934d63202b2f8e6e039",
+  "expected_human_reference_bank_id": "92a0366c313d007c5d602cc8758c148a775b94d5c927416dd668121bcf447ae1"
 }

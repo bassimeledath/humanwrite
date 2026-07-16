@@ -1,0 +1,26 @@
+{
+  "batch_id": "m1-sft-sampler-full-v1",
+  "sampler_run_id": "dftr-1784183624-2e567266",
+  "source_index_path": ".swarmy/operator-materialized/dftr-1784183624-2e567266/tier1_eval_index.template.json",
+  "source_index_sha256": "3fe0cade233bdaaa6c724a525076771f7340beb9805471da55a24e3e78141763",
+  "materialized_root": ".swarmy/operator-materialized/dftr-1784183624-2e567266",
+  "human_bank_path": "data/artifacts/m1/tier1_human_bank_v1.jsonl",
+  "human_bank_sha256": "ebcff5bca1e6c75ab482aa831453a79986ffd700ee4a729de57fc8c496c6dc68",
+  "human_manifest_path": "data/artifacts/m1/tier1_human_bank_v1.manifest.json",
+  "human_manifest_sha256": "92a0366c313d007c5d602cc8758c148a775b94d5c927416dd668121bcf447ae1",
+  "calibration_path": "harness/calibration.json",
+  "calibration_sha256": "4a71b081bbb05081a461d0968312aacd4472221fdeab9934d63202b2f8e6e039",
+  "baseline_path": "harness/baseline_stats.json",
+  "baseline_sha256": "53de46c79b31a63262cc6c2329bb6acec81ae0a5e5ed77af1df2408b76f262fc",
+  "sampler_ids": [
+    "default_t1.0_p1.0",
+    "cool_t0.8_p1.0",
+    "narrow_t1.0_p0.95",
+    "cool_narrow_t0.8_p0.95",
+    "warm_t1.2_p0.95"
+  ],
+  "expected_entry_count": 45,
+  "quality_judge_mode": "gateway",
+  "reports_root": "experiments/m1/tier1/full_v1/reports",
+  "output_index_path": "experiments/m1/tier1/full_v1/index.json"
+}
