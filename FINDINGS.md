@@ -823,3 +823,38 @@ NEXT: Commit and publish this exact terminal evidence before any later sampler
 analysis. Subsequent tasks must not treat the completed sampler screen as
 authorization to evaluate, calibrate, freeze, use Tier 2/3, M2, or 14B, or
 mutate protected or fixed surfaces.
+
+## [2026-07-16] M1 / human-calibration-proposal
+HYPOTHESIS: The already-designed M1 human calibration proposal can be computed
+offline from the fixed visible M0 human dev split, with pre-existing resampling
+seeds and confidence, without using sampler outputs, Tier-1 reports, provider
+calls, or any mutable harness surface.
+SETUP: Read the governing M1 requirements, current calibration proposal config
+and `experiments/m1/analysis.py`, fixed M0 human artifacts/manifests, immutable
+`harness/calibration.json` read-only, latest M1 findings, and the published
+sampler terminal state. No placeholders were present in
+`configs/m1/m1_calibration_proposal_v1.json`. Ran
+`python -m experiments.m1.analysis calibration-proposal --config
+configs/m1/m1_calibration_proposal_v1.json` locally, using only
+`data/artifacts/m0/dev_briefs.jsonl`, then enriched the review artifact with
+fixed M0 source/manifests hashes. No infra command, provider call, sampler
+artifact read, `harness eval`, Tier 2, Tier 3, M2, 14B, ledger update, or
+protected/fixed-surface mutation occurred.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Review artifact | PASS | Wrote `experiments/m1/calibration_proposal_v1.json` with schema `m1.calibration_proposal.review.v1`; artifact SHA-256 is `d8cfe3bdc1825f8c03717ceb78bb79efd022d9dc1a7a3ce706039cc4da2f3c48`. |
+| Fixed human records | PASS | Human split is `data/artifacts/m0/dev_briefs.jsonl` with file SHA-256 `0fabc6ffde1fbada04ad14daba880cde46e9ffafbfe6fcc0c8d969d750cb9ebb`, sample count `2`, dev split hash `69dded207ccb2a7753666752ebcbdaee0e00260bf9848817979e50427bb2cf8b`, and train split hash `c59c853cdc03c7378308c8f35baa874e0f484fa035d4297948c3f3b755afa1a6`. |
+| Fixed source hashes | PASS | Source fixture `data/fixtures/fineweb_fixture.jsonl` hash is `5ded0780a3fed78e30e288fd47c3bdc093b61d0e5f406b092bb76aab58d717f3`; source manifest hash is `cf8fbcf4a184159d957acf8d53ddaf55232b1d944269cb32dcae43f443a04e42`; split-hashes file hash is `e31d3f4604e9b000b1102c96deb1487b88096624a02f3ed08d740abdf6464c60`. |
+| Method and seeds | PASS | Interval method is `deterministic central quantile interval`; confidence level is `0.95`; pre-existing resampling seeds are `[404,505,606]`; subset fraction is `0.8`. |
+| Point estimates | PASS | `self_bleu=0.023400584169956357`, `repeated_sentence_start_rate=0.0`, and `non_target_script_char_rate=0.0`. |
+| Intervals | PASS | `self_bleu=[0.02327671389911226,0.02327671389911226]`, `repeated_sentence_start_rate=[0.0,0.0]`, `non_target_script_char_rate=[0.0,0.0]`, `paragraph_len_tokens=[3.0,33.0]`, and `sentence_len_tokens=[3.0,19.0]`. |
+| Subset sensitivity | PASS | For every seed `[404,505,606]`, `ceil(2 * 0.8)` selects the full two-record visible dev split, so every subset hash is `0fabc6ffde1fbada04ad14daba880cde46e9ffafbfe6fcc0c8d969d750cb9ebb`; unique subset count is `1` and no subset-draw variation is observable in this tiny fixture. |
+| Deterministic reproduction | PASS | Re-ran to a clean temporary output path and re-applied the same fixed-provenance enrichment; enriched rerun SHA-256 matched `d8cfe3bdc1825f8c03717ceb78bb79efd022d9dc1a7a3ce706039cc4da2f3c48` byte-for-byte. Raw helper rerun SHA-256 was `f3ad93f50ba3896c1847029a2d4f3dff166f8d65c88800de5b2d8f636345d105`. |
+| Boundary hygiene | PASS | No `harness/`, `sources/`, fixed data/manifests/grid, ledger, sampler outputs, or model artifacts were mutated; no calibration values were transferred into `harness/calibration.json`. |
+DECISION: keep. This is a versioned human-only calibration proposal for review
+over the fixed visible M0 fixture. It is not a population-level estimate and
+does not support any claim beyond the two visible dev records.
+NEXT: Human review may transfer approved values into immutable
+`harness/calibration.json`; the agent must not perform that transfer or use
+these proposal values as if they were harness calibration.

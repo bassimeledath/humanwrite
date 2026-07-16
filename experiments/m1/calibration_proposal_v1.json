@@ -1,0 +1,208 @@
+{
+  "analysis_entrypoint": "python -m experiments.m1.analysis calibration-proposal --config configs/m1/m1_calibration_proposal_v1.json",
+  "artifact_schema": "m1.calibration_proposal.review.v1",
+  "confidence_level": 0.95,
+  "config_path": "configs/m1/m1_calibration_proposal_v1.json",
+  "config_sha256": "176b588a7523d7d186380e7e8626a0656e0212c63faae8af5f61feecdaf8f319",
+  "fixed_counts": {
+    "dev_count": 2,
+    "empty_outline_count": 2,
+    "empty_outline_ratio": 0.25,
+    "source_deduped_count": 8,
+    "source_record_count": 8,
+    "train_count": 6
+  },
+  "fixed_manifest_records": {
+    "dev_fingerprints": [
+      "8b6b70da3f049e51e99c06b8b14f80f55a3602f0cf7bb8ecda0df8a6baac2bd8",
+      "db889fa71ad48cd3cb92677871ef6df9b05b595296c0a4b01d0973ae2c67eb22"
+    ],
+    "train_fingerprints": [
+      "0b5c78f1d9d770e80f1cfea74474899d3adeb5c82eed0c9e2ac4bd9c27789f2e",
+      "64a6da14c8d26de1461c4f1c4562fd8d208a39010fc1bcb3f481c89d3142ddcd",
+      "780e31bd7f1190329d9ababd99d06c415fb190a37cac67e1ec00943180374df9",
+      "7c59c23421f8bc775f2de9d05f92edd1c814a9cf67d34a620b0be804b3bc5923",
+      "a686947309d4b254c55792fb2b74f993b40f9bdfe70e459cc5424db388fa1223",
+      "ca8314a9f01771f22e9faa13bd6c6d7cf23ac5682fc434a5ae7ab193d2a63810"
+    ]
+  },
+  "fixed_source_hashes": {
+    "dev_briefs_sha256": "0fabc6ffde1fbada04ad14daba880cde46e9ffafbfe6fcc0c8d969d750cb9ebb",
+    "dev_manifest_sha256": "6b6b94089ab4cba7968ddca69d0cc211270e7eac2a34d9a75ceb1a2c0b8b4e5b",
+    "source_fixture_path": "data/fixtures/fineweb_fixture.jsonl",
+    "source_fixture_sha256": "5ded0780a3fed78e30e288fd47c3bdc093b61d0e5f406b092bb76aab58d717f3",
+    "source_manifest_sha256": "cf8fbcf4a184159d957acf8d53ddaf55232b1d944269cb32dcae43f443a04e42",
+    "split_hashes_path": "data/artifacts/m0/split_hashes.json",
+    "split_hashes_sha256": "e31d3f4604e9b000b1102c96deb1487b88096624a02f3ed08d740abdf6464c60",
+    "train_briefs_sha256": "d15e8741392046d785e166b337f04797439cf92372526f944c076ce33d068a6d",
+    "train_manifest_sha256": "0ed5145ea3e77d876ffa5c76391794dea5136b43a15ad73cf3d17add07f30d64"
+  },
+  "human_split_path": "data/artifacts/m0/dev_briefs.jsonl",
+  "human_split_sha256": "0fabc6ffde1fbada04ad14daba880cde46e9ffafbfe6fcc0c8d969d750cb9ebb",
+  "interval_method": "deterministic central quantile interval",
+  "intervals": {
+    "non_target_script_char_rate": {
+      "high": 0.0,
+      "low": 0.0
+    },
+    "paragraph_len_tokens": {
+      "high": 33.0,
+      "low": 3.0
+    },
+    "repeated_sentence_start_rate": {
+      "high": 0.0,
+      "low": 0.0
+    },
+    "self_bleu": {
+      "high": 0.02327671389911226,
+      "low": 0.02327671389911226
+    },
+    "sentence_len_tokens": {
+      "high": 19.0,
+      "low": 3.0
+    }
+  },
+  "point_estimates": {
+    "non_target_script_char_rate": 0.0,
+    "repeated_sentence_start_rate": 0.0,
+    "self_bleu": 0.023400584169956357
+  },
+  "provenance_note": "Visible M0 fixture size is a provenance limitation only.",
+  "resampling_seeds": [
+    404,
+    505,
+    606
+  ],
+  "review_limitations": [
+    "This is a human-only calibration proposal over the fixed visible M0 dev fixture, not a population estimate.",
+    "The visible fixture has only two dev records; intervals and subset sensitivity are descriptive reproducibility artifacts only.",
+    "Values are not transferred into immutable harness/calibration.json by this artifact."
+  ],
+  "sample_count": 2,
+  "sensitivity": [
+    {
+      "fingerprints": [
+        "8b6b70da3f049e51e99c06b8b14f80f55a3602f0cf7bb8ecda0df8a6baac2bd8",
+        "db889fa71ad48cd3cb92677871ef6df9b05b595296c0a4b01d0973ae2c67eb22"
+      ],
+      "seed": 404,
+      "subset_hash": "0fabc6ffde1fbada04ad14daba880cde46e9ffafbfe6fcc0c8d969d750cb9ebb",
+      "subset_intervals": {
+        "non_target_script_char_rate": {
+          "high": 0.0,
+          "low": 0.0
+        },
+        "paragraph_len_tokens": {
+          "high": 33.0,
+          "low": 3.0
+        },
+        "repeated_sentence_start_rate": {
+          "high": 0.0,
+          "low": 0.0
+        },
+        "self_bleu": {
+          "high": 0.02327671389911226,
+          "low": 0.02327671389911226
+        },
+        "sentence_len_tokens": {
+          "high": 19.0,
+          "low": 3.0
+        }
+      },
+      "subset_note": "Subset draw equals the full fixed visible dev split at this fixture size.",
+      "subset_point_estimates": {
+        "non_target_script_char_rate": 0.0,
+        "repeated_sentence_start_rate": 0.0,
+        "self_bleu": 0.023400584169956357
+      },
+      "subset_size": 2
+    },
+    {
+      "fingerprints": [
+        "8b6b70da3f049e51e99c06b8b14f80f55a3602f0cf7bb8ecda0df8a6baac2bd8",
+        "db889fa71ad48cd3cb92677871ef6df9b05b595296c0a4b01d0973ae2c67eb22"
+      ],
+      "seed": 505,
+      "subset_hash": "0fabc6ffde1fbada04ad14daba880cde46e9ffafbfe6fcc0c8d969d750cb9ebb",
+      "subset_intervals": {
+        "non_target_script_char_rate": {
+          "high": 0.0,
+          "low": 0.0
+        },
+        "paragraph_len_tokens": {
+          "high": 33.0,
+          "low": 3.0
+        },
+        "repeated_sentence_start_rate": {
+          "high": 0.0,
+          "low": 0.0
+        },
+        "self_bleu": {
+          "high": 0.02327671389911226,
+          "low": 0.02327671389911226
+        },
+        "sentence_len_tokens": {
+          "high": 19.0,
+          "low": 3.0
+        }
+      },
+      "subset_note": "Subset draw equals the full fixed visible dev split at this fixture size.",
+      "subset_point_estimates": {
+        "non_target_script_char_rate": 0.0,
+        "repeated_sentence_start_rate": 0.0,
+        "self_bleu": 0.023400584169956357
+      },
+      "subset_size": 2
+    },
+    {
+      "fingerprints": [
+        "8b6b70da3f049e51e99c06b8b14f80f55a3602f0cf7bb8ecda0df8a6baac2bd8",
+        "db889fa71ad48cd3cb92677871ef6df9b05b595296c0a4b01d0973ae2c67eb22"
+      ],
+      "seed": 606,
+      "subset_hash": "0fabc6ffde1fbada04ad14daba880cde46e9ffafbfe6fcc0c8d969d750cb9ebb",
+      "subset_intervals": {
+        "non_target_script_char_rate": {
+          "high": 0.0,
+          "low": 0.0
+        },
+        "paragraph_len_tokens": {
+          "high": 33.0,
+          "low": 3.0
+        },
+        "repeated_sentence_start_rate": {
+          "high": 0.0,
+          "low": 0.0
+        },
+        "self_bleu": {
+          "high": 0.02327671389911226,
+          "low": 0.02327671389911226
+        },
+        "sentence_len_tokens": {
+          "high": 19.0,
+          "low": 3.0
+        }
+      },
+      "subset_note": "Subset draw equals the full fixed visible dev split at this fixture size.",
+      "subset_point_estimates": {
+        "non_target_script_char_rate": 0.0,
+        "repeated_sentence_start_rate": 0.0,
+        "self_bleu": 0.023400584169956357
+      },
+      "subset_size": 2
+    }
+  ],
+  "sensitivity_summary": {
+    "computed_subset_size": 2,
+    "interpretation": "No subset-draw variation is observable because ceil(2 * 0.8) yields the full two-record visible dev fixture for every resampling seed.",
+    "subset_fraction": 0.8,
+    "unique_subset_count": 1,
+    "unique_subset_hashes": [
+      "0fabc6ffde1fbada04ad14daba880cde46e9ffafbfe6fcc0c8d969d750cb9ebb"
+    ]
+  },
+  "split_hashes": {
+    "dev": "69dded207ccb2a7753666752ebcbdaee0e00260bf9848817979e50427bb2cf8b",
+    "train": "c59c853cdc03c7378308c8f35baa874e0f484fa035d4297948c3f3b755afa1a6"
+  }
+}
