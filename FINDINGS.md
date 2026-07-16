@@ -1433,3 +1433,27 @@ the generated configs are separately preregistered.
 NEXT: Continue source backoff. On recovery, materialize and validate source,
 generate exact synthesis configs, review canonical hashes, preregister, and
 launch dev before train as the cheapest contract proof.
+
+## [2026-07-16] M1 / realdata-training-boundary-preparation
+HYPOTHESIS: A separate real-data protocol version can admit the validated
+256/64 pilot without weakening or overwriting the original hard-coded M0
+fixture contract.
+SETUP: Preparation only. The existing `m1.v1` path still requires the original
+six/two split hashes. Added `m1.realdata-pilot.v1`, which requires an exact
+operator-published fixed-manifest SHA, schema `dftr.realdata_pilot_fixed_inputs.v1`,
+cardinality `train=256/dev=64`, config/manifest path and split-hash equality,
+then recomputes brief file SHAs, counts, split labels, unique fingerprints,
+and fingerprint split hashes inside the GPU worker before model loading.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Legacy fixture boundary | PASS | `m1.v1` behavior and hard-coded M0 hashes are unchanged. |
+| Pilot manifest binding | PASS | Manifest schema, SHA, paths, counts, and split hashes are required before record loading. |
+| Worker-side data binding | PASS | Brief bytes, record counts, labels, unique IDs, and split hashes are revalidated before tokenizer/model work. |
+| Model scope | UNCHANGED | Existing workflow still requires Qwen3-1.7B and training seeds `[11,29,47]`; 0.6B/4B/14B are not admitted. |
+| Verification | PASS | All 14 experiment tests pass, including manifest-hash and mutated-brief rejection. |
+DECISION: keep as the only training admission path for this recovery pilot.
+No fixed manifest or training config can be generated until source and brief
+validation artifacts exist, so this does not preregister or authorize a run.
+NEXT: Resume unchanged source materialization after host recovery, then flow
+its validated hashes through synthesis and this training boundary.

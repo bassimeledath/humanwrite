@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import os
@@ -43,8 +44,25 @@ def _load_fixed_manifest(config: dict[str, Any]) -> dict[str, Any]:
     manifest_path = workflow.get("fixed_manifest")
     if not manifest_path:
         raise M1ConfigError("workflow.fixed_manifest is required")
-    manifest = read_structured(resolve_repo_path(str(manifest_path)))
-    fixed_hashes = load_fixed_split_hashes()
+    resolved_manifest = resolve_repo_path(str(manifest_path))
+    manifest = read_structured(resolved_manifest)
+    protocol_version = str(workflow.get("protocol_version") or "")
+    if protocol_version == "m1.realdata-pilot.v1":
+        expected_manifest_sha = str(workflow.get("fixed_manifest_sha256") or "")
+        if file_sha256(resolved_manifest) != expected_manifest_sha:
+            raise M1ConfigError("real-data fixed manifest SHA-256 mismatch")
+        if manifest.get("artifact_schema") != "dftr.realdata_pilot_fixed_inputs.v1":
+            raise M1ConfigError("unexpected real-data fixed manifest schema")
+        if int(manifest.get("train_count", 0)) != 256 or int(manifest.get("dev_count", 0)) != 64:
+            raise M1ConfigError("real-data pilot fixed manifest must contain train=256/dev=64")
+        fixed_hashes = {
+            "train": str(manifest.get("train_split_hash") or ""),
+            "dev": str(manifest.get("dev_split_hash") or ""),
+        }
+        if not all(fixed_hashes.values()):
+            raise M1ConfigError("real-data fixed manifest split hashes are missing")
+    else:
+        fixed_hashes = load_fixed_split_hashes()
     ensure_fixed_hash(
         manifest.get("train_split_hash"),
         expected=fixed_hashes["train"],
@@ -66,6 +84,10 @@ def _load_fixed_manifest(config: dict[str, Any]) -> dict[str, Any]:
         expected=fixed_hashes["dev"],
         field_name="config data.dev_split_hash",
     )
+    if protocol_version == "m1.realdata-pilot.v1":
+        for field in ("train_path", "dev_path"):
+            if str(data_config.get(field) or "") != str(manifest.get(field) or ""):
+                raise M1ConfigError(f"real-data config/manifest {field} mismatch")
     return manifest
 
 
@@ -162,7 +184,31 @@ def _load_training_records(config: dict[str, Any], fixed_manifest: dict[str, Any
     dev_path = resolve_repo_path(str(data_config.get("dev_path") or fixed_manifest.get("dev_path")))
     if not train_path.is_file() or not dev_path.is_file():
         raise M1ConfigError("canonical M0 train/dev JSONL paths are required")
-    return load_jsonl(train_path), load_jsonl(dev_path)
+    train_records, dev_records = load_jsonl(train_path), load_jsonl(dev_path)
+    if fixed_manifest.get("artifact_schema") == "dftr.realdata_pilot_fixed_inputs.v1":
+        for split, path, records in (
+            ("train", train_path, train_records),
+            ("dev", dev_path, dev_records),
+        ):
+            ensure_fixed_hash(
+                file_sha256(path),
+                expected=str(fixed_manifest[f"{split}_briefs_sha256"]),
+                field_name=f"real-data {split} briefs SHA-256",
+            )
+            if len(records) != int(fixed_manifest[f"{split}_count"]):
+                raise M1ConfigError(f"real-data {split} record count mismatch")
+            if any(record.get("split") != split for record in records):
+                raise M1ConfigError(f"real-data {split} brief split label mismatch")
+            fingerprints = sorted(str(record.get("fingerprint") or "") for record in records)
+            if any(not value for value in fingerprints) or len(fingerprints) != len(set(fingerprints)):
+                raise M1ConfigError(f"real-data {split} brief fingerprints are invalid")
+            observed_split_hash = hashlib.sha256("\n".join(fingerprints).encode("utf-8")).hexdigest()
+            ensure_fixed_hash(
+                observed_split_hash,
+                expected=str(fixed_manifest[f"{split}_split_hash"]),
+                field_name=f"real-data {split} brief split hash",
+            )
+    return train_records, dev_records
 
 
 def _prepare_supervised_examples(
