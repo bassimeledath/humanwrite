@@ -1,0 +1,54 @@
+{
+  "artifact_schema": "dftr.sealed_aggregate.v1",
+  "decision": "reject",
+  "submitted_checkpoint": {
+    "checkpoint_hash": "0f437f62bc1cca0c",
+    "artifact_uri": "modal-volume://humanwrite-sealed-artifacts/checkpoints/m2-sealed-4b-seed29-merged-v5",
+    "arm": "SFT",
+    "base_model": "Qwen/Qwen3-4B",
+    "base_revision": "1cfa9a7208912126459214e8b04321603b3df60c",
+    "source_adapter_sha256": "a34c14230f4847001a3a0c4362a3bc26b3a43c1d0ef049e12a7a0d029aacea91",
+    "training_seed": 29
+  },
+  "aggregate_result": {
+    "window_id": "2026-W29",
+    "quota_remaining": 0,
+    "primary": {
+      "semantic_mmd": 0.059529,
+      "semantic_mmd_delta_vs_floor": 0.029529,
+      "S": 0.575422
+    },
+    "authorship_auc": 0.726914,
+    "authorship_auc_ci": [0.626166, 0.828487],
+    "gates": {
+      "semantic_mmd": false,
+      "authorship_auc": false
+    },
+    "verdict": "reject",
+    "aggregate_only": true
+  },
+  "evaluator_audit": {
+    "evaluator_revision": "cc9f748",
+    "hidden_data_or_per_item_scores_exposed": false,
+    "metric_or_threshold_changes": false,
+    "deployment_sampler_id": "default_t1.0_p1.0",
+    "sampling_seeded_deterministically": true,
+    "generation_batched": true,
+    "tokenizer_warning": "Transformers reported its known regex compatibility warning; the candidate used the same pinned tokenizer bytes and library family as the visible workflow, and evaluation completed.",
+    "quota_credit": "One append-only credit restored one slot after a 960-second sequential-generation run returned no aggregate result.",
+    "pre_result_failures": "Four URI/snapshot preflight failures and one sequential-generation runtime failure returned no model metrics."
+  },
+  "cost": {
+    "final_scored_submission_usd": 0.526296,
+    "all_sealed_attempts_usd": 1.594056,
+    "adapter_merge_usd": 0.026128,
+    "gateway_gpu_month_to_date_usd": 3.779494,
+    "combined_metered_compute_usd": 5.37355
+  },
+  "gate_consequence": {
+    "launch_14b": false,
+    "run_tier3_detectors": false,
+    "reason": "The preregistered promotion comparison required an aggregate sealed confirm; both independent gates rejected."
+  },
+  "completed_at": "2026-07-16T18:41:06.743948+00:00"
+}

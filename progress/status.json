@@ -1,14 +1,14 @@
 {
-  "updated_at": "2026-07-16T17:35:17Z",
-  "phase": "M2 — sealed 4B validation",
-  "headline": "Reviewer correction audited; sealed 4B validation is next",
-  "summary": "Evaluator v2 rescored the exact frozen 144 outputs. All deterministic fields match v1, the 4B result remains an 8-of-9 no-collapse pass, and the lone high-repetition failure remains rejected. The corrected reviewer rule is now prospective and one sealed 4B submission is authorized.",
-  "run_state": "active",
+  "updated_at": "2026-07-16T18:41:28Z",
+  "phase": "M2 — fail-closed evidence boundary",
+  "headline": "Independent sealed evaluator rejected the winning 4B checkpoint",
+  "summary": "The 4B model retained visible factual control but failed both hidden human-likeness gates: semantic MMD was 0.059529 and authorship AUC was 0.726914 with a 95% CI of 0.626166 to 0.828487. Per preregistration, 14B and GPTZero are not authorized for this recipe.",
+  "run_state": "blocked",
   "budget": {
     "modal_cap_usd": 40,
-    "modal_committed_usd": 3.993719,
+    "modal_committed_usd": 5.37355,
     "openrouter_cap_usd": 100,
-    "openrouter_spend_usd": 0.702752
+    "openrouter_spend_usd": 0.945997
   },
   "services": [
     {"name": "GPU gateway", "detail": "Constrained launch API", "status": "online"},
@@ -20,11 +20,23 @@
     {"id": "setup", "label": "Setup", "detail": "Harness, sources, storage, and guardrails", "status": "complete"},
     {"id": "M0", "label": "M0", "detail": "Data pipeline and GPU contract smoke test", "status": "complete"},
     {"id": "M1", "label": "M1", "detail": "4B three-seed directional confirmation passed", "status": "complete"},
-    {"id": "M2", "label": "M2", "detail": "Exact 4B sealed comparison being preregistered", "status": "active"},
+    {"id": "M2", "label": "M2", "detail": "Sealed 4B promotion check rejected both independent gates", "status": "blocked"},
     {"id": "M3", "label": "M3", "detail": "Length curriculum and LoRA staging", "status": "queued"},
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "11:41",
+      "title": "Sealed evaluator rejected the 4B checkpoint",
+      "detail": "Aggregate-only hidden evaluation returned semantic MMD 0.059529, delta versus floor +0.029529, S 0.575422, and authorship AUC 0.726914 with CI 0.626166 to 0.828487. Both independent gates failed; 14B and Tier 3 remain closed.",
+      "tone": "blocked"
+    },
+    {
+      "at": "11:29",
+      "title": "Sealed evaluator runtime audited and repaired",
+      "detail": "The first true scoring run decoded 128 prompts sequentially and returned no result after 960 seconds. A private score-blind fix added batched deterministic generation, volume refresh, the frozen sampler, and one append-only no-result quota credit without changing hidden data or metrics.",
+      "tone": "complete"
+    },
     {
       "at": "10:35",
       "title": "Reviewer correction passed prospective audit",
@@ -90,5 +102,5 @@
     {"at": "17:46", "title": "Storage created", "detail": "Gateway state, checkpoints, sealed state, and sealed artifacts volumes are online.", "tone": "complete"},
     {"at": "17:40", "title": "Engineering checks passed", "detail": "Harness, infrastructure, and private evaluator suites are green.", "tone": "complete"}
   ],
-  "next_action": "Preregister and submit the exact winning 4B checkpoint to the aggregate-only sealed evaluator, then select bounded M2 work and the approved 14B scale-up only if the evidence gate passes."
+  "next_action": "Start a new preregistered 4B research cycle targeting semantic distribution and authorship indistinguishability. Do not launch 14B or Tier 3 until a future sealed comparison confirms."
 }

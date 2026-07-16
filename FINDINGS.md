@@ -1973,3 +1973,41 @@ pass. Preserve v1 byte-for-byte. This audit authorizes one bounded sealed 4B
 submission, not an automatic promotion or scale-up.
 NEXT: Publish the v2 audit, preregister the exact sealed comparison, and use
 the aggregate hidden-split verdict to select M2 work and the 14B evidence gate.
+
+## [2026-07-16] M2 / sealed-4b-seed29-promotion-check
+HYPOTHESIS: The seed-29 Qwen3-4B adapter selected by the frozen Tier-1 rule
+will confirm human-distribution similarity on the independent hidden domain
+and time slice; only a sealed confirm authorizes 14B or Tier 3.
+SETUP: Merged the exact adapter SHA `a34c1423...` into immutable base revision
+`1cfa9a7...`, bound the default `temperature=1.0/top_p=1.0` deployment
+sampler, and submitted checkpoint hash `0f437f62bc1cca0c`. The evaluator used
+private revision `cc9f748`, 128 hidden examples, an independent heavyweight
+embedder, fresh authorship probe, deterministic sampling, and aggregate-only
+output.
+RESULTS:
+| item | result | gate |
+| --- | ---: | --- |
+| Semantic MMD | 0.059529 | FAIL |
+| Delta vs human floor | +0.029529 | FAIL |
+| Aggregate S | 0.575422 | report |
+| Authorship AUC | 0.726914 | FAIL |
+| Authorship AUC 95% CI | [0.626166, 0.828487] | excludes 0.5 |
+| Sealed verdict | REJECT | confirm required |
+
+EVALUATOR AUDIT: Initial requests exposed no scores: four failed artifact URI
+or stale-volume preflight and one reached sequential generation but returned
+`sealed scoring unavailable` after 960 seconds. The operator fixed only
+plumbing by refreshing volumes, batching eight prompts, seeding sampling, and
+binding the already frozen sampler. Ten private tests and 125 public tests
+pass. An append-only one-slot credit records the no-result retry. No hidden
+text, embedding, per-item score, metric, threshold, or embedder was exposed or
+changed. Total sealed attempt cost was `$1.594056`; the successful scored run
+cost `$0.526296`.
+DECISION: fail closed. The 4B recipe has strong visible factual control but
+does not generalize to human-likeness on the hidden split. Do not launch 14B
+and do not spend Tier-3 detector calls on this checkpoint.
+NEXT: A new preregistered research cycle must improve semantic distribution
+and authorship indistinguishability at 4B before scale. Candidate directions
+are broader and longer human data, a genuinely independent training reward,
+or staged adversarial/distribution objectives; none may reuse the sealed
+embedder or hidden split.
