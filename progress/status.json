@@ -1,14 +1,14 @@
 {
-  "updated_at": "2026-07-16T09:21:57Z",
+  "updated_at": "2026-07-16T09:26:38Z",
   "phase": "M1 — SFT baseline and calibration",
   "headline": "All 64 dev briefs validated; 256-row train synthesis active",
-  "summary": "The complete dev artifact has 64 unique source-matched briefs, exact schema and quotation grounding, and exactly 16 deterministic empty outlines; final SHA is 524c224a. Train synthesis run dftr-1784193698-9f68c860 is now active under a 5 dollar reservation. Actual provider spend before this run is 0.230235 of 100 dollars, and GPU training remains closed until combined validation passes.",
+  "summary": "The complete dev artifact has 64 independently validated briefs and final SHA 524c224a. Train synthesis run dftr-1784193698-9f68c860 has reached its first durable checkpoint: 50 new contract-valid rows with zero failures for 0.069670 dollars. Actual total provider spend is 0.299905 of 100 dollars, and GPU training remains closed until combined validation passes.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
     "modal_committed_usd": 0.683574,
     "openrouter_cap_usd": 100,
-    "openrouter_spend_usd": 0.230235
+    "openrouter_spend_usd": 0.299905
   },
   "services": [
     {"name": "GPU gateway", "detail": "Constrained launch API", "status": "online"},
@@ -25,6 +25,7 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {"at": "02:26", "title": "Train synthesis checkpoint 50 is clean", "detail": "The first 50 of 256 train briefs are durably committed with zero schema, grounding, routing, or content-filter failures. Incremental provider cost is 0.069670 dollars.", "tone": "active"},
     {"at": "02:21", "title": "Capped 256-row train synthesis launched", "detail": "Run dftr-1784193698-9f68c860 is active from published git SHA bc95fb1 with canonical config hash ea354894, exact frozen train source SHA 3884fdf0, and a 5 dollar provider reservation. GPU reservation is zero.", "tone": "active"},
     {"at": "02:20", "title": "Full 64-row dev artifact validated", "detail": "Independent validation passed exact ID and source preservation, schema and types, verbatim quotation grounding, and 16-of-64 empty-outline assignment. Final brief SHA is 524c224a; all dev synthesis and recovery calls cost 0.190714 dollars.", "tone": "complete"},
     {"at": "02:19", "title": "One provider-policy row recovered safely", "detail": "GPT-5-mini consistently filtered one benign governing-board campaign page. A preregistered pinned Claude Haiku 4.5 fallback ran only for that missing row with a neutral non-persuasive prompt, passed the unchanged contract, and cost 0.001930 dollars.", "tone": "complete"},
@@ -62,5 +63,5 @@
     {"at": "17:46", "title": "Storage created", "detail": "Gateway state, checkpoints, sealed state, and sealed artifacts volumes are online.", "tone": "complete"},
     {"at": "17:40", "title": "Engineering checks passed", "detail": "Harness, infrastructure, and private evaluator suites are green.", "tone": "complete"}
   ],
-  "next_action": "Monitor train run dftr-1784193698-9f68c860, preserve and resume only contract-valid rows if needed, then require combined 256/64 validation before any GPU training."
+  "next_action": "Monitor train run dftr-1784193698-9f68c860 through its 100, 150, 200, and 250-row checkpoints, preserve and resume only contract-valid rows if needed, then require combined 256/64 validation before any GPU training."
 }
