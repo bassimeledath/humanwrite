@@ -1,9 +1,9 @@
 {
-  "updated_at": "2026-07-16T02:22:46Z",
-  "phase": "M0 — awaiting human sign-off",
-  "headline": "M0 passed and parked cleanly",
-  "summary": "The deterministic data pipeline, Tier 0 metrics, experiment runner, and no-network GPU contract smoke path passed independent verification. M1 will not begin until human approval.",
-  "run_state": "parked",
+  "updated_at": "2026-07-16T02:30:20Z",
+  "phase": "M1 — SFT baseline and calibration",
+  "headline": "M1 research is live",
+  "summary": "Codex 5.6-sol is planning the 1.7B SFT baseline, sampler sweep, deployment-sampler freeze, and human calibration intervals under the constrained compute contract.",
+  "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
     "modal_committed_usd": 0,
@@ -13,18 +13,21 @@
   "services": [
     {"name": "GPU gateway", "detail": "Constrained launch API", "status": "online"},
     {"name": "Reaper", "detail": "Five-minute independent enforcement", "status": "online"},
-    {"name": "Sealed evaluator", "detail": "Private endpoint; hidden split bootstrapping", "status": "deploying"},
+    {"name": "Sealed evaluator", "detail": "Private endpoint; optimized hidden split bootstrapping", "status": "deploying"},
     {"name": "Progress server", "detail": "Local live dashboard", "status": "online"}
   ],
   "milestones": [
     {"id": "setup", "label": "Setup", "detail": "Harness, sources, storage, and guardrails", "status": "complete"},
     {"id": "M0", "label": "M0", "detail": "Data pipeline and GPU contract smoke test", "status": "complete"},
-    {"id": "M1", "label": "M1", "detail": "SFT baseline and calibration freeze", "status": "queued"},
+    {"id": "M1", "label": "M1", "detail": "SFT baseline and calibration freeze", "status": "active"},
     {"id": "M2", "label": "M2", "detail": "Arms A-E at 64 and 128 tokens", "status": "queued"},
     {"id": "M3", "label": "M3", "detail": "Length curriculum and LoRA staging", "status": "queued"},
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {"at": "19:30", "title": "M1 Codex run started", "detail": "The approved milestone is live on gpt-5.6-sol with high reasoning and fast service.", "tone": "active"},
+    {"at": "19:29", "title": "Sealed bootstrap optimized", "detail": "The private loader now streams the target-year FineWeb crawl configurations directly instead of scanning from 2013.", "tone": "active"},
+    {"at": "19:27", "title": "M0 approved and merged", "detail": "The passing M0 branch is on main and the M1 isolation branch is active.", "tone": "complete"},
     {"at": "19:22", "title": "M0 parked for sign-off", "detail": "Candidate 2 passed independent offline verification with Tier 1 unchanged; the research lead stopped at the milestone boundary.", "tone": "complete"},
     {"at": "19:18", "title": "Accounting defect corrected", "detail": "Candidate 1 omitted complete terminal accounting. Candidate 2 fixed status, time, accelerator seconds, tokens, and cost fields.", "tone": "complete"},
     {"at": "18:22", "title": "M0 Codex run started", "detail": "gpt-5.6-sol is live with high reasoning and fast service in an isolated capability-only environment.", "tone": "active"},
@@ -38,5 +41,5 @@
     {"at": "17:46", "title": "Storage created", "detail": "Gateway state, checkpoints, sealed state, and sealed artifacts volumes are online.", "tone": "complete"},
     {"at": "17:40", "title": "Engineering checks passed", "detail": "Harness, infrastructure, and private evaluator suites are green.", "tone": "complete"}
   ],
-  "next_action": "Review the M0 findings and approve or redirect M1. The private sealed hidden-split bootstrap is still running independently."
+  "next_action": "Complete M1 planning, preregister the baseline comparisons, and run the smallest allowed plumbing smoke before any 1.7B screening spend."
 }
