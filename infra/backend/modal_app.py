@@ -30,6 +30,7 @@ from .policy import (
     validate_launch,
 )
 from .source_materializer import materialize_rows
+from .brief_contract import exact_empty_outline_ids, record_id, validate_brief
 
 
 APP_NAME = "humanwrite-gpu-gateway"
@@ -386,6 +387,7 @@ def brief_synthesis_worker(run_id: str, payload: dict) -> dict:
     spent = 0.0
     reported_spent = 0.0
     processed = 0
+    failed_records = 0
     status = "failed"
     log_path = Path("/state/logs") / f"{run_id}.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -399,56 +401,71 @@ def brief_synthesis_worker(run_id: str, payload: dict) -> dict:
                 if line.strip():
                     row = json.loads(line)
                     completed_ids.add(str(row.get("fingerprint") or row.get("fineweb_id")))
-        with input_path.open(encoding="utf-8") as source, output_path.open("a", encoding="utf-8") as sink:
-            for line in source:
-                if processed >= max_records or spent >= cost_cap:
+        records = [
+            json.loads(line)
+            for line in input_path.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ][:max_records]
+        target_ids = {record_id(record) for record in records}
+        empty_outline_ids = exact_empty_outline_ids(records)
+        with output_path.open("a", encoding="utf-8") as sink:
+            for record in records:
+                source_id = record_id(record)
+                if spent >= cost_cap:
                     break
-                record = json.loads(line)
-                record_id = str(record.get("fingerprint") or record.get("fineweb_id"))
-                if not record_id or record_id in completed_ids:
+                if source_id in completed_ids:
                     continue
                 text = str(record.get("completion") or record.get("text") or "")
                 if not text.strip():
+                    failed_records += 1
                     continue
-                response = requests.post(
-                    "https://openrouter.ai/api/v1/chat/completions",
-                    headers={
-                        "Authorization": f"Bearer {api_key}",
-                        "Content-Type": "application/json",
-                        "HTTP-Referer": "https://github.com/bassimeledath/humanwrite",
-                        "X-OpenRouter-Title": "Humanwrite DFT-R brief synthesis",
-                    },
-                    json={
-                        "model": model,
-                        "messages": [{"role": "user", "content": _brief_prompt(text[:120_000])}],
-                        "response_format": {"type": "json_object"},
-                        "temperature": 0.2,
-                        "max_tokens": 1800,
-                    },
-                    timeout=180,
-                )
-                response.raise_for_status()
-                body = response.json()
-                usage_cost = (body.get("usage") or {}).get("cost")
-                if usage_cost is None:
-                    raise RuntimeError("OpenRouter response omitted usage.cost; refusing unmetered call")
-                spent += float(usage_cost)
-                content = body["choices"][0]["message"]["content"].strip()
-                if content.startswith("```"):
-                    content = content.split("\n", 1)[1].rsplit("```", 1)[0]
-                brief = json.loads(content)
-                required = {
-                    "user_prompt", "use_case", "style_kind", "style", "detail_mode",
-                    "target_length", "em_dashes_allowed", "outline",
-                }
-                if not required.issubset(brief):
-                    raise ValueError(f"brief response missing fields: {sorted(required - set(brief))}")
-                # The disclosed 25% empty-outline arm is deterministic by document identity.
-                empty_outline = int.from_bytes(
-                    __import__("hashlib").sha256(record_id.encode()).digest()[:4], "big"
-                ) % 4 == 0
-                if empty_outline:
-                    brief["outline"] = []
+                brief = None
+                last_error = None
+                for _attempt in range(2):
+                    try:
+                        response = requests.post(
+                            "https://openrouter.ai/api/v1/chat/completions",
+                            headers={
+                                "Authorization": f"Bearer {api_key}",
+                                "Content-Type": "application/json",
+                                "HTTP-Referer": "https://github.com/bassimeledath/humanwrite",
+                                "X-OpenRouter-Title": "Humanwrite DFT-R brief synthesis",
+                            },
+                            json={
+                                "model": model,
+                                "messages": [{"role": "user", "content": _brief_prompt(text[:120_000])}],
+                                "response_format": {"type": "json_object"},
+                                "temperature": 0.2,
+                                "max_tokens": 1800,
+                            },
+                            timeout=180,
+                        )
+                        response.raise_for_status()
+                        body = response.json()
+                        usage_cost = (body.get("usage") or {}).get("cost")
+                        if usage_cost is None:
+                            raise RuntimeError(
+                                "OpenRouter response omitted usage.cost; refusing unmetered call"
+                            )
+                        spent += float(usage_cost)
+                        content = body["choices"][0]["message"]["content"].strip()
+                        if content.startswith("```"):
+                            content = content.split("\n", 1)[1].rsplit("```", 1)[0]
+                        brief = validate_brief(
+                            json.loads(content),
+                            source_text=text,
+                            force_empty_outline=source_id in empty_outline_ids,
+                        )
+                        break
+                    except Exception as exc:
+                        last_error = exc
+                if brief is None:
+                    failed_records += 1
+                    with log_path.open("a", encoding="utf-8") as logs:
+                        logs.write(
+                            f"record failure id={source_id} error={type(last_error).__name__}\n"
+                        )
+                    continue
                 emitted = dict(record)
                 emitted.update(brief)
                 emitted["generation_mode"] = "generate"
@@ -456,7 +473,7 @@ def brief_synthesis_worker(run_id: str, payload: dict) -> dict:
                 sink.write(json.dumps(emitted, ensure_ascii=False, sort_keys=True) + "\n")
                 sink.flush()
                 processed += 1
-                completed_ids.add(record_id)
+                completed_ids.add(source_id)
                 if processed % 50 == 0:
                     checkpoint_volume.commit()
                     _record({
@@ -467,7 +484,7 @@ def brief_synthesis_worker(run_id: str, payload: dict) -> dict:
                     with log_path.open("a", encoding="utf-8") as logs:
                         logs.write(f"processed={processed} api_cost_usd={spent:.6f}\n")
         checkpoint_volume.commit()
-        status = "completed" if processed or completed_ids else "failed"
+        status = "completed" if completed_ids == target_ids and not failed_records else "failed"
     except Exception as exc:
         with log_path.open("a", encoding="utf-8") as logs:
             logs.write(f"brief synthesis failure: {type(exc).__name__}: {exc}\n")
@@ -484,8 +501,10 @@ def brief_synthesis_worker(run_id: str, payload: dict) -> dict:
             "finished_at": time.time(),
             "actual_api_cost_usd": round(min(cost_cap, spent), 6),
             "records_processed": processed,
+            "records_failed": failed_records,
         })
     return {"run_id": run_id, "status": status, "records_processed": processed,
+            "records_failed": failed_records,
             "actual_api_cost_usd": round(spent, 6)}
 
 

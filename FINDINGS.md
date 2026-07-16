@@ -1359,3 +1359,26 @@ RESULTS:
 DECISION: keep and deploy before the next source attempt.
 NEXT: Wait for operational status, then reuse the exact open preregistration
 and unchanged config hash `42b0eeec...`.
+
+## [2026-07-16] M1 / brief-synthesis-contract-hardening
+HYPOTHESIS: Enforcing the disclosed brief schema, exact 25% empty-outline arm,
+and resumable per-record failure handling before paid synthesis will prevent a
+single malformed response from silently corrupting the real-data pilot.
+SETUP: Fixed-code privileged worker change only; no provider call or source
+record was available. Added deterministic rank-based empty-outline assignment
+with exactly `floor(N/4)` records, strict type/value validation for every brief
+field, nonempty structured outlines outside the empty arm, verbatim quotation
+traceability to the source document, two bounded response attempts, per-record
+failure logging, and completion only when the exact target ID set exists.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Empty-outline condition | PASS | Deterministic and exact: 16/64 dev and 64/256 train when the pilot source exists. |
+| Schema validation | PASS | Prompt/use-case/style/detail/length/em-dash/outline fields fail closed on wrong types or values. |
+| Grounding check | PASS | Every emitted quotation outside the empty arm must occur verbatim in the human source document. |
+| Resume semantics | PASS | Existing fingerprint IDs are skipped; a run completes only when completed IDs exactly match target IDs and no record failed. |
+| Verification | PASS | 22 infrastructure tests pass, including malformed target length, detail mode, quotation, and outline cases. |
+DECISION: keep and deploy before any synthesis preregistration. This repairs
+data validity and does not weaken or reinterpret Tier-1 model gates.
+NEXT: Continue source-host backoff; after source hashes exist, bind two capped
+synthesis configs to the exact train/dev source bytes and use this contract.
