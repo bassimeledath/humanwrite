@@ -31,6 +31,7 @@ from .policy import (
 )
 from .source_materializer import materialize_rows
 from .brief_contract import exact_empty_outline_ids, record_id, validate_brief
+from .volume_paths import checkpoint_volume_path
 
 
 APP_NAME = "humanwrite-gpu-gateway"
@@ -270,14 +271,7 @@ def training_worker(run_id: str, payload: dict) -> dict:
 
 
 def _volume_path(uri: str) -> Path:
-    prefix = "modal-volume://humanwrite-checkpoints/"
-    if not uri.startswith(prefix):
-        raise ValueError("URI is outside the checkpoint volume")
-    relative = uri[len(prefix):]
-    path = (Path(CHECKPOINT_PATH) / relative).resolve()
-    if not path.is_relative_to(Path(CHECKPOINT_PATH)):
-        raise ValueError("unsafe volume URI")
-    return path
+    return checkpoint_volume_path(uri, CHECKPOINT_PATH)
 
 
 @app.function(

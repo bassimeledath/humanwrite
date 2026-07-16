@@ -1509,3 +1509,27 @@ five-point screen only if the default sampler shows meaningful hard-gate and
 distributional improvement versus the failed tiny-data baseline.
 NEXT: Continue source recovery; later generate this config mechanically from
 the real validated briefs and completed checkpoint manifest.
+
+## [2026-07-16] M1 / realdata-pilot-source-attempt-2
+HYPOTHESIS: The recovered pinned resolver plus bounded worker timeouts will
+allow the unchanged 320-document source config to materialize.
+SETUP: Relaunched canonical config hash `42b0eeec...` as zero-reservation run
+`dftr-1784191402-9b8a3fd1` after the exact revision-qualified shard returned a
+valid resolver redirect. The worker reached source processing but stopped
+before reading or writing records when its URI guard called `Path.resolve()`:
+Modal resolves the `/checkpoints` mount alias to `/__modal/volumes/...`, so the
+subsequent comparison against literal `/checkpoints` falsely labeled every
+valid volume path unsafe.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Source transport | RECOVERING | Pinned resolver responded and confirmed repository revision `9bb295dd...`; prior host-level failure moved forward. |
+| Materialization | FAIL | `ValueError: unsafe volume URI` before any record selection or output. |
+| Side effects | PASS | `0` records, `0` tokens, `0` accelerator-seconds, `$0` GPU/API spend; terminal ledger row recorded. |
+| Root cause | CONFIRMED | Symlink-aware resolution changed the trusted mount prefix; the URI itself contained no traversal. |
+| Repair | PASS | Replaced filesystem-resolution comparison with lexical `PurePosixPath` validation that rejects outside schemes, `..`, and empty paths while returning the mounted `/checkpoints/...` alias unchanged. All 28 infrastructure tests pass. |
+DECISION: keep as a zero-cost wrapper negative result. Publish and deploy the
+lexical guard, then retry the exact source config without changing scientific
+inputs or authorization.
+NEXT: Deploy the guard fix and launch attempt 3 under the same open
+preregistration; verify source manifest hashes before synthesis.
