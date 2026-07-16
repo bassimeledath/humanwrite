@@ -286,10 +286,12 @@ def source_materialization_worker(run_id: str, payload: dict) -> dict:
     log_path.parent.mkdir(parents=True, exist_ok=True)
     status = "failed"
     try:
-        from datasets import load_dataset
-
         token = os.environ.pop("HF_TOKEN", None)
         os.environ.pop("OPENROUTER_API_KEY", None)
+        os.environ["HF_HUB_DOWNLOAD_TIMEOUT"] = "60"
+        os.environ["HF_HUB_ETAG_TIMEOUT"] = "60"
+        from datasets import DownloadConfig, load_dataset
+
         files = source.get("files") or []
         base = f"https://huggingface.co/datasets/{source['dataset_id']}/resolve/{source['revision']}"
         urls = [f"{base}/{str(path).lstrip('/')}" for path in files]
@@ -298,7 +300,7 @@ def source_materialization_worker(run_id: str, payload: dict) -> dict:
             data_files={str(source["split"]): urls},
             split=str(source["split"]),
             streaming=True,
-            token=token,
+            download_config=DownloadConfig(token=token, max_retries=5),
         )
         payloads, manifest = materialize_rows(rows, config)
         train_path = _volume_path(str(data["train_output_uri"]))

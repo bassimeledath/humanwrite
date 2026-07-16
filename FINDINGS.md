@@ -1340,3 +1340,22 @@ Retain the open preregistration and retry with backoff after Hub/CDN recovery.
 NEXT: Monitor Hugging Face status on a longer cadence; when operational,
 launch the same config unchanged, verify the volume manifest, and only then
 authorize capped brief synthesis.
+
+## [2026-07-16] M1 / source-transport-recovery-hardening
+HYPOTHESIS: A bounded retry policy and longer Hub download/etag timeouts will
+prevent brief transient CDN stalls from terminating the next unchanged source
+job after the provider reports recovery.
+SETUP: Fixed-code gateway-only change after attempt 1. Set Hub download and
+etag timeouts to 60 seconds and `DownloadConfig.max_retries=5` inside the
+privileged source worker. The dataset, revision, shard, selection, exclusions,
+output contract, config hash, preregistration, and zero-dollar reservation are
+unchanged. No job was launched while official status still reported downtime.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Scientific semantics | UNCHANGED | Transport tolerance only; no candidate content has been read. |
+| Retry bound | PASS | Five retries with 60-second Hub timeouts remain inside the existing 20-minute smoke hard kill. |
+| Credential handling | PASS | HF token stays in `DownloadConfig`; provider key is removed before dataset code loads. |
+DECISION: keep and deploy before the next source attempt.
+NEXT: Wait for operational status, then reuse the exact open preregistration
+and unchanged config hash `42b0eeec...`.
