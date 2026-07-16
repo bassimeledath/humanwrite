@@ -1,12 +1,12 @@
 {
-  "updated_at": "2026-07-16T10:06:34Z",
+  "updated_at": "2026-07-16T10:07:36Z",
   "phase": "M1 — SFT baseline and calibration",
-  "headline": "Real-data SFT passed checkpoint integrity; directional evaluation is next",
-  "summary": "Run dftr-1784196107-48549e4e completed cleanly for all three Qwen3-1.7B LoRA seeds. Each seed processed 46,732 tokens, the three adapter hashes are distinct, and train losses converged tightly near 3.00. The run used 146.721 L40S-seconds and cost 0.095427 dollars. This proves a healthy, reproducible tuning run; the fixed 144-document directional evaluation now tests whether it actually improved writing quality and hard-gate behavior.",
+  "headline": "The 144-output directional quality screen is running",
+  "summary": "The real-data SFT completed cleanly with three distinct adapters, 46,732 tokens per seed, and losses tightly near 3.00. Run dftr-1784196454-0822114d is now generating the preregistered 144-document directional screen across three training seeds, three sampling seeds, one default sampler, and 16 fixed dev documents. This is the first run that can show whether the tuning improved writing quality and hard-gate behavior.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
-    "modal_committed_usd": 0.779001,
+    "modal_committed_usd": 5.461881,
     "openrouter_cap_usd": 100,
     "openrouter_spend_usd": 0.640997
   },
@@ -25,6 +25,7 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {"at": "03:07", "title": "Directional quality screen launched", "detail": "Run dftr-1784196454-0822114d is active from published git SHA 3544b3d and canonical config hash 483d9dff. It will generate exactly 144 outputs from three distinct adapters, three sampling seeds, the default sampler, and 16 fixed dev briefs under a 4.682880 dollar worst-case reservation.", "tone": "active"},
     {"at": "03:06", "title": "Real-data SFT completed with three distinct adapters", "detail": "All three seeds completed at 46,732 training tokens each with losses 3.0030, 2.9997, and 3.0033. Adapter hashes differ across seeds, total training was 140,196 tokens and 146.721 L40S-seconds, and actual cost was 0.095427 dollars. The checkpoint-bound 144-document directional config passed 10 focused tests.", "tone": "complete"},
     {"at": "03:02", "title": "Three-seed real-data SFT launched", "detail": "Run dftr-1784196107-48549e4e is active on one L40S from published git SHA 23e1813 and canonical config hash b57d06ba. It trains Qwen3-1.7B revision 70d244cc for seeds 11, 29, and 47 with a 4.682880 dollar worst-case reservation.", "tone": "active"},
     {"at": "03:00", "title": "Combined 256/64 brief validation passed", "detail": "All 320 briefs passed exact ID, source preservation, schema, grounding, split-hash, and deterministic 25 percent empty-outline checks. Train SHA is 498294a8 and dev SHA is 524c224a; the generated Qwen3-1.7B SFT config hash is b57d06ba and the full test gate passed 112 of 112.", "tone": "complete"},
@@ -70,5 +71,5 @@
     {"at": "17:46", "title": "Storage created", "detail": "Gateway state, checkpoints, sealed state, and sealed artifacts volumes are online.", "tone": "complete"},
     {"at": "17:40", "title": "Engineering checks passed", "detail": "Harness, infrastructure, and private evaluator suites are green.", "tone": "complete"}
   ],
-  "next_action": "Publish the checkpoint-bound directional config, then launch and score the fixed 16-document default-sampler screen across three training and three sampling seeds."
+  "next_action": "Monitor directional run dftr-1784196454-0822114d, validate all 144 generated outputs and seed coverage, then run the Tier-1 hard-gate comparison against the failed tiny-data baseline."
 }
