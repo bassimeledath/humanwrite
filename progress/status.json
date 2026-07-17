@@ -1,14 +1,14 @@
 {
-  "updated_at": "2026-07-17T19:29:19Z",
+  "updated_at": "2026-07-17T21:33:24Z",
   "phase": "M2 — fresh-instrument and estimator rebuild",
-  "headline": "Lower-variance objectives and measurement-v3 are implemented while Qwen cleaning runs",
-  "summary": "Three parallel engineering tracks completed: differentiable token moments plus MMD witness weights, an unpaired two-embedder measurement-v3 core with corrected inference, and deterministic clean-pool qualification/partitioning. Their combined suites pass 117 tests. Qwen3-32B cleaning has 550 committed accepted training documents and remains narrowly on track for 1,024. Runner integration and frozen panel assembly are next and can proceed before cleaning finishes.",
+  "headline": "Clean training corpus validated; evaluation cleaning resumed",
+  "summary": "Qwen3-32B cleaning completed the 1,024-document training corpus for $0.266851. All 1,024 rows pass strict exact-line provenance, unique-domain/fingerprint, split, and 80-220-word validation. The integrated lower-variance runner, brief assembly, and measurement-v3 suites pass 128 tests. The 640-document evaluation cleaner is now running as dftr-1784323983-2f70b1f2; training has not started yet.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
     "modal_committed_usd": 4.890506,
     "openrouter_cap_usd": 100,
-    "openrouter_spend_usd": 1.061925
+    "openrouter_spend_usd": 1.328778
   },
   "services": [
     {"name": "GPU gateway", "detail": "Constrained launch API", "status": "online"},
@@ -25,6 +25,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "14:33",
+      "title": "Training corpus complete and valid; evaluation cleaner launched",
+      "detail": "Run dftr-1784307700-4a3b8e70 completed 1,024 accepted Qwen3-32B-cleaned documents with 319 rejected candidates for $0.266851. Independent local qualification passed exact ordered-line provenance, 1,024 unique domains and source/clean fingerprints, the frozen train split, and 80-220-word bounds. Evaluation cleaner dftr-1784323983-2f70b1f2 is now active for 640 documents.",
+      "tone": "active"
+    },
     {
       "at": "12:29",
       "title": "Three parallel foundations completed; cleaner at 550/1024",

@@ -241,6 +241,48 @@ def test_brief_synthesis_reserves_api_not_gpu():
     assert policy.api_reserved_cost_usd == 25.0
 
 
+def test_lower_variance_briefs_require_two_frozen_providers_and_exact_corpus():
+    value = payload()
+    value["budget_class"] = "promo"
+    value["config"] = {
+        "run": {
+            "comparison_id": "M2-lower-variance-train-briefs-v1",
+            "budget_class": "promo",
+            "task_kind": "brief_synthesis",
+        },
+        "compute": {"gpus": 1, "timeout_min": 480},
+        "data": {
+            "input_uri": "modal-volume://humanwrite-checkpoints/data/clean-train.jsonl",
+            "output_uri": "modal-volume://humanwrite-checkpoints/data/train-briefs.jsonl",
+            "input_sha256": "a" * 64,
+            "max_records": 1024,
+        },
+        "api": {
+            "protocol": "dftr.lower_variance_briefs.two_provider.v1",
+            "metadata_model": "qwen/qwen3-32b",
+            "outline_model": "openai/gpt-5-mini",
+            "max_cost_usd": 20.0,
+        },
+    }
+    value["preregistration"]["comparison"] = value["config"]["run"]["comparison_id"]
+    value["config_hash"] = canonical_hash(value["config"])
+    policy = validate_launch(value)
+    assert policy.task_kind == "brief_synthesis"
+    assert policy.worst_case_cost_usd == 0
+    assert policy.api_reserved_cost_usd == 20.0
+
+    value["config"]["api"]["metadata_model"] = "openai/gpt-5-mini"
+    value["config_hash"] = canonical_hash(value["config"])
+    with pytest.raises(PolicyError, match="provider models"):
+        validate_launch(value)
+
+    value["config"]["api"]["metadata_model"] = "qwen/qwen3-32b"
+    value["config"]["data"]["max_records"] = 1000
+    value["config_hash"] = canonical_hash(value["config"])
+    with pytest.raises(PolicyError, match="128 or 1024"):
+        validate_launch(value)
+
+
 def test_brief_synthesis_rejects_unsafe_volume_uri():
     value = payload()
     value["config"]["run"]["task_kind"] = "brief_synthesis"

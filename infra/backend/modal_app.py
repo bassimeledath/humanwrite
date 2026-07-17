@@ -55,6 +55,8 @@ CHECKPOINT_PATH = "/checkpoints"
 REPO_URL = "https://github.com/bassimeledath/humanwrite.git"
 BRIEF_FALLBACK_MODEL = "anthropic/claude-haiku-4.5"
 CLEANING_MODEL = "qwen/qwen3-32b"
+LOWER_VARIANCE_BRIEF_PROTOCOL = "dftr.lower_variance_briefs.two_provider.v1"
+LOWER_VARIANCE_OUTLINE_MODEL = "openai/gpt-5-mini"
 
 state_volume = modal.Volume.from_name("humanwrite-gateway-state", create_if_missing=True)
 checkpoint_volume = modal.Volume.from_name("humanwrite-checkpoints", create_if_missing=True)
@@ -63,11 +65,13 @@ provider_secret = modal.Secret.from_name("the-other-ones")
 receipt_signing_secret = modal.Secret.from_name("humanwrite-wrapper-receipt-signing")
 
 source_root = Path(__file__).resolve().parent
+data_root = source_root.parents[1] / "data"
 base_image = (
     modal.Image.debian_slim(python_version="3.11")
     .apt_install("git")
     .pip_install("fastapi[standard]", "pyyaml", "requests")
     .add_local_dir(source_root, remote_path="/root/infra_backend", copy=True)
+    .add_local_dir(data_root, remote_path="/root/data", copy=True)
 )
 worker_image = (
     modal.Image.debian_slim(python_version="3.11")
@@ -85,6 +89,7 @@ worker_image = (
         "scikit-learn>=1.4,<2",
     )
     .add_local_dir(source_root, remote_path="/root/infra_backend", copy=True)
+    .add_local_dir(data_root, remote_path="/root/data", copy=True)
 )
 
 app = modal.App(APP_NAME)
@@ -544,6 +549,245 @@ def _prompt_repair_prompt(source_text: str) -> str:
     )
 
 
+def _lower_variance_metadata_prompt(source: dict) -> str:
+    return (
+        "Analyze the human writing sample below and return only the requested JSON object. "
+        "Create a natural standalone user request that could have caused a skilled writer to "
+        "produce this sample; it must name the topic and desired output without mentioning a "
+        "source document, conversion, training, DFT, JSON, or these instructions. Extract the "
+        "use case and writing style. target_length must estimate the sample length in TOKENS, "
+        "not words. Preserve the supplied document_fingerprint exactly.\n\n"
+        f"document_fingerprint: {source['fingerprint']}\n\n"
+        "HUMAN WRITING SAMPLE:\n" + str(source["completion"])
+    )
+
+
+def _lower_variance_outline_prompt(source: dict, *, force_empty: bool) -> str:
+    if force_empty:
+        instruction = "Return outline as exactly the empty list."
+    else:
+        instruction = (
+            "Create a useful section outline. Every supported_facts and quotations item must "
+            "be copied byte-for-byte as one contiguous substring of the human writing sample; "
+            "do not paraphrase or invent facts. Use an empty quotations list when unnecessary."
+        )
+    return (
+        "Return only the requested JSON object. Preserve the supplied document_fingerprint "
+        f"exactly. {instruction}\n\n"
+        f"document_fingerprint: {source['fingerprint']}\n\n"
+        "HUMAN WRITING SAMPLE:\n" + str(source["completion"])
+    )
+
+
+def _json_schema_response_format(name: str, schema: dict) -> dict:
+    return {
+        "type": "json_schema",
+        "json_schema": {"name": name, "strict": True, "schema": schema},
+    }
+
+
+@app.function(
+    image=worker_image,
+    secrets=[provider_secret],
+    volumes={"/state": state_volume, CHECKPOINT_PATH: checkpoint_volume},
+    timeout=8 * 60 * 60,
+    retries=0,
+    single_use_containers=True,
+)
+def lower_variance_brief_synthesis_worker(run_id: str, payload: dict) -> dict:
+    """Privileged two-provider synthesis for the faithful lower-variance corpus."""
+    import requests
+    from data.lower_variance_briefs import (
+        QWEN_MODEL,
+        OUTLINE_MODEL,
+        deterministic_empty_outline_ids,
+        merge_brief,
+        outline_response_schema,
+        qwen_metadata_response_schema,
+        validate_assembled_brief,
+    )
+
+    config = payload["config"]
+    data = config["data"]
+    api = config["api"]
+    input_path = _volume_path(str(data["input_uri"]))
+    output_path = _volume_path(str(data["output_uri"]))
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    cost_cap = float(payload["api_reserved_cost_usd"])
+    spent = 0.0
+    reported = 0.0
+    processed = 0
+    failed = 0
+    status = "failed"
+    log_path = Path("/state/logs") / f"{run_id}.log"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+
+    def provider_json(*, model: str, prompt: str, schema_name: str, schema: dict) -> tuple[dict, float]:
+        response = requests.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {os.environ['OPENROUTER_API_KEY']}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://github.com/bassimeledath/humanwrite",
+                "X-OpenRouter-Title": "Humanwrite faithful two-provider briefs",
+            },
+            json={
+                "model": model,
+                "messages": [{"role": "user", "content": prompt}],
+                "response_format": _json_schema_response_format(schema_name, schema),
+                "reasoning": {"effort": "minimal", "exclude": True},
+                "max_completion_tokens": 3000,
+            },
+            timeout=180,
+        )
+        response.raise_for_status()
+        body = response.json()
+        usage_cost = (body.get("usage") or {}).get("cost")
+        if usage_cost is None:
+            raise RuntimeError("OpenRouter response omitted usage.cost")
+        choice = body["choices"][0]
+        if choice.get("finish_reason") != "stop":
+            raise RuntimeError(f"provider finish_reason={choice.get('finish_reason')}")
+        content = choice["message"].get("content")
+        if not isinstance(content, str):
+            raise TypeError("provider message content was not a string")
+        content = content.strip()
+        if content.startswith("```"):
+            content = content.split("\n", 1)[1].rsplit("```", 1)[0]
+        value = json.loads(content)
+        if not isinstance(value, dict):
+            raise TypeError("provider response was not a JSON object")
+        return value, float(usage_cost)
+
+    try:
+        if api["protocol"] != LOWER_VARIANCE_BRIEF_PROTOCOL:
+            raise ValueError("lower-variance brief protocol mismatch")
+        if api["metadata_model"] != QWEN_MODEL or api["outline_model"] != OUTLINE_MODEL:
+            raise ValueError("lower-variance provider model mismatch")
+        checkpoint_volume.reload()
+        if not input_path.is_file() or _file_sha256(input_path) != data["input_sha256"]:
+            raise ValueError("lower-variance brief input hash mismatch")
+        records = [
+            json.loads(line)
+            for line in input_path.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ][: int(data["max_records"])]
+        if len(records) != int(data["max_records"]):
+            raise ValueError("lower-variance brief input cardinality mismatch")
+        source_index = {str(row.get("fingerprint") or ""): row for row in records}
+        if "" in source_index or len(source_index) != len(records):
+            raise ValueError("lower-variance sources require unique fingerprints")
+        empty_ids = deterministic_empty_outline_ids(records)
+        completed: set[str] = set()
+        if output_path.exists():
+            for raw in output_path.read_text(encoding="utf-8").splitlines():
+                if not raw.strip():
+                    continue
+                row = json.loads(raw)
+                fingerprint = str(row.get("fingerprint") or "")
+                if fingerprint in completed or fingerprint not in source_index:
+                    raise ValueError("existing lower-variance output has invalid identity")
+                validate_assembled_brief(
+                    row,
+                    source=source_index[fingerprint],
+                    force_empty_outline=fingerprint in empty_ids,
+                )
+                completed.add(fingerprint)
+        with output_path.open("a", encoding="utf-8") as sink:
+            for source in records:
+                fingerprint = str(source["fingerprint"])
+                if fingerprint in completed:
+                    continue
+                if spent >= cost_cap:
+                    break
+                emitted = None
+                last_error: Exception | None = None
+                for _attempt in range(2):
+                    try:
+                        metadata, metadata_cost = provider_json(
+                            model=QWEN_MODEL,
+                            prompt=_lower_variance_metadata_prompt(source),
+                            schema_name="lower_variance_brief_metadata",
+                            schema=qwen_metadata_response_schema(),
+                        )
+                        spent += metadata_cost
+                        if spent >= cost_cap:
+                            raise RuntimeError("API cost cap reached between provider stages")
+                        outline, outline_cost = provider_json(
+                            model=OUTLINE_MODEL,
+                            prompt=_lower_variance_outline_prompt(
+                                source, force_empty=fingerprint in empty_ids
+                            ),
+                            schema_name="lower_variance_outline",
+                            schema=outline_response_schema(
+                                force_empty_outline=fingerprint in empty_ids
+                            ),
+                        )
+                        spent += outline_cost
+                        emitted = merge_brief(
+                            source=source,
+                            qwen_metadata=metadata,
+                            outline_response=outline,
+                            force_empty_outline=fingerprint in empty_ids,
+                            qwen_model=QWEN_MODEL,
+                            outline_model=OUTLINE_MODEL,
+                        )
+                        break
+                    except Exception as exc:
+                        last_error = exc
+                if emitted is None:
+                    failed += 1
+                    detail = re.sub(r"\s+", " ", str(last_error or "unknown"))[:200]
+                    with log_path.open("a", encoding="utf-8") as logs:
+                        logs.write(
+                            f"record failure id={fingerprint} error={type(last_error).__name__} "
+                            f"detail={detail}\n"
+                        )
+                    continue
+                sink.write(json.dumps(emitted, ensure_ascii=False, sort_keys=True) + "\n")
+                sink.flush()
+                completed.add(fingerprint)
+                processed += 1
+                if processed % 25 == 0:
+                    checkpoint_volume.commit()
+                    _record({
+                        "kind": "api_cost",
+                        "run_id": run_id,
+                        "cost_usd": round(spent - reported, 6),
+                    })
+                    reported = spent
+                    with log_path.open("a", encoding="utf-8") as logs:
+                        logs.write(f"processed={processed} api_cost_usd={spent:.6f}\n")
+        checkpoint_volume.commit()
+        status = "completed" if len(completed) == len(records) and not failed else "failed"
+    except Exception as exc:
+        with log_path.open("a", encoding="utf-8") as logs:
+            logs.write(f"lower-variance brief failure: {type(exc).__name__}: {exc}\n")
+    finally:
+        if spent > reported:
+            _record({
+                "kind": "api_cost",
+                "run_id": run_id,
+                "cost_usd": round(spent - reported, 6),
+            })
+        _record({
+            "kind": "run_update",
+            "run_id": run_id,
+            "status": status,
+            "finished_at": time.time(),
+            "actual_api_cost_usd": round(spent, 6),
+            "records_processed": processed,
+            "records_failed": failed,
+        })
+    return {
+        "run_id": run_id,
+        "status": status,
+        "records_processed": processed,
+        "records_failed": failed,
+        "actual_api_cost_usd": round(spent, 6),
+    }
+
+
 @app.function(
     image=worker_image,
     secrets=[provider_secret],
@@ -961,7 +1205,13 @@ def gateway():
         })
         try:
             if policy.task_kind == "brief_synthesis":
-                call = brief_synthesis_worker.with_options(
+                brief_api = (payload.get("config") or {}).get("api") or {}
+                worker = (
+                    lower_variance_brief_synthesis_worker
+                    if brief_api.get("protocol") == LOWER_VARIANCE_BRIEF_PROTOCOL
+                    else brief_synthesis_worker
+                )
+                call = worker.with_options(
                     timeout=policy.timeout_seconds + 120,
                 ).spawn(run_id, worker_payload)
             elif policy.task_kind == "document_cleaning":

@@ -14,6 +14,9 @@ from typing import Any
 
 MONTHLY_GPU_CAP_USD = 40.0
 MONTHLY_API_CAP_USD = 100.0
+LOWER_VARIANCE_BRIEF_PROTOCOL = "dftr.lower_variance_briefs.two_provider.v1"
+LOWER_VARIANCE_METADATA_MODEL = "qwen/qwen3-32b"
+LOWER_VARIANCE_OUTLINE_MODEL = "openai/gpt-5-mini"
 BUDGET_CLASSES = {
     "smoke": {"max_seconds": 20 * 60, "max_gpus": 1},
     "screen": {"max_seconds": 2 * 60 * 60, "max_gpus": 1},
@@ -744,21 +747,41 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
         max_records = int(data.get("max_records", 0))
         if max_records <= 0 or max_records > 50_000:
             raise PolicyError("brief_synthesis data.max_records must be between 1 and 50000")
-        if not str(api.get("model", "")):
-            raise PolicyError("brief_synthesis requires a frozen api.model")
-        if api.get("prompt_repair_only") is True:
-            if api.get("force_empty_quotations") is True:
-                raise PolicyError("prompt repair cannot also run quote-free recovery")
+        if api.get("protocol") == LOWER_VARIANCE_BRIEF_PROTOCOL:
+            if (
+                set(config) != {"run", "compute", "data", "api"}
+                or set(data) != {"input_uri", "output_uri", "input_sha256", "max_records"}
+                or set(api)
+                != {"protocol", "metadata_model", "outline_model", "max_cost_usd"}
+            ):
+                raise PolicyError("lower-variance brief exact schema mismatch")
+            if (
+                api.get("metadata_model") != LOWER_VARIANCE_METADATA_MODEL
+                or api.get("outline_model") != LOWER_VARIANCE_OUTLINE_MODEL
+            ):
+                raise PolicyError("lower-variance brief provider models are frozen")
             if data.get("input_uri") == data.get("output_uri"):
-                raise PolicyError("prompt repair input and output URIs must be distinct")
-            if max_records > 320:
-                raise PolicyError("prompt repair is limited to the frozen 320-record corpus")
-        if api.get("force_empty_quotations") is True:
-            max_missing = int((config.get("recovery") or {}).get("max_missing_records", 0))
-            if budget_class != "smoke" or not 1 <= max_missing <= 16:
-                raise PolicyError(
-                    "quote-free recovery requires smoke budget and 1..16 max missing records"
-                )
+                raise PolicyError("lower-variance brief input and output URIs must be distinct")
+            if max_records not in {128, 1024} or max_records % 4:
+                raise PolicyError("lower-variance brief corpus must contain 128 or 1024 records")
+            if budget_class != "promo":
+                raise PolicyError("lower-variance brief synthesis requires promo budget")
+        else:
+            if not str(api.get("model", "")):
+                raise PolicyError("brief_synthesis requires a frozen api.model")
+            if api.get("prompt_repair_only") is True:
+                if api.get("force_empty_quotations") is True:
+                    raise PolicyError("prompt repair cannot also run quote-free recovery")
+                if data.get("input_uri") == data.get("output_uri"):
+                    raise PolicyError("prompt repair input and output URIs must be distinct")
+                if max_records > 320:
+                    raise PolicyError("prompt repair is limited to the frozen 320-record corpus")
+            if api.get("force_empty_quotations") is True:
+                max_missing = int((config.get("recovery") or {}).get("max_missing_records", 0))
+                if budget_class != "smoke" or not 1 <= max_missing <= 16:
+                    raise PolicyError(
+                        "quote-free recovery requires smoke budget and 1..16 max missing records"
+                    )
         api_reserved = float(api.get("max_cost_usd", 0.0))
         if api_reserved <= 0 or api_reserved > MONTHLY_API_CAP_USD:
             raise PolicyError("brief_synthesis requires api.max_cost_usd within the monthly cap")
