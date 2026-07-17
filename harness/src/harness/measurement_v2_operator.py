@@ -581,6 +581,8 @@ def _validate_generation_provenance(
 def _validate_generation_run_manifest(
     manifest_path: str | Path,
     outputs_path: str | Path,
+    generation_config: str | Path,
+    generation_ledger: str | Path,
     *,
     arm: str,
     checkpoint_sha256: str,
@@ -597,6 +599,23 @@ def _validate_generation_run_manifest(
         raise MeasurementV2Error("generation manifest and output must be regular files")
     manifest = _load_json(manifest_file)
     output_sha = _sha(output_file)
+    try:
+        import yaml
+
+        parsed_config = yaml.safe_load(Path(generation_config).read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError) as error:
+        raise MeasurementV2Error("cannot load the exact generation config") from error
+    if not isinstance(parsed_config, dict):
+        raise MeasurementV2Error("generation config must be a mapping")
+    config_sha = _canonical_sha(parsed_config)
+    ledger_rows = _load_jsonl(generation_ledger)
+    run_id = str(manifest.get("run_id") or "")
+    launch_rows = [
+        row
+        for row in ledger_rows
+        if row.get("kind") == "run" and row.get("run_id") == run_id
+    ]
+    launch = launch_rows[0] if len(launch_rows) == 1 else {}
     accounting = manifest.get("token_accounting") or {}
     if (
         manifest.get("artifact_schema") != "dftr.m2.adapter_native_generation.v1"
@@ -610,11 +629,12 @@ def _validate_generation_run_manifest(
         or manifest.get("generated_tokens_per_document") != 64
         or manifest.get("output_sha256") != output_sha
         or accounting != {"total_tokens": N * 64}
-        or not re.fullmatch(r"dftr-[0-9]+-[0-9a-f]{8}", str(manifest.get("run_id") or ""))
-        or not re.fullmatch(r"[0-9a-f]{40}", str(manifest.get("git_sha") or ""))
-        or not re.fullmatch(r"[0-9a-f]{64}", str(manifest.get("config_sha256") or ""))
-        or not str(manifest.get("comparison_id") or "")
-        or not Path(str(manifest.get("output_path") or "")).is_absolute()
+        or not re.fullmatch(r"dftr-[0-9]+-[0-9a-f]{8}", run_id)
+        or manifest.get("config_sha256") != config_sha
+        or launch.get("config_hash") != config_sha
+        or launch.get("git_sha") != manifest.get("git_sha")
+        or launch.get("comparison") != manifest.get("comparison_id")
+        or manifest.get("output_path") != f"/checkpoints/runs/{run_id}/outputs.jsonl"
     ):
         raise MeasurementV2Error(
             "generation run manifest does not authenticate the supplied output bytes"
@@ -843,6 +863,8 @@ def freeze_operator_bundle(
     prompt_briefs: str | Path,
     control_outputs: str | Path,
     control_generation_manifest: str | Path,
+    control_generation_config: str | Path,
+    generation_ledger: str | Path,
     human_embeddings: str | Path,
     power_assumptions: str | Path,
     decision_contract: str | Path,
@@ -892,6 +914,8 @@ def freeze_operator_bundle(
     control_generation_manifest_sha = _validate_generation_run_manifest(
         control_generation_manifest,
         control_outputs,
+        control_generation_config,
+        generation_ledger,
         arm="A0",
         checkpoint_sha256=control_checkpoint_sha256,
         generation_contract_sha256=generation_contract_sha256,
@@ -1330,6 +1354,8 @@ def score_candidate_bundle(
     artifact_root: str | Path,
     candidate_outputs: str | Path,
     candidate_generation_manifest: str | Path,
+    candidate_generation_config: str | Path,
+    generation_ledger: str | Path,
     score_embeddings: str | Path,
     candidate_checkpoint_sha256: str,
     private_key: str | Path,
@@ -1354,6 +1380,8 @@ def score_candidate_bundle(
     _validate_generation_run_manifest(
         candidate_generation_manifest,
         candidate_outputs,
+        candidate_generation_config,
+        generation_ledger,
         arm="A64",
         checkpoint_sha256=candidate_checkpoint_sha256,
         generation_contract_sha256=matched["generation_contract_sha256"],
@@ -1662,6 +1690,8 @@ def _parser() -> argparse.ArgumentParser:
         "prompt-briefs",
         "control-outputs",
         "control-generation-manifest",
+        "control-generation-config",
+        "generation-ledger",
         "human-embeddings",
         "power-assumptions",
         "decision-contract",
@@ -1684,6 +1714,8 @@ def _parser() -> argparse.ArgumentParser:
         "artifact-root",
         "candidate-outputs",
         "candidate-generation-manifest",
+        "candidate-generation-config",
+        "generation-ledger",
         "score-embeddings",
         "candidate-checkpoint-sha256",
         "private-key",
@@ -1728,6 +1760,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 prompt_briefs=args.prompt_briefs,
                 control_outputs=args.control_outputs,
                 control_generation_manifest=args.control_generation_manifest,
+                control_generation_config=args.control_generation_config,
+                generation_ledger=args.generation_ledger,
                 human_embeddings=args.human_embeddings,
                 power_assumptions=args.power_assumptions,
                 decision_contract=args.decision_contract,
@@ -1749,6 +1783,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 artifact_root=args.artifact_root,
                 candidate_outputs=args.candidate_outputs,
                 candidate_generation_manifest=args.candidate_generation_manifest,
+                candidate_generation_config=args.candidate_generation_config,
+                generation_ledger=args.generation_ledger,
                 score_embeddings=args.score_embeddings,
                 candidate_checkpoint_sha256=args.candidate_checkpoint_sha256,
                 private_key=args.private_key,

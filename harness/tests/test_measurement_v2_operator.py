@@ -33,16 +33,45 @@ def write_jsonl(path: Path, rows) -> None:
     path.write_text("".join(json.dumps(row, sort_keys=True) + "\n" for row in rows))
 
 
-def write_generation_manifest(path: Path, outputs: Path, *, arm: str, checkpoint: str) -> None:
+def write_generation_manifest(
+    path: Path,
+    outputs: Path,
+    config: Path,
+    ledger: Path,
+    *,
+    arm: str,
+    checkpoint: str,
+) -> None:
+    config_value = json.loads(config.read_text())
+    config_sha = hashlib.sha256(
+        json.dumps(config_value, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+    run_id = "dftr-1784280000-deadbeef" if arm == "A0" else "dftr-1784280001-feedface"
+    git_sha = "a" * 40
+    comparison = "M2-score-function-MMD-A0-vs-A64-v1"
+    with ledger.open("a", encoding="utf-8") as handle:
+        handle.write(
+            json.dumps(
+                {
+                    "kind": "run",
+                    "run_id": run_id,
+                    "config_hash": config_sha,
+                    "git_sha": git_sha,
+                    "comparison": comparison,
+                },
+                sort_keys=True,
+            )
+            + "\n"
+        )
     write_json(
         path,
         {
             "artifact_schema": "dftr.m2.adapter_native_generation.v1",
             "status": "completed",
-            "run_id": "dftr-1784280000-deadbeef",
-            "git_sha": "a" * 40,
-            "config_sha256": "b" * 64,
-            "comparison_id": "M2-score-function-MMD-A0-vs-A64-v1",
+            "run_id": run_id,
+            "git_sha": git_sha,
+            "config_sha256": config_sha,
+            "comparison_id": comparison,
             "arm": arm,
             "adapter_native": True,
             "checkpoint_sha256": checkpoint,
@@ -50,7 +79,7 @@ def write_generation_manifest(path: Path, outputs: Path, *, arm: str, checkpoint
             "decoding_policy_sha256": sha("decoding-policy"),
             "documents": 64,
             "generated_tokens_per_document": 64,
-            "output_path": str(outputs.resolve()),
+            "output_path": f"/checkpoints/runs/{run_id}/outputs.jsonl",
             "output_sha256": hashlib.sha256(outputs.read_bytes()).hexdigest(),
             "token_accounting": {"total_tokens": 4096},
         },
@@ -101,10 +130,16 @@ def source_inputs(tmp_path: Path):
     ]
     control_path = source_root / "control.jsonl"
     write_jsonl(control_path, control)
+    ledger_path = source_root / "ledger.jsonl"
+    ledger_path.write_text("", encoding="utf-8")
+    control_config = source_root / "control-config.json"
+    write_json(control_config, {"arm": "A0", "frozen": True})
     control_manifest = source_root / "control-run-manifest.json"
     write_generation_manifest(
         control_manifest,
         control_path,
+        control_config,
+        ledger_path,
         arm="A0",
         checkpoint=sha("control-checkpoint"),
     )
@@ -212,6 +247,8 @@ def source_inputs(tmp_path: Path):
         "prompts": prompt_path,
         "control": control_path,
         "control_manifest": control_manifest,
+        "control_config": control_config,
+        "ledger": ledger_path,
         "embeddings": embedding_path,
         "power": assumption_path,
         "decision": decision_path,
@@ -233,6 +270,8 @@ def freeze(tmp_path: Path):
         prompt_briefs=inputs["prompts"],
         control_outputs=inputs["control"],
         control_generation_manifest=inputs["control_manifest"],
+        control_generation_config=inputs["control_config"],
+        generation_ledger=inputs["ledger"],
         human_embeddings=inputs["embeddings"],
         power_assumptions=inputs["power"],
         decision_contract=inputs["decision"],
@@ -286,6 +325,8 @@ def test_missing_humans_and_incomplete_control_grid_fail_closed(tmp_path):
             prompt_briefs=inputs["prompts"],
             control_outputs=inputs["control"],
             control_generation_manifest=inputs["control_manifest"],
+            control_generation_config=inputs["control_config"],
+            generation_ledger=inputs["ledger"],
             human_embeddings=inputs["embeddings"],
             power_assumptions=inputs["power"],
             decision_contract=inputs["decision"],
@@ -314,6 +355,8 @@ def test_missing_humans_and_incomplete_control_grid_fail_closed(tmp_path):
             prompt_briefs=inputs["prompts"],
             control_outputs=incomplete,
             control_generation_manifest=inputs["control_manifest"],
+            control_generation_config=inputs["control_config"],
+            generation_ledger=inputs["ledger"],
             human_embeddings=inputs["embeddings"],
             power_assumptions=inputs["power"],
             decision_contract=inputs["decision"],
@@ -344,6 +387,8 @@ def test_underpowered_assumptions_write_fail_closed_status(tmp_path):
             prompt_briefs=inputs["prompts"],
             control_outputs=inputs["control"],
             control_generation_manifest=inputs["control_manifest"],
+            control_generation_config=inputs["control_config"],
+            generation_ledger=inputs["ledger"],
             human_embeddings=inputs["embeddings"],
             power_assumptions=inputs["power"],
             decision_contract=inputs["decision"],
@@ -392,6 +437,8 @@ def test_freeze_rejects_relabelled_control_text_not_bound_by_run_manifest(tmp_pa
             prompt_briefs=inputs["prompts"],
             control_outputs=forged,
             control_generation_manifest=inputs["control_manifest"],
+            control_generation_config=inputs["control_config"],
+            generation_ledger=inputs["ledger"],
             human_embeddings=inputs["embeddings"],
             power_assumptions=inputs["power"],
             decision_contract=inputs["decision"],
@@ -419,9 +466,13 @@ def test_score_rejects_candidate_grid_before_any_metric_work(tmp_path):
         row["checkpoint_sha256"] = sha("candidate-checkpoint")
     write_jsonl(candidate, rows)
     candidate_manifest = tmp_path / "candidate-run-manifest.json"
+    candidate_config = tmp_path / "candidate-config.json"
+    write_json(candidate_config, {"arm": "A64", "frozen": True})
     write_generation_manifest(
         candidate_manifest,
         candidate,
+        candidate_config,
+        inputs["ledger"],
         arm="A64",
         checkpoint=sha("candidate-checkpoint"),
     )
@@ -432,6 +483,8 @@ def test_score_rejects_candidate_grid_before_any_metric_work(tmp_path):
             artifact_root=root,
             candidate_outputs=candidate,
             candidate_generation_manifest=candidate_manifest,
+            candidate_generation_config=candidate_config,
+            generation_ledger=inputs["ledger"],
             score_embeddings=score_embeddings,
             candidate_checkpoint_sha256=sha("candidate-checkpoint"),
             private_key=inputs["private"],
@@ -471,9 +524,13 @@ def test_complete_candidate_grid_emits_valid_nonpromoting_report(tmp_path, monke
         )
     write_jsonl(candidate, candidate_rows)
     candidate_manifest = tmp_path / "candidate-run-manifest.json"
+    candidate_config = tmp_path / "candidate-config.json"
+    write_json(candidate_config, {"arm": "A64", "frozen": True})
     write_generation_manifest(
         candidate_manifest,
         candidate,
+        candidate_config,
+        inputs["ledger"],
         arm="A64",
         checkpoint=sha("candidate-checkpoint"),
     )
@@ -535,6 +592,8 @@ def test_complete_candidate_grid_emits_valid_nonpromoting_report(tmp_path, monke
         artifact_root=root,
         candidate_outputs=candidate,
         candidate_generation_manifest=candidate_manifest,
+        candidate_generation_config=candidate_config,
+        generation_ledger=inputs["ledger"],
         score_embeddings=score_embeddings,
         candidate_checkpoint_sha256=sha("candidate-checkpoint"),
         private_key=inputs["private"],
