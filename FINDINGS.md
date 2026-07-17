@@ -2233,3 +2233,34 @@ NEXT: The cheapest defensible choices are (a) a larger effective-rollout MMD
 estimator under a matched token budget, or (b) teacher-forced distribution
 moment matching. Freeze the next mechanism and fresh panel before any model
 output; reserve 14B and Tier 3 for a genuine 4B effect.
+
+## [2026-07-17] M2 / independent-review-reconciliation
+HYPOTHESIS: Independent reviews of the A64 result will preserve the exact
+recipe failure while identifying whether the broader DFT interpretation and
+measurement apparatus require correction.
+SETUP: Reconciled two external read-only reviews against repository code and
+recomputed their material claims from the frozen embeddings, prompt/human
+manifests, outputs, training data, and decision code. No new model output,
+provider call, hidden evaluation, or detector result was opened.
+RESULTS: All 64 prompt sources exactly equal the old 64-document human
+distribution panel. Their matched cross-kernel mean is `0.739`, versus
+`0.518-0.519` unmatched, shifting absolute MMD by approximately `-0.0069`.
+Excluding matched cross-pairs yields A0 MMD2 `+0.002391` and A64 `+0.002339`;
+the treatment contrast remains negligible at `-0.000052`, so the exact recipe
+still fails. The audit also confirmed an impossible realized authorship gate,
+a power simulation that did not execute the scored intersection rule, a
+wrong-tail absolute MMD diagnostic, token-versus-word target semantics,
+post-EOS reward pollution, unexpected non-Latin letters in `6/64` A0 and
+`7/64` A64 outputs, and materially unclean training targets. The earlier
+"sign-oscillating gradient" interpretation is withdrawn: logged scalar
+surrogate variance and loss signs are not parameter-gradient diagnostics.
+DECISION: Narrow the result to a failed delivered A64 recipe, not a general
+negative for score-function MMD, DFT, or 4B. Retire the opened panel for model
+decisions. Rebuild an unpaired, positive-control-qualified instrument and run
+a frozen-policy group-size/gradient audit before selecting the next treatment.
+NEXT: Implement the fresh-panel contract and training-semantic repairs in a
+new prospective cycle. If the larger-group score-function gradient is coherent
+and style-sensitive, test it directly; otherwise use a one-round shared-rollout
+reward-weighted SFT comparison. Prepare a clean 256/1024 data ladder in
+parallel. Compute scale is authorized, but 14B remains gated on a real 4B
+effect.

@@ -10,19 +10,19 @@
     "mean_absolute_word_count_delta_among_changed": 2.125,
     "total_documents": 64
   },
-  "interpretation": "The treatment was stable but generated a high-variance, sign-oscillating policy-gradient signal and left the sampled policy mostly unchanged.",
+  "interpretation": "The treatment was stable and left the sampled policy mostly unchanged. The logged scalar surrogate contributions were highly variable, but parameter-gradient variance and direction were not measured.",
   "training_diagnostic": {
     "advantage_std_mean": 0.04699693948083242,
     "effective_rollout_count_min": 4,
-    "estimator_variance_max": 76.78240966796875,
-    "estimator_variance_mean": 17.980162292718887,
-    "estimator_variance_min": 0.43965399265289307,
+    "scalar_surrogate_variance_max": 76.78240966796875,
+    "scalar_surrogate_variance_mean": 17.980162292718887,
+    "scalar_surrogate_variance_min": 0.43965399265289307,
     "gradient_norm_max": 0.5867833495140076,
     "gradient_norm_mean": 0.2517157085239887,
     "kl_max": 0.001175779034383595,
     "mmd_loss_absolute_mean": 0.13787829456850886,
     "mmd_loss_mean": -0.019223795738071203,
-    "mmd_loss_sign_changes": 3,
+    "mmd_surrogate_loss_sign_changes": 3,
     "reward_std_mean": 0.025597280410232636,
     "steps": 8
   }
