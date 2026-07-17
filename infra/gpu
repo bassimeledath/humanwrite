@@ -50,6 +50,20 @@ BUDGET = {
 }
 UNRESOLVED_REVISION_PREFIX = "__M1_RESOLVE_"
 DFT_PROTOCOL = "dftr.m2.score_function_mmd.v1"
+PREPARE_DFT_PROTOCOL = "dftr.m2.prepare_training_bandwidths.v1"
+PREPARE_DFT_SUPPORTED_GPUS = {"L40S", "A100-80GB", "H100"}
+PREPARE_DFT_METHOD_KEYS = (
+    "artifact_schema", "run", "compute", "model", "initial_adapter", "data",
+    "representation", "derivation", "runtime", "output",
+)
+PREPARE_DFT_DERIVATION = {
+    "algorithm": "median_positive_unordered_human_pairwise_squared_distance.v1",
+    "scales": [0.25, 0.5, 1.0, 2.0, 4.0],
+    "pair_scope": "all_unordered_training_human_pairs",
+    "zero_distance_policy": "fail",
+    "degenerate_policy": "fail",
+    "distance_dtype": "float64_cpu",
+}
 
 
 def _die(message: str, code: int = 2) -> "None":
@@ -59,6 +73,18 @@ def _die(message: str, code: int = 2) -> "None":
 
 def _use_local_backend() -> bool:
     return os.environ.get("DFTR_GPU_BACKEND", "").casefold() == "local"
+
+
+def _is_checkpoint_volume_path(path: Path) -> bool:
+    """Return whether an absolute path resolves strictly below /checkpoints."""
+    if not path.is_absolute():
+        return False
+    try:
+        checkpoint_root = Path("/checkpoints").resolve(strict=False)
+        resolved = path.resolve(strict=False)
+        return resolved != checkpoint_root and resolved.is_relative_to(checkpoint_root)
+    except (OSError, RuntimeError, ValueError):
+        return False
 
 
 def _gateway_config() -> tuple[str, str]:
@@ -141,14 +167,6 @@ def _config_hash(config: dict) -> str:
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
-def _file_sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as stream:
-        for chunk in iter(lambda: stream.read(1 << 20), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
 def _git_sha() -> str:
     try:
         return subprocess.check_output(
@@ -199,6 +217,7 @@ def _validate_submit(config: dict, budget_class: str) -> tuple[str, dict]:
     revision = str((config.get("model") or {}).get("revision", "")).strip()
     if workflow_step in {
         "train_sft", "sample_sweep", "merge_adapter", "replay_equivalence", "train_dft",
+        "prepare_dft",
     } and (
         not revision or revision.startswith(UNRESOLVED_REVISION_PREFIX)
     ):
@@ -209,6 +228,8 @@ def _validate_submit(config: dict, budget_class: str) -> tuple[str, dict]:
         if workflow.get("protocol_version") != DFT_PROTOCOL or execution_arm not in {"A0", "A64"}:
             _die("REJECTED: train_dft requires the frozen protocol and A0/A64 selector")
         if execution_arm == "A64":
+            if _use_local_backend():
+                _die("REJECTED: A64 requires the independently configured Modal gateway")
             readiness_path = os.environ.get("DFTR_M2_A64_READINESS_MANIFEST", "")
             readiness_sha = os.environ.get("DFTR_M2_A64_READINESS_SHA256", "")
             path = Path(readiness_path)
@@ -218,11 +239,44 @@ def _validate_submit(config: dict, budget_class: str) -> tuple[str, dict]:
                 or any(character not in "0123456789abcdef" for character in readiness_sha)
             ):
                 _die("REJECTED: A64 requires wrapper-bound readiness path and SHA-256")
-            if _use_local_backend():
-                if not path.is_file() or path.is_symlink() or _file_sha256(path) != readiness_sha:
-                    _die("REJECTED: local A64 readiness file does not match its SHA-256")
-            elif not readiness_path.startswith("/checkpoints/"):
+            if not readiness_path.startswith("/checkpoints/"):
                 _die("REJECTED: Modal A64 readiness must use the checkpoint volume")
+    if workflow_step == "prepare_dft":
+        workflow = config.get("workflow") or {}
+        method_payload = {key: config.get(key) for key in PREPARE_DFT_METHOD_KEYS}
+        method_payload.update(
+            protocol_version=workflow.get("protocol_version"), step=workflow.get("step")
+        )
+        adapter_path = Path(str((config.get("initial_adapter") or {}).get("path") or ""))
+        human_path = Path(str((config.get("data") or {}).get("human_targets_path") or ""))
+        if (
+            set(config) != set(PREPARE_DFT_METHOD_KEYS) | {"workflow"}
+            or config.get("artifact_schema") != PREPARE_DFT_PROTOCOL
+            or workflow.get("protocol_version") != PREPARE_DFT_PROTOCOL
+            or _config_hash(method_payload) != workflow.get("preparation_contract_sha256")
+            or str(run.get("task_kind")) != "experiment"
+            or budget_class != "smoke"
+            or run.get("arm") != "training-bandwidths"
+            or str(compute.get("gpu") or "").upper() not in PREPARE_DFT_SUPPORTED_GPUS
+            or compute.get("gpus") != 1
+            or isinstance(compute.get("gpus"), bool)
+            or config.get("model") != {
+                "base": "Qwen/Qwen3-4B",
+                "revision": "1cfa9a7208912126459214e8b04321603b3df60c",
+                "torch_dtype": "bfloat16",
+            }
+            or config.get("derivation") != PREPARE_DFT_DERIVATION
+            or config.get("output") != {"filename": "training_bandwidths.json", "overwrite": False}
+            or not adapter_path.is_absolute()
+            or not human_path.is_absolute()
+            or any(part in {"harness", "measurement_v2"} for part in human_path.parts)
+        ):
+            _die("REJECTED: prepare_dft requires the exact frozen wrapper-only protocol")
+        if not _use_local_backend() and (
+            not _is_checkpoint_volume_path(adapter_path)
+            or not _is_checkpoint_volume_path(human_path)
+        ):
+            _die("REJECTED: Modal prepare_dft inputs must use the checkpoint volume")
     if workflow_step == "replay_equivalence":
         replay_workflow = config.get("workflow") or {}
         protocol_version = str(replay_workflow.get("protocol_version"))

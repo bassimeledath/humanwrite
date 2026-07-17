@@ -8,6 +8,7 @@ import itertools
 import json
 from pathlib import Path
 import random
+import runpy
 import sys
 from types import SimpleNamespace
 
@@ -50,6 +51,11 @@ from experiments.m2.dft import (
     score_function_loss,
     training_factual_adherence_sentinels,
     validate_dft_config,
+)
+from experiments.m2.prepare_dft import preparation_contract_payload
+from experiments.m2.representation import (
+    TRAINING_BANDWIDTH_DERIVATION,
+    representation_execution_payload,
 )
 from experiments.m1.contracts import file_sha256
 from experiments.m1.workflow import _render_prompt as render_m1_prompt
@@ -247,19 +253,12 @@ def test_source_adapter_data_and_human_only_bandwidth_hashes_fail_closed(
     data_paths = {}
     for name in ("rollout", "anchor", "humans"):
         path = tmp_path / f"{name}.jsonl"
-        path.write_text('{"user_prompt":"brief","completion":"human text"}\n', encoding="utf-8")
+        rows = ['{"user_prompt":"brief","completion":"human text"}\n']
+        if name == "humans":
+            rows.append('{"user_prompt":"brief two","completion":"human text two"}\n')
+        path.write_text("".join(rows), encoding="utf-8")
         data_paths[name] = path
     bandwidth_path = tmp_path / "bandwidths.json"
-    bandwidth_payload = {
-        "artifact_schema": "dftr.m2.training_bandwidths.v1",
-        "source": "training_humans_only",
-        "human_targets_sha256": file_sha256(data_paths["humans"]),
-        "representation_contract_sha256": "pending",
-        "tokenizer_file_manifest_sha256": "pending",
-        "parameterization": "squared_distance_over_2_sigma_squared",
-        "values": [0.5, 1.0],
-    }
-    bandwidth_path.write_text(json.dumps(bandwidth_payload), encoding="utf-8")
 
     config = valid_config()
     config["runtime"] = {
@@ -291,12 +290,68 @@ def test_source_adapter_data_and_human_only_bandwidth_hashes_fail_closed(
         human_targets_path=str(data_paths["humans"]),
         human_targets_sha256=file_sha256(data_paths["humans"]),
     )
-    bandwidth_payload["representation_contract_sha256"] = canonical_hash(
-        config["representation"]
+    producer_config = {
+        "artifact_schema": "dftr.m2.prepare_training_bandwidths.v1",
+        "run": {
+            "comparison_id": "test-bandwidth-prepare", "arm": "training-bandwidths",
+            "budget_class": "smoke", "task_kind": "experiment",
+            "command": ["python", "-m", "experiments.runner"], "seed": 0,
+        },
+        "compute": {"gpu": config["compute"]["gpu"], "gpus": 1, "timeout_min": 20},
+        "model": config["model"],
+        "initial_adapter": config["initial_adapter"],
+        "data": {
+            "human_targets_path": config["data"]["human_targets_path"],
+            "human_targets_sha256": config["data"]["human_targets_sha256"],
+            "human_text_field": config["data"]["human_text_field"],
+        },
+        "representation": config["representation"],
+        "derivation": TRAINING_BANDWIDTH_DERIVATION,
+        "runtime": config["runtime"],
+        "output": {"filename": "training_bandwidths.json", "overwrite": False},
+        "workflow": {
+            "protocol_version": "dftr.m2.prepare_training_bandwidths.v1",
+            "step": "prepare_dft", "preparation_contract_sha256": "0" * 64,
+        },
+    }
+    producer_config["workflow"]["preparation_contract_sha256"] = canonical_hash(
+        preparation_contract_payload(producer_config)
     )
-    bandwidth_payload["tokenizer_file_manifest_sha256"] = config["initial_adapter"][
-        "file_manifest_sha256"
-    ]
+    median_distance = 2.0
+    values = [median_distance * scale**2 for scale in TRAINING_BANDWIDTH_DERIVATION["scales"]]
+    bandwidth_payload = {
+        "artifact_schema": "dftr.m2.training_bandwidths.v2",
+        "source": "training_humans_only",
+        "human_targets_sha256": config["data"]["human_targets_sha256"],
+        "human_text_sequence_sha256": canonical_hash(["human text", "human text two"]),
+        "representation_contract_sha256": canonical_hash(config["representation"]),
+        "representation_execution_contract_sha256": canonical_hash(
+            representation_execution_payload(config)
+        ),
+        "tokenizer_file_manifest_sha256": config["initial_adapter"]["file_manifest_sha256"],
+        "source_adapter_file_manifest_sha256": config["initial_adapter"]["file_manifest_sha256"],
+        "source_adapter_model_sha256": config["initial_adapter"]["adapter_model_sha256"],
+        "source_adapter_config_sha256": config["initial_adapter"]["adapter_config_sha256"],
+        "preparation_contract_sha256": producer_config["workflow"]["preparation_contract_sha256"],
+        "preparation_contract": preparation_contract_payload(producer_config),
+        "producer_run_id": "prepare-test", "producer_git_sha": "b" * 40,
+        "producer_config_sha256": canonical_hash(producer_config),
+        "producer_config": producer_config,
+        "model_base": config["model"]["base"], "model_revision": config["model"]["revision"],
+        "observed_runtime": {
+            key: config["runtime"][key]
+            for key in ("torch_version", "transformers_version", "peft_version")
+        },
+        "gpu": config["compute"]["gpu"], "observed_device_name": "test-gpu",
+        "derivation": TRAINING_BANDWIDTH_DERIVATION,
+        "human_document_count": 2, "embedding_dimension": 2,
+        "total_unordered_pair_count": 1, "positive_pair_distance_count": 1,
+        "zero_distance_count": 0,
+        "median_positive_squared_distance": median_distance,
+        "embedding_matrix_sha256": "c" * 64, "positive_distances_sha256": "d" * 64,
+        "parameterization": "squared_distance_over_2_sigma_squared",
+        "values": values, "values_sha256": canonical_hash(values),
+    }
     bandwidth_path.write_text(json.dumps(bandwidth_payload), encoding="utf-8")
     config["kernel"].update(
         bandwidths_path=str(bandwidth_path),
@@ -307,8 +362,24 @@ def test_source_adapter_data_and_human_only_bandwidth_hashes_fail_closed(
     )
     validate_dft_config(config)
     rollout, anchor, humans, bandwidths = _verify_inputs(config)
-    assert len(rollout) == len(anchor) == len(humans) == 1
-    assert bandwidths == [0.5, 1.0]
+    assert len(rollout) == len(anchor) == 1
+    assert len(humans) == 2
+    assert bandwidths == values
+
+    for field, replacement in (
+        ("artifact_schema", "dftr.m2.training_bandwidths.v1"),
+        ("values_sha256", "e" * 64),
+        ("preparation_contract_sha256", "f" * 64),
+        ("representation_execution_contract_sha256", "1" * 64),
+    ):
+        tampered = copy.deepcopy(bandwidth_payload)
+        tampered[field] = replacement
+        bandwidth_path.write_text(json.dumps(tampered), encoding="utf-8")
+        config["kernel"]["bandwidths_sha256"] = file_sha256(bandwidth_path)
+        with pytest.raises(M2ConfigError, match="bandwidth"):
+            _verify_inputs(config)
+    bandwidth_path.write_text(json.dumps(bandwidth_payload), encoding="utf-8")
+    config["kernel"]["bandwidths_sha256"] = file_sha256(bandwidth_path)
 
     bandwidth_payload["human_targets_sha256"] = "b" * 64
     bandwidth_path.write_text(json.dumps(bandwidth_payload), encoding="utf-8")
@@ -979,13 +1050,8 @@ def test_gateway_requires_wrapper_readiness_only_for_later_a64_job(monkeypatch, 
     monkeypatch.setenv("DFTR_M2_TRUSTED_KEYS_SHA256", SHA)
     assert validate_launch(payload).task_kind == "experiment"
 
-    local_readiness = tmp_path / "readiness.json"
-    local_readiness.write_text("{}\n", encoding="utf-8")
-    payload["dft_a64_readiness"]["manifest_path"] = str(local_readiness)
-    with pytest.raises(PolicyError, match="checkpoint volume"):
-        validate_launch(payload)
-    assert validate_launch(payload, backend="local").task_kind == "experiment"
-    payload["dft_a64_readiness"]["manifest_path"] = "/checkpoints/readiness/a64.json"
+    with pytest.raises(PolicyError, match="independently configured Modal"):
+        validate_launch(payload, backend="local")
 
     config["arms"][1]["mmd_coefficient"] = 0.2
     payload["config_hash"] = policy_hash(config)
@@ -997,6 +1063,20 @@ def test_gateway_requires_wrapper_readiness_only_for_later_a64_job(monkeypatch, 
     payload["config_hash"] = policy_hash(a0)
     with pytest.raises(PolicyError, match="A0 cannot consume"):
         validate_launch(payload)
+
+
+def test_client_rejects_local_a64_even_with_submitter_trust_env(monkeypatch):
+    root = Path(__file__).resolve().parents[2]
+    client = runpy.run_path(str(root / "infra" / "gpu"))
+    client["_validate_submit"].__globals__["_preregistration"] = lambda comparison: {
+        "kind": "prereg", "status": "open", "comparison": comparison
+    }
+    monkeypatch.setenv("DFTR_GPU_BACKEND", "local")
+    monkeypatch.setenv("DFTR_M2_TRUSTED_KEYS_SHA256", SHA)
+    config = valid_config()
+    config["execution"]["arm"] = "A64"
+    with pytest.raises(SystemExit):
+        client["_validate_submit"](config, "screen")
 
 
 def test_training_module_does_not_import_harness_or_measurement_v2():

@@ -11,6 +11,11 @@ from typing import Any
 from data.pipeline import DEFAULT_OUTPUT as DEFAULT_DATA_OUTPUT
 from experiments.m1.workflow import run_m1
 from experiments.m2.dft import DFT_SCHEMA, DFT_STEP, run_dft
+from experiments.m2.prepare_dft import (
+    PREPARE_DFT_SCHEMA,
+    PREPARE_DFT_STEP,
+    run_prepare_dft,
+)
 from experiments.tier0.metrics import batch_diagnostics
 
 
@@ -146,9 +151,18 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     config = _load_config(Path(args.config).resolve())
     workflow = config.get("workflow") or {}
-    if workflow.get("step") == DFT_STEP and workflow.get("protocol_version") != DFT_SCHEMA:
+    protocol, step = workflow.get("protocol_version"), workflow.get("step")
+    if protocol == PREPARE_DFT_SCHEMA and step != PREPARE_DFT_STEP:
+        raise ValueError("training-bandwidth protocol requires prepare_dft")
+    if protocol == DFT_SCHEMA and step != DFT_STEP:
+        raise ValueError("score-function MMD protocol requires train_dft")
+    if step == PREPARE_DFT_STEP and protocol != PREPARE_DFT_SCHEMA:
+        raise ValueError("prepare_dft requires the frozen training-bandwidth protocol")
+    if step == DFT_STEP and protocol != DFT_SCHEMA:
         raise ValueError("train_dft requires the frozen M2 score-function MMD protocol")
-    if workflow.get("protocol_version") == DFT_SCHEMA:
+    if protocol == PREPARE_DFT_SCHEMA:
+        manifest = run_prepare_dft(config, args.run_id)
+    elif protocol == DFT_SCHEMA:
         manifest = run_dft(config, args.run_id)
     elif (
         str(workflow.get("protocol_version", "")).casefold().startswith("m1")

@@ -52,10 +52,36 @@ REPLAY_PROTOCOLS = {
     "dftr.adapter_merge_replay.v3",
 }
 DFT_PROTOCOL = "dftr.m2.score_function_mmd.v1"
+PREPARE_DFT_PROTOCOL = "dftr.m2.prepare_training_bandwidths.v1"
+PREPARE_DFT_SUPPORTED_GPUS = {"L40S", "A100-80GB", "H100"}
+PREPARE_DFT_METHOD_KEYS = (
+    "artifact_schema", "run", "compute", "model", "initial_adapter", "data",
+    "representation", "derivation", "runtime", "output",
+)
+PREPARE_DFT_DERIVATION = {
+    "algorithm": "median_positive_unordered_human_pairwise_squared_distance.v1",
+    "scales": [0.25, 0.5, 1.0, 2.0, 4.0],
+    "pair_scope": "all_unordered_training_human_pairs",
+    "zero_distance_policy": "fail",
+    "degenerate_policy": "fail",
+    "distance_dtype": "float64_cpu",
+}
 DFT_METHOD_KEYS = (
     "artifact_schema", "run", "compute", "model", "initial_adapter", "data",
     "representation", "kernel", "runtime", "training", "arms", "stop", "readiness_trust",
 )
+
+
+def _is_checkpoint_volume_path(path: Path) -> bool:
+    """Return whether an absolute path resolves strictly below /checkpoints."""
+    if not path.is_absolute():
+        return False
+    try:
+        checkpoint_root = Path("/checkpoints").resolve(strict=False)
+        resolved = path.resolve(strict=False)
+        return resolved != checkpoint_root and resolved.is_relative_to(checkpoint_root)
+    except (OSError, RuntimeError, ValueError):
+        return False
 REPLAY_PROTOCOL_V1 = "dftr.adapter_merge_replay.v1"
 REPLAY_PROTOCOL_V2 = "dftr.adapter_merge_replay.v2"
 REPLAY_PROTOCOL_V3 = "dftr.adapter_merge_replay.v3"
@@ -300,6 +326,7 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
         raise PolicyError("14B scale-up lacks human approval")
     if workflow_step in {
         "train_sft", "sample_sweep", "merge_adapter", "replay_equivalence", "train_dft",
+        "prepare_dft",
     } and revision_is_unresolved(
         (config.get("model") or {}).get("revision")
     ):
@@ -325,6 +352,8 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
             if readiness is not None:
                 raise PolicyError("A0 cannot consume an A64 readiness attestation")
         elif execution_arm == "A64":
+            if backend != "modal":
+                raise PolicyError("A64 launches require the independently configured Modal gateway")
             expected_keys = {
                 "kind", "status", "comparison", "method_contract_sha256",
                 "manifest_path", "manifest_sha256",
@@ -347,8 +376,6 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
                 raise PolicyError("A64 readiness manifest path must be absolute")
             if backend == "modal" and not str(readiness_path).startswith("/checkpoints/"):
                 raise PolicyError("Modal A64 readiness must use the checkpoint volume")
-            if backend not in {"modal", "local"}:
-                raise PolicyError("unsupported readiness transport backend")
             configured_trust_sha = os.environ.get("DFTR_M2_TRUSTED_KEYS_SHA256", "")
             if (
                 not re.fullmatch(r"[0-9a-f]{64}", configured_trust_sha)
@@ -358,6 +385,96 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
                 raise PolicyError("A64 trust store is not independently configured by the gateway")
         else:
             raise PolicyError("train_dft execution arm must be A0 or A64")
+    if workflow_step == "prepare_dft":
+        workflow = config.get("workflow") or {}
+        expected_top = set(PREPARE_DFT_METHOD_KEYS) | {"workflow"}
+        method_payload = {key: config.get(key) for key in PREPARE_DFT_METHOD_KEYS}
+        method_payload.update(
+            protocol_version=workflow.get("protocol_version"), step=workflow.get("step")
+        )
+        prepare_run = config.get("run") or {}
+        prepare_compute = config.get("compute") or {}
+        prepare_adapter = config.get("initial_adapter") or {}
+        prepare_data = config.get("data") or {}
+        prepare_representation = config.get("representation") or {}
+        prepare_runtime = config.get("runtime") or {}
+        adapter_path = Path(str((config.get("initial_adapter") or {}).get("path") or ""))
+        human_path = Path(str((config.get("data") or {}).get("human_targets_path") or ""))
+        if (
+            set(config) != expected_top
+            or config.get("artifact_schema") != PREPARE_DFT_PROTOCOL
+            or workflow.get("protocol_version") != PREPARE_DFT_PROTOCOL
+            or set(workflow) != {"protocol_version", "step", "preparation_contract_sha256"}
+            or canonical_hash(method_payload) != workflow.get("preparation_contract_sha256")
+            or task_kind != "experiment"
+            or budget_class != "smoke"
+            or set(prepare_run) != {"comparison_id", "arm", "budget_class", "task_kind", "command", "seed"}
+            or prepare_run.get("arm") != "training-bandwidths"
+            or prepare_run.get("seed") != 0
+            or prepare_run.get("budget_class") != "smoke"
+            or prepare_run.get("task_kind") != "experiment"
+            or prepare_run.get("command") != ALLOWED_COMMAND_PREFIX
+            or set(prepare_compute) != {"gpu", "gpus", "timeout_min"}
+            or str(prepare_compute.get("gpu") or "").upper()
+            not in PREPARE_DFT_SUPPORTED_GPUS
+            or prepare_compute.get("gpus") != 1
+            or isinstance(prepare_compute.get("gpus"), bool)
+            or not isinstance(prepare_compute.get("timeout_min"), int)
+            or isinstance(prepare_compute.get("timeout_min"), bool)
+            or not 0 < prepare_compute["timeout_min"] <= 20
+            or config.get("model") != {
+                "base": "Qwen/Qwen3-4B",
+                "revision": "1cfa9a7208912126459214e8b04321603b3df60c",
+                "torch_dtype": "bfloat16",
+            }
+            or set(prepare_adapter) != {
+                "path", "adapter_model_sha256", "adapter_config_sha256", "file_manifest_sha256"
+            }
+            or any(
+                not re.fullmatch(r"[0-9a-f]{64}", str(prepare_adapter.get(field) or ""))
+                for field in ("adapter_model_sha256", "adapter_config_sha256", "file_manifest_sha256")
+            )
+            or set(prepare_data) != {"human_targets_path", "human_targets_sha256", "human_text_field"}
+            or not re.fullmatch(r"[0-9a-f]{64}", str(prepare_data.get("human_targets_sha256") or ""))
+            or not str(prepare_data.get("human_text_field") or "")
+            or set(prepare_representation) != {
+                "model", "revision", "layer", "pooling", "normalize", "role", "batch_size", "max_tokens"
+            }
+            or prepare_representation.get("model") != "Qwen/Qwen3-4B"
+            or prepare_representation.get("revision") != "1cfa9a7208912126459214e8b04321603b3df60c"
+            or prepare_representation.get("layer") != -1
+            or prepare_representation.get("pooling") != "attention_masked_mean"
+            or prepare_representation.get("normalize") is not True
+            or prepare_representation.get("role") != "training_only_not_measurement_v2"
+            or any(
+                not isinstance(prepare_representation.get(field), int)
+                or isinstance(prepare_representation.get(field), bool)
+                or prepare_representation[field] <= 0
+                for field in ("batch_size", "max_tokens")
+            )
+            or config.get("derivation") != PREPARE_DFT_DERIVATION
+            or set(prepare_runtime) != {
+                "torch_version", "transformers_version", "peft_version",
+                "deterministic_algorithms", "cublas_workspace_config",
+            }
+            or any(
+                not str(prepare_runtime.get(field) or "")
+                for field in ("torch_version", "transformers_version", "peft_version")
+            )
+            or prepare_runtime.get("deterministic_algorithms") is not True
+            or prepare_runtime.get("cublas_workspace_config") != ":4096:8"
+            or config.get("output") != {"filename": "training_bandwidths.json", "overwrite": False}
+            or payload.get("dft_a64_readiness") is not None
+            or not adapter_path.is_absolute()
+            or not human_path.is_absolute()
+            or any(part in {"harness", "measurement_v2"} for part in human_path.parts)
+        ):
+            raise PolicyError("prepare_dft requires the exact frozen wrapper-only protocol")
+        if backend == "modal" and (
+            not _is_checkpoint_volume_path(adapter_path)
+            or not _is_checkpoint_volume_path(human_path)
+        ):
+            raise PolicyError("Modal prepare_dft inputs must use the checkpoint volume")
     if workflow_step == "replay_equivalence":
         replay_workflow = config.get("workflow") or {}
         protocol_version = str(replay_workflow.get("protocol_version"))

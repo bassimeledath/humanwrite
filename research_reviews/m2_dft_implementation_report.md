@@ -6,18 +6,28 @@ Date: 2026-07-17 (America/Los_Angeles)
 
 The first prospective 4B score-function MMD training path is implemented but
 has not been launched. The public runner now recognizes
-`dftr.m2.score_function_mmd.v1` and trains two fresh PEFT adapters from one
-hash-bound Qwen3-4B SFT LoRA source:
+`dftr.m2.score_function_mmd.v1`. Each launch trains exactly one selected PEFT
+adapter from one hash-bound Qwen3-4B SFT LoRA source:
 
 - `A0`, with the MMD coefficient exactly zero; and
 - `A64`, with the preregistered nonzero coefficient and exactly 64 generated
   tokens per rollout.
 
-Both arms reload the same source adapter and use the same seeded rollout and
+The A0-only and A64-only configs are identical except for the top-level
+execution selector and share one selector-neutral method and matched-exposure
+hash. Both arms reload the same source adapter and use the same seeded rollout and
 anchor batches, rollout seed schedule, optimizer, KL reference, CE anchor,
 runtime contract, and generated-token accounting. Outputs remain adapter
 native; the implementation does not merge adapters or import harness or
 measurement-v2 code.
+
+A64 is sequenced strictly after A0. Before any model load, it verifies the
+actual completed A0 adapter file map and bytes, exact training exposure,
+materialized matched-control output bytes, the complete trusted-key-signed
+measurement-v2 protocol, and an independently signed `qualified` 13-group
+blind manifest with bound runtime and fixture-pack bytes. The trust-store SHA
+is frozen in the shared method and independently configured in the Modal
+gateway. Local A64 launch is closed; A0 and direct verifier tests remain local.
 
 Sampling is a manual 64-step raw policy categorical loop with an
 autoregressive cache. It does not use `generate`, temperature, top-k/top-p,
@@ -35,6 +45,23 @@ validation fails closed on the complete source-adapter file map, adapter
 weight/config hashes, all training JSONL hashes, and a human-only bandwidth
 artifact bound to the human-target hash, frozen representation, and tokenizer
 artifact identity.
+
+`experiments/m2/prepare_dft.py` implements the separate wrapper-only
+`dftr.m2.prepare_training_bandwidths.v1` stage. It reads only the hash-bound
+training-human file, loads the exact source PEFT shell, disables its adapter
+through the same shared representation function used during training, and
+computes all unordered squared distances on CPU float64. Empty, duplicate, or
+non-string human texts, duplicate embeddings, non-finite distances, and
+nonpositive distances fail closed. The only output is a
+`dftr.m2.training_bandwidths.v2` artifact plus a zero-generated-token run
+manifest under `DFTR_CHECKPOINT_DIR`; overwrite is prohibited.
+
+The v2 artifact embeds its exact preparation config and contract, input and
+adapter hashes, ordered human-text hash, representation and execution hashes,
+observed runtime/device provenance, embedding/distance hashes, complete pair
+counts, median positive squared distance, fixed scale multipliers, derived
+values, and their hash. The training consumer validates the exact schema,
+recomputes all available hashes and algebra, and rejects the former v1 format.
 
 Rollout and anchor records are serialized with the exact
 `dft.full-brief.v1` field set and formatting used by the source SFT path. The
@@ -76,6 +103,12 @@ maps, and exact matched exposure.
 The focused tests cover:
 
 - strict A0/A64 config and method-hash enforcement;
+- separate single-arm execution, matched exposure, and per-arm accounting;
+- real signed A64 readiness plus forged adapter/output/trust/blind rejection;
+- strict prepare config, wrapper dispatch, immutable revision, and output confinement;
+- shared PEFT-disabled representation identity and float64 median/scales oracle;
+- self-auditing training-bandwidth v2 production and consumer tamper rejection;
+- zero generated-token accounting for preparation;
 - source adapter, data, runtime, and human-only bandwidth artifact binding;
 - vectorized reward equality with explicit kernel loops;
 - invariance of sample `i`'s control when only sample `i` changes;
@@ -94,18 +127,21 @@ The focused tests cover:
 Verification command:
 
 ```text
-python -m pytest -q <non-independent experiment tests> infra/tests/test_policy.py infra/tests/test_local_backend.py
-140 passed in 2.95s
+PYTHONPATH=harness/src:. python -m pytest -q <non-independent experiment tests> \
+  infra/tests/test_policy.py infra/tests/test_local_backend.py \
+  harness/tests/test_measurement_v2.py harness/tests/test_measurement_v2_bindings.py
+182 passed in 3.05s
 ```
 
 No model weights were loaded and no GPU/API job was launched.
 
 ## Remaining pre-launch caveats
 
-1. No materialized prospective config is checked in because the real seed-11
-   source-adapter file map, training-human bandwidth artifact, worker package
-   versions, and chosen nonzero coefficient are not yet frozen. Inventing
-   placeholders would weaken the fail-closed boundary.
+1. No materialized preparation or training config is checked in because the
+   real seed-11 source-adapter map, training-human bytes, worker versions,
+   external trust store, and nonzero coefficient are not all frozen. The
+   implemented sequence is: freeze and run `prepare_dft`, inspect its v2
+   artifact, then freeze the matched A0/A64 configs with that exact path/SHA.
 2. The 4B path has not had the required small-model plumbing smoke. GPU memory,
    deterministic CUDA compatibility, and the installed Transformers/PEFT
    execution path therefore remain unverified. The smoke must also compare

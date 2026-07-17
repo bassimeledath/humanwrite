@@ -18,6 +18,18 @@ from experiments.m1.contracts import (
     write_jsonl,
 )
 from experiments.m2.readiness import ReadinessError, verify_a64_readiness
+from experiments.m2.prepare_dft import (
+    preparation_contract_payload,
+    validate_prepare_dft_config,
+)
+from experiments.m2.representation import (
+    TRAINING_BANDWIDTH_DERIVATION,
+    TRAINING_BANDWIDTH_PARAMETERIZATION,
+    frozen_base_embeddings,
+    load_source_peft_and_tokenizer,
+    masked_hidden_embeddings as _masked_hidden_embeddings,
+    representation_execution_payload,
+)
 from experiments.tier0.metrics import length_stats, outline_fact_recall, unsupported_claim_rate
 
 
@@ -622,6 +634,9 @@ def _verify_inputs(config: dict[str, Any]) -> tuple[list[dict[str, Any]], list[d
     hashes = [data[name] for name in ("rollout_sha256", "sft_anchor_sha256", "human_targets_sha256")]
     for path, digest, label in zip(paths, hashes, ("rollout", "SFT anchor", "human target")):
         _verify_file(path, digest, label)
+    rollout_records = _load_jsonl(paths[0], "rollout data")
+    anchor_records = _load_jsonl(paths[1], "SFT anchor data")
+    human_records = _load_jsonl(paths[2], "human targets")
     bandwidth_path = Path(config["kernel"]["bandwidths_path"])
     _verify_file(bandwidth_path, config["kernel"]["bandwidths_sha256"], "bandwidth")
     try:
@@ -632,28 +647,118 @@ def _verify_inputs(config: dict[str, Any]) -> tuple[list[dict[str, Any]], list[d
         not isinstance(bandwidth_artifact, dict)
         or set(bandwidth_artifact) != {
             "artifact_schema", "source", "human_targets_sha256",
-            "representation_contract_sha256", "tokenizer_file_manifest_sha256",
-            "parameterization", "values",
+            "human_text_sequence_sha256",
+            "representation_contract_sha256", "representation_execution_contract_sha256",
+            "tokenizer_file_manifest_sha256", "source_adapter_file_manifest_sha256",
+            "source_adapter_model_sha256", "source_adapter_config_sha256",
+            "preparation_contract_sha256", "preparation_contract",
+            "producer_run_id", "producer_git_sha", "producer_config_sha256", "producer_config",
+            "model_base", "model_revision", "observed_runtime", "gpu", "observed_device_name",
+            "derivation", "human_document_count", "embedding_dimension",
+            "total_unordered_pair_count", "positive_pair_distance_count", "zero_distance_count",
+            "median_positive_squared_distance", "embedding_matrix_sha256",
+            "positive_distances_sha256", "parameterization", "values", "values_sha256",
         }
         or
-        bandwidth_artifact.get("artifact_schema") != "dftr.m2.training_bandwidths.v1"
+        bandwidth_artifact.get("artifact_schema") != "dftr.m2.training_bandwidths.v2"
         or bandwidth_artifact.get("source") != "training_humans_only"
         or bandwidth_artifact.get("human_targets_sha256") != data["human_targets_sha256"]
         or bandwidth_artifact.get("representation_contract_sha256")
         != canonical_hash(config["representation"])
+        or bandwidth_artifact.get("representation_execution_contract_sha256")
+        != canonical_hash(representation_execution_payload(config))
         or bandwidth_artifact.get("tokenizer_file_manifest_sha256")
         != adapter["file_manifest_sha256"]
-        or bandwidth_artifact.get("parameterization") != "squared_distance_over_2_sigma_squared"
+        or bandwidth_artifact.get("source_adapter_file_manifest_sha256")
+        != adapter["file_manifest_sha256"]
+        or bandwidth_artifact.get("source_adapter_model_sha256")
+        != adapter["adapter_model_sha256"]
+        or bandwidth_artifact.get("source_adapter_config_sha256")
+        != adapter["adapter_config_sha256"]
+        or bandwidth_artifact.get("human_text_sequence_sha256")
+        != canonical_hash([
+            row.get(data["human_text_field"]) for row in human_records
+        ])
+        or bandwidth_artifact.get("derivation") != TRAINING_BANDWIDTH_DERIVATION
+        or bandwidth_artifact.get("parameterization") != TRAINING_BANDWIDTH_PARAMETERIZATION
+        or bandwidth_artifact.get("human_document_count") != len(human_records)
+        or bandwidth_artifact.get("model_base") != config["model"]["base"]
+        or bandwidth_artifact.get("model_revision") != config["model"]["revision"]
+        or bandwidth_artifact.get("observed_runtime") != expected_runtime
+        or bandwidth_artifact.get("gpu") != config["compute"]["gpu"]
+        or not str(bandwidth_artifact.get("observed_device_name") or "")
     ):
         raise M2ConfigError("bandwidth artifact is not bound to training humans only")
+    for field in (
+        "preparation_contract_sha256", "producer_config_sha256", "embedding_matrix_sha256",
+        "positive_distances_sha256", "values_sha256",
+    ):
+        _require_sha(bandwidth_artifact.get(field), f"bandwidth.{field}")
+    producer_config = bandwidth_artifact.get("producer_config")
+    try:
+        validate_prepare_dft_config(producer_config)
+    except (TypeError, ValueError) as error:
+        raise M2ConfigError(f"bandwidth producer config is invalid: {error}") from error
+    if (
+        canonical_hash(producer_config) != bandwidth_artifact["producer_config_sha256"]
+        or preparation_contract_payload(producer_config)
+        != bandwidth_artifact.get("preparation_contract")
+        or canonical_hash(bandwidth_artifact["preparation_contract"])
+        != bandwidth_artifact["preparation_contract_sha256"]
+        or producer_config["initial_adapter"] != config["initial_adapter"]
+        or producer_config["data"] != {
+            "human_targets_path": data["human_targets_path"],
+            "human_targets_sha256": data["human_targets_sha256"],
+            "human_text_field": data["human_text_field"],
+        }
+        or producer_config["model"] != config["model"]
+        or producer_config["representation"] != config["representation"]
+        or producer_config["runtime"] != config["runtime"]
+        or producer_config["compute"]["gpu"] != config["compute"]["gpu"]
+    ):
+        raise M2ConfigError("bandwidth producer contract does not match training")
+    producer_git = str(bandwidth_artifact.get("producer_git_sha") or "")
+    if len(producer_git) != 40 or any(character not in "0123456789abcdef" for character in producer_git):
+        raise M2ConfigError("bandwidth producer Git SHA is invalid")
+    if not SAFE_ID_RE.fullmatch(str(bandwidth_artifact.get("producer_run_id") or "")):
+        raise M2ConfigError("bandwidth producer run ID is invalid")
+    document_count = bandwidth_artifact.get("human_document_count")
+    embedding_dimension = bandwidth_artifact.get("embedding_dimension")
+    positive_pairs = bandwidth_artifact.get("positive_pair_distance_count")
+    total_pairs = bandwidth_artifact.get("total_unordered_pair_count")
+    zero_pairs = bandwidth_artifact.get("zero_distance_count")
+    if (
+        not isinstance(document_count, int) or isinstance(document_count, bool) or document_count < 2
+        or not isinstance(embedding_dimension, int) or isinstance(embedding_dimension, bool)
+        or embedding_dimension <= 0
+        or not isinstance(positive_pairs, int) or isinstance(positive_pairs, bool)
+        or not isinstance(total_pairs, int) or isinstance(total_pairs, bool)
+        or not isinstance(zero_pairs, int) or isinstance(zero_pairs, bool)
+        or total_pairs != document_count * (document_count - 1) // 2
+        or positive_pairs != total_pairs
+        or zero_pairs != 0
+    ):
+        raise M2ConfigError("bandwidth derivation dimensions or pair count are invalid")
+    median_distance = _require_positive(
+        bandwidth_artifact.get("median_positive_squared_distance"),
+        "bandwidth median positive squared distance",
+    )
     bandwidths = bandwidth_artifact.get("values")
     if not isinstance(bandwidths, list) or not bandwidths:
         raise M2ConfigError("bandwidth artifact has no values")
     values = [_require_positive(value, "bandwidth value") for value in bandwidths]
+    expected_values = [
+        median_distance * float(scale) ** 2
+        for scale in TRAINING_BANDWIDTH_DERIVATION["scales"]
+    ]
+    if values != expected_values:
+        raise M2ConfigError("bandwidth values do not reproduce the frozen derivation")
+    if canonical_hash(values) != bandwidth_artifact["values_sha256"]:
+        raise M2ConfigError("bandwidth values hash mismatch")
     return (
-        _load_jsonl(paths[0], "rollout data"),
-        _load_jsonl(paths[1], "SFT anchor data"),
-        _load_jsonl(paths[2], "human targets"),
+        rollout_records,
+        anchor_records,
+        human_records,
         values,
     )
 
@@ -759,28 +864,6 @@ def _render_prompt(record: dict[str, Any], config: dict[str, Any]) -> str:
         + json.dumps(outline, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
     ))
     return str(config["data"]["prompt_format"]).format(brief=brief)
-
-
-def _masked_hidden_embeddings(model: Any, tokenizer: Any, texts: list[str], config: dict[str, Any]) -> Any:
-    import torch
-    import torch.nn.functional as F
-
-    device = next(model.parameters()).device
-    rows = []
-    batch_size = int(config["representation"]["batch_size"])
-    for start in range(0, len(texts), batch_size):
-        encoded = tokenizer(
-            texts[start : start + batch_size], padding=True, truncation=True,
-            max_length=int(config["representation"]["max_tokens"]), return_tensors="pt",
-        )
-        encoded = {key: value.to(device) for key, value in encoded.items()}
-        with torch.inference_mode():
-            output = model(**encoded, output_hidden_states=True, return_dict=True)
-        hidden = output.hidden_states[int(config["representation"]["layer"])].float()
-        mask = encoded["attention_mask"].unsqueeze(-1).float()
-        pooled = (hidden * mask).sum(dim=1) / mask.sum(dim=1).clamp_min(1.0)
-        rows.append(F.normalize(pooled, dim=-1) if config["representation"]["normalize"] else pooled)
-    return torch.cat(rows, dim=0)
 
 
 def _sample_raw_policy(
@@ -898,34 +981,11 @@ def _activate_adapter(model: Any, adapter_name: str, *, trainable: bool) -> list
 
 
 def _load_arm_model(config: dict[str, Any], policy_adapter_path: str | None = None) -> tuple[Any, Any]:
-    import torch
-    from peft import PeftModel
-    from transformers import AutoModelForCausalLM, AutoTokenizer
-
-    common = {
-        "revision": BASE_REVISION,
-        "local_files_only": True,
-        "trust_remote_code": True,
-        "torch_dtype": torch.bfloat16,
-        "device_map": {"": 0},
-    }
-    policy_base = AutoModelForCausalLM.from_pretrained(BASE_MODEL, **common)
-    policy = PeftModel.from_pretrained(
-        policy_base,
-        policy_adapter_path or config["initial_adapter"]["path"],
-        local_files_only=True,
-        is_trainable=True,
-    )
+    policy, tokenizer = load_source_peft_and_tokenizer(config, policy_adapter_path)
     policy.load_adapter(
         config["initial_adapter"]["path"], adapter_name="reference", is_trainable=False
     )
     _activate_adapter(policy, "default", trainable=True)
-    tokenizer = AutoTokenizer.from_pretrained(
-        config["initial_adapter"]["path"], local_files_only=True, trust_remote_code=True
-    )
-    if tokenizer.pad_token_id is None:
-        tokenizer.pad_token = tokenizer.eos_token
-    tokenizer.padding_side = "left"
     policy.train()
     policy.config.use_cache = False
     return policy, tokenizer
@@ -962,10 +1022,7 @@ def _run_arm(
     human_texts = [str(row.get(human_field) or "") for row in human_records]
     if any(not text for text in human_texts):
         raise M2ConfigError("human target record lacks training text")
-    policy.eval()
-    with policy.disable_adapter():
-        human_embeddings = _masked_hidden_embeddings(policy, tokenizer, human_texts, config)
-    policy.train()
+    human_embeddings = frozen_base_embeddings(policy, tokenizer, human_texts, config)
     steps = int(config["training"]["steps"])
     rollout_batch = int(config["training"]["rollout_batch_size"])
     sft_batch = int(config["training"]["sft_batch_size"])
@@ -1036,10 +1093,7 @@ def _run_arm(
             config["stop"]["max_mean_abs_target_error"]
         ):
             raise M2ConfigError("training-only target-length adherence stop failed")
-        policy.eval()
-        with policy.disable_adapter():
-            generated_embeddings = _masked_hidden_embeddings(policy, tokenizer, texts, config)
-        policy.train()
+        generated_embeddings = frozen_base_embeddings(policy, tokenizer, texts, config)
         reward_components = mmd_score_components(
             generated_embeddings, human_embeddings, bandwidths
         )
