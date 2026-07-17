@@ -106,3 +106,11 @@ def test_gateway_rejects_sampling_drift_before_worker() -> None:
     value["sampling"]["new_tokens"] = 63
     with pytest.raises(PolicyError, match="generate_dft"):
         validate_launch(payload(value), backend="modal")
+
+
+def test_receipt_signing_secret_is_isolated_from_training_worker() -> None:
+    source = (ROOT / "infra/backend/modal_app.py").read_text(encoding="utf-8")
+    training_prefix = source.split("def training_worker", 1)[0].rsplit("@app.function", 1)[-1]
+    assert "secrets=[provider_secret]" in training_prefix
+    assert "receipt_signing_secret" not in training_prefix
+    assert "receipt[\"signature\"] = sign_generation_receipt.remote(receipt)" in source

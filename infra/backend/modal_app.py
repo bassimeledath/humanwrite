@@ -96,6 +96,54 @@ def _record(event: dict) -> None:
     state_volume.commit()
 
 
+@app.function(
+    image=worker_image,
+    secrets=[receipt_signing_secret],
+    timeout=60,
+    retries=0,
+    single_use_containers=True,
+)
+def sign_generation_receipt(receipt: dict) -> dict:
+    """Sign wrapper-produced hashes in a container isolated from experiment code."""
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+    expected = {
+        "artifact_schema", "status", "key_id", "run_id", "comparison_id",
+        "config_sha256", "git_sha", "manifest_path", "manifest_sha256",
+        "output_path", "output_sha256",
+    }
+    run_id = str(receipt.get("run_id") or "")
+    if (
+        set(receipt) != expected
+        or receipt.get("artifact_schema") != "dftr.wrapper.generation_receipt.v1"
+        or receipt.get("status") != "completed"
+        or receipt.get("key_id") != "humanwrite-modal-wrapper-receipt-v1"
+        or not re.fullmatch(r"dftr-[0-9]+-[0-9a-f]{8}", run_id)
+        or receipt.get("manifest_path") != f"/checkpoints/runs/{run_id}/run_manifest.json"
+        or receipt.get("output_path") != f"/checkpoints/runs/{run_id}/outputs.jsonl"
+        or any(
+            not re.fullmatch(r"[0-9a-f]{64}", str(receipt.get(field) or ""))
+            for field in ("config_sha256", "manifest_sha256", "output_sha256")
+        )
+        or not re.fullmatch(r"[0-9a-f]{40}", str(receipt.get("git_sha") or ""))
+        or not str(receipt.get("comparison_id") or "")
+    ):
+        raise ValueError("wrapper receipt signing request is invalid")
+    canonical = json.dumps(receipt, sort_keys=True, separators=(",", ":")).encode()
+    try:
+        private_raw = base64.b64decode(
+            os.environ["DFTR_RECEIPT_SIGNING_KEY_BASE64"], validate=True
+        )
+        private_key = Ed25519PrivateKey.from_private_bytes(private_raw)
+    except (KeyError, ValueError) as error:
+        raise ValueError("wrapper receipt signing key is unavailable") from error
+    return {
+        "algorithm": "ed25519",
+        "signed_payload_sha256": __import__("hashlib").sha256(canonical).hexdigest(),
+        "signature_base64": base64.b64encode(private_key.sign(canonical)).decode("ascii"),
+    }
+
+
 def _notify(event: str, details: dict) -> None:
     webhook = os.environ.get("DFTR_ALERT_WEBHOOK_URL")
     if not webhook:
@@ -151,8 +199,6 @@ def _file_sha256(path: Path) -> str:
 
 def _write_generation_receipt(run_id: str, payload: dict, config: dict) -> Path:
     """Sign immutable generation bytes outside the experiment subprocess."""
-    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-
     artifact_dir = _artifact_dir(run_id)
     manifest_path, output_path = artifact_dir / "run_manifest.json", artifact_dir / "outputs.jsonl"
     if not manifest_path.is_file() or not output_path.is_file():
@@ -170,19 +216,7 @@ def _write_generation_receipt(run_id: str, payload: dict, config: dict) -> Path:
         "output_path": str(output_path),
         "output_sha256": _file_sha256(output_path),
     }
-    canonical = json.dumps(receipt, sort_keys=True, separators=(",", ":")).encode()
-    try:
-        private_raw = base64.b64decode(
-            os.environ["DFTR_RECEIPT_SIGNING_KEY_BASE64"], validate=True
-        )
-        private_key = Ed25519PrivateKey.from_private_bytes(private_raw)
-    except (KeyError, ValueError) as error:
-        raise ValueError("wrapper receipt signing key is unavailable") from error
-    receipt["signature"] = {
-        "algorithm": "ed25519",
-        "signed_payload_sha256": __import__("hashlib").sha256(canonical).hexdigest(),
-        "signature_base64": base64.b64encode(private_key.sign(canonical)).decode("ascii"),
-    }
+    receipt["signature"] = sign_generation_receipt.remote(receipt)
     path = artifact_dir / "wrapper_generation_receipt.json"
     path.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return path
@@ -190,7 +224,7 @@ def _write_generation_receipt(run_id: str, payload: dict, config: dict) -> Path:
 
 @app.function(
     image=worker_image,
-    secrets=[provider_secret, receipt_signing_secret],
+    secrets=[provider_secret],
     volumes={"/state": state_volume, CHECKPOINT_PATH: checkpoint_volume},
     timeout=8 * 60 * 60,
     retries=0,
