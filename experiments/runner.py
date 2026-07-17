@@ -145,7 +145,10 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     config = _load_config(Path(args.config).resolve())
     workflow = config.get("workflow") or {}
-    if str(workflow.get("protocol_version", "")).casefold().startswith("m1"):
+    if (
+        str(workflow.get("protocol_version", "")).casefold().startswith("m1")
+        or str(workflow.get("step", "")).casefold() == "replay_equivalence"
+    ):
         manifest = run_m1(config, args.run_id)
     else:
         manifest = run_smoke(config, args.run_id)

@@ -73,6 +73,40 @@ def test_hash_tampering_is_rejected():
         validate_launch(value)
 
 
+def test_replay_equivalence_requires_immutable_revision_and_public_runner():
+    value = payload()
+    value["config"]["workflow"] = {
+        "step": "replay_equivalence",
+        "protocol_version": "dftr.adapter_merge_replay.v1",
+    }
+    value["config"]["model"]["revision"] = "__M1_RESOLVE_QWEN__"
+    value["config_hash"] = canonical_hash(value["config"])
+    with pytest.raises(PolicyError, match="resolved immutable"):
+        validate_launch(value)
+
+    value["config"]["model"]["revision"] = "a" * 40
+    value["config_hash"] = canonical_hash(value["config"])
+    assert validate_launch(value).task_kind == "experiment"
+
+    value["config"]["run"]["command"] = ["python", "-m", "paid.judge"]
+    value["config_hash"] = canonical_hash(value["config"])
+    with pytest.raises(PolicyError, match="allowlist"):
+        validate_launch(value)
+
+
+def test_replay_equivalence_policy_rejects_paid_or_hidden_surfaces():
+    value = payload()
+    value["config"]["workflow"] = {
+        "step": "replay_equivalence",
+        "protocol_version": "dftr.adapter_merge_replay.v1",
+    }
+    value["config"]["model"]["revision"] = "a" * 40
+    value["config"]["judge"] = {"model": "remote"}
+    value["config_hash"] = canonical_hash(value["config"])
+    with pytest.raises(PolicyError, match="paid or hidden"):
+        validate_launch(value)
+
+
 def test_14b_requires_human_flag():
     value = payload()
     value["config"]["model"]["base"] = "Qwen/Qwen3-14B"

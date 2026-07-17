@@ -46,6 +46,10 @@ def run_m1(config: dict[str, Any], run_id: str) -> dict[str, Any]:
         return _sample_sweep(config, run_id)
     if step == "merge_adapter":
         return _merge_adapter(config, run_id)
+    if step == "replay_equivalence":
+        from .fidelity import replay_equivalence
+
+        return replay_equivalence(config, run_id, render_prompt=_render_prompt)
     raise M1ConfigError(f"unsupported M1 workflow.step: {workflow.get('step')!r}")
 
 

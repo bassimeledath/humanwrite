@@ -1,0 +1,41 @@
+{
+  "contract_schema": "dftr.canonical_generation.v1",
+  "dtype": "bfloat16",
+  "prompt": {
+    "format": "USER:\n{brief}\nASSISTANT:",
+    "schema": "dft.full-brief.v1",
+    "serializer": "experiments.m1.workflow._render_full_brief",
+    "target_length_unit": "words",
+    "utf8_encoding": "utf-8"
+  },
+  "tokenization": {
+    "add_special_tokens": true,
+    "max_input_tokens": 1024,
+    "padding_side": "left",
+    "pad_token_policy": "eos_when_missing",
+    "return_attention_mask": true,
+    "truncation": true,
+    "truncation_side": "right"
+  },
+  "diagnostics": {
+    "greedy_max_new_tokens": 32,
+    "teacher_forced_max_tokens": 64,
+    "thresholds": {
+      "greedy_exact_token_parity": true,
+      "mean_absolute_logit_difference_max": 0.002,
+      "maximum_absolute_logit_difference_max": 0.05,
+      "top1_agreement_min": 0.999
+    }
+  },
+  "historical_replay": {
+    "rng_policy": "single_global_generator_sequential_records_v1"
+  },
+  "prospective_generation": {
+    "batch_semantics": "independent_per_record",
+    "do_sample": true,
+    "max_new_tokens": 384,
+    "rng_derivation": "sha256_u64be(global_seed_nul_fingerprint)_mod_2^63",
+    "temperature": 1.0,
+    "top_p": 1.0
+  }
+}

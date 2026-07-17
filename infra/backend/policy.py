@@ -103,12 +103,20 @@ def validate_launch(payload: dict[str, Any]) -> LaunchPolicy:
     workflow_step = str((config.get("workflow") or {}).get("step", "")).casefold()
     if "14B" in base_model.upper() and not payload.get("human_scaleup_approved"):
         raise PolicyError("14B scale-up lacks human approval")
-    if workflow_step in {"train_sft", "sample_sweep", "merge_adapter"} and revision_is_unresolved(
+    if workflow_step in {"train_sft", "sample_sweep", "merge_adapter", "replay_equivalence"} and revision_is_unresolved(
         (config.get("model") or {}).get("revision")
     ):
         raise PolicyError(
             "M1 evidentiary experiment jobs require model.revision to be a resolved immutable revision"
         )
+    if workflow_step == "replay_equivalence":
+        if str((config.get("workflow") or {}).get("protocol_version")) != "dftr.adapter_merge_replay.v1":
+            raise PolicyError("replay_equivalence requires the frozen public replay protocol")
+        forbidden = {"api", "provider", "judge", "sealed", "hidden"} & {
+            str(key).casefold() for key in config
+        }
+        if forbidden:
+            raise PolicyError("replay_equivalence cannot expose paid or hidden surfaces")
     api_reserved = 0.0
     if task_kind == "experiment":
         command = run.get("command", ALLOWED_COMMAND_PREFIX)

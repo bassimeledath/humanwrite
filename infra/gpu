@@ -177,10 +177,18 @@ def _validate_submit(config: dict, budget_class: str) -> tuple[str, dict]:
     if "14B" in base_model.upper() and os.environ.get("DFTR_ALLOW_SCALEUP") != "1":
         _die("REJECTED: 14B/scale-up requires human DFTR_ALLOW_SCALEUP=1")
     revision = str((config.get("model") or {}).get("revision", "")).strip()
-    if workflow_step in {"train_sft", "sample_sweep", "merge_adapter"} and (
+    if workflow_step in {"train_sft", "sample_sweep", "merge_adapter", "replay_equivalence"} and (
         not revision or revision.startswith(UNRESOLVED_REVISION_PREFIX)
     ):
         _die("REJECTED: M1 evidentiary experiment jobs require a resolved immutable model.revision")
+    if workflow_step == "replay_equivalence":
+        if str((config.get("workflow") or {}).get("protocol_version")) != "dftr.adapter_merge_replay.v1":
+            _die("REJECTED: replay_equivalence requires the frozen public replay protocol")
+        forbidden = {"api", "provider", "judge", "sealed", "hidden"} & {
+            str(key).casefold() for key in config
+        }
+        if forbidden:
+            _die("REJECTED: replay_equivalence cannot expose paid or hidden surfaces")
     task_kind = str(run.get("task_kind", "experiment"))
     if task_kind == "experiment":
         command = run.get("command", ["python", "-m", "experiments.runner"])
