@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-17T23:08:59Z",
+  "updated_at": "2026-07-17T23:45:05Z",
   "phase": "M2 — fresh-instrument and estimator rebuild",
-  "headline": "A real 4B fine-tuning smoke is running before the full briefs finish",
-  "summary": "A frozen 128-brief partial snapshot is now exercising the real Qwen3-4B lower-variance training path as dftr-1784329721-16bf1bb2 while the full brief and evaluation jobs continue. The smoke is plumbing-only, not model-quality evidence. Preparing it caught and repaired the token-versus-word prompt bug before GPU spend. The full matched tuning experiment still uses all 1,024 validated briefs.",
+  "headline": "Evaluation is 550/640; training briefs are 295/1,024 and safely resumed",
+  "summary": "The one-step 4B fine-tuning smoke completed with real gradients and a saved adapter. Evaluation cleaning is 550/640. Brief synthesis preserved 295 valid rows before a recoverable failed terminal state and has resumed as dftr-1784331905-e89aa4be from those committed rows. The full matched tuning experiment still uses all 1,024 validated briefs.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
@@ -25,6 +25,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "16:45",
+      "title": "Brief synthesis safely resumed from 295/1,024",
+      "detail": "The prior resumable worker preserved 295 validated briefs and stopped after five provider/schema failures. Run dftr-1784331905-e89aa4be is continuing from the committed rows without regenerating them. Evaluation cleaning is independently at 550/640.",
+      "tone": "active"
+    },
     {
       "at": "16:08",
       "title": "Early 4B fine-tuning smoke launched on 128 completed briefs",
