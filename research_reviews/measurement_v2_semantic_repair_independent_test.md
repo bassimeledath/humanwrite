@@ -116,5 +116,16 @@ uv run --project harness --extra test pytest -q --runxfail \
 1 failed, 37 passed in 0.80s
 ```
 
+Repository-wide suite with all tester bodies forced to execute:
+
+```text
+PYTHONPATH="$PWD:$PWD/harness/src:$PWD/infra" harness/.venv/bin/pytest -q \
+  data/tests experiments/tests harness/tests infra/tests ledger/tests \
+  research_reviews/test_measurement_v2_independent_adversarial.py \
+  research_reviews/test_measurement_v2_retest_adversarial.py \
+  research_reviews/test_measurement_v2_semantic_repair_independent.py --runxfail
+1 failed, 178 passed, 8 warnings in 5.26s
+```
+
 No implementation or existing tester file was edited. No protocol was deployed,
 no external job was launched, and no budget was spent.
