@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-17T08:13:00Z",
+  "updated_at": "2026-07-17T09:10:00Z",
   "phase": "M2 — first genuine adapter-native DFT comparison",
-  "headline": "DFT implementation passed re-audit; prospective arm split under final repair",
-  "summary": "The score-function MMD implementation now passes focused and policy tests after fixing on-policy sampling, full-brief conditioning, shared-base adapter memory, and resume provenance. A final sequencing review caught that A0 and A64 must be separately launchable so the real A0 can bind the frozen protocol before A64 exists. That repair and the training-only bandwidth materialization are active; no treatment output has been generated.",
+  "headline": "First genuine 4B DFT cycle active: matched A0 control training",
+  "summary": "The signed A0/A64 sequencing boundary and wrapper-guarded training bandwidth producer passed repeated adversarial review. Training-only Qwen3-4B bandwidths were materialized from 256 frozen human completions for $0.016, and the exact 4B CUDA/PEFT plumbing smoke passed for $0.025. The eight-step A0 control is now training; A64 remains locked until A0 output, protocol freeze, and independent blind qualification.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
@@ -25,6 +25,24 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "02:10",
+      "title": "Matched 4B A0 scientific control launched",
+      "detail": "Run dftr-1784279399-17837c4a is training the zero-MMD A0 continuation under the frozen eight-step method. A64 uses the identical method hash but cannot launch until A0 generation, measurement-v2 freeze, and signed independent blind qualification are bound in readiness evidence.",
+      "tone": "active"
+    },
+    {
+      "at": "02:06",
+      "title": "Real 4B DFT plumbing smoke passed",
+      "detail": "One full A0 step completed with 192 rollout tokens, finite losses and gradient norm, 100 percent unique rollouts, zero repeated trigrams, and a real saved PEFT checkpoint. Actual cost was 0.025310 dollars after one 0.019271 dollar fail-safe autograd integration attempt.",
+      "tone": "complete"
+    },
+    {
+      "at": "02:00",
+      "title": "Training-only bandwidth artifact materialized",
+      "detail": "The wrapper-only 4B producer embedded 256 frozen training humans, computed 32,640 positive pair distances with zero duplicates, and froze five bandwidths. The successful run cost 0.016384 dollars and generated zero tokens.",
+      "tone": "complete"
+    },
     {
       "at": "01:13",
       "title": "DFT re-audit passed; prospective sequencing tightened",
