@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-17T21:33:24Z",
+  "updated_at": "2026-07-17T21:46:28Z",
   "phase": "M2 — fresh-instrument and estimator rebuild",
-  "headline": "Clean training corpus validated; evaluation cleaning resumed",
-  "summary": "Qwen3-32B cleaning completed the 1,024-document training corpus for $0.266851. All 1,024 rows pass strict exact-line provenance, unique-domain/fingerprint, split, and 80-220-word validation. The integrated lower-variance runner, brief assembly, and measurement-v3 suites pass 128 tests. The 640-document evaluation cleaner is now running as dftr-1784323983-2f70b1f2; training has not started yet.",
+  "headline": "Evaluation cleaning and faithful training-brief synthesis now run concurrently",
+  "summary": "The validated 1,024-document training corpus is no longer waiting on the evaluation pool. Two-provider synthesis is active as dftr-1784324765-528d37bd: Qwen3-32B produces prompt/use-case/style metadata and GPT-5-mini produces outlines with exactly 25 percent empty. Evaluation cleaner dftr-1784323983-2f70b1f2 continues independently. The new privileged path and surrounding lower-variance system pass 162 tests; GPU tuning starts after the training briefs validate.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
@@ -25,6 +25,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "14:46",
+      "title": "Training preparation moved ahead in parallel",
+      "detail": "Deployed the strict two-provider brief worker at commit ce7ff7f and launched dftr-1784324765-528d37bd over all 1,024 validated training documents under a 10 dollar API cap. It runs concurrently with the 640-document evaluation cleaner, so only final decision-grade scoring remains gated on evaluation completion.",
+      "tone": "active"
+    },
     {
       "at": "14:33",
       "title": "Training corpus complete and valid; evaluation cleaner launched",
