@@ -1141,6 +1141,7 @@ def build_attestation(
     operator: str,
     attested_at: str,
     artifact_root: str | Path | None = None,
+    repo_root: str | Path | None = None,
     trusted_public_keys: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     # Authenticate caller-supplied qualification evidence before using any of
@@ -1151,7 +1152,9 @@ def build_attestation(
         trusted_public_keys=trusted_public_keys,
     )
     inventory_signature = _verify_historical_inventory_check(
-        inventory_check, repo_root=artifact_root, trusted_public_keys=trusted_public_keys
+        inventory_check,
+        repo_root=repo_root if repo_root is not None else artifact_root,
+        trusted_public_keys=trusted_public_keys,
     )
     validate_protocol(
         protocol, artifact_root=artifact_root, trusted_public_keys=trusted_public_keys
@@ -1237,6 +1240,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     attestation_parser.add_argument("--operator", required=True)
     attestation_parser.add_argument("--attested-at", required=True)
     attestation_parser.add_argument("--artifact-root", required=True)
+    attestation_parser.add_argument("--repo-root")
     attestation_parser.add_argument("--trusted-keys", required=True)
     args = parser.parse_args(argv)
     try:
@@ -1270,6 +1274,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 operator=args.operator,
                 attested_at=args.attested_at,
                 artifact_root=args.artifact_root,
+                repo_root=args.repo_root,
                 trusted_public_keys=_load(args.trusted_keys),
             )
     except (OSError, json.JSONDecodeError, MeasurementV2Error) as error:

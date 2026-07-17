@@ -20,6 +20,7 @@ test = ["pytest>=8", "pytest-cov>=5"]
 
 [project.scripts]
 harness = "harness.cli:main"
+measurement-v2-operator = "harness.measurement_v2_operator:main"
 
 [build-system]
 requires = ["setuptools>=69"]

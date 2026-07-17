@@ -1,0 +1,21 @@
+{
+  "artifact_schema": "dftr.measurement.decision_contract.v2",
+  "status": "unmaterialized",
+  "evidence_class": "prospective_screen",
+  "permutation_draws": 10000,
+  "authorship_uncertainty_refits": 100,
+  "authorship_fold_seeds": [701, 702, 703, 704, 705],
+  "seeds": {
+    "permutation": 41,
+    "bootstrap": 42,
+    "authorship_split": 43
+  },
+  "thresholds": {
+    "candidate_minus_control_mmd_max": null,
+    "paired_mmd_p_max": 0.05,
+    "repetition_noninferiority_margin": null,
+    "authorship_separability_improvement_min": null,
+    "quality_win_rate_min": null
+  },
+  "notes": "Operator must replace every null from prospective visible evidence and set status=frozen before candidate outputs are generated."
+}

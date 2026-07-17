@@ -1,0 +1,19 @@
+{
+  "artifact_schema": "dftr.measurement.power_assumptions.v2",
+  "trials": 1000,
+  "seed": 4101,
+  "minimally_important_effects": {
+    "mmd": null,
+    "auc": null,
+    "repetition": null,
+    "coverage": 0.95
+  },
+  "pilot_scales": {
+    "mmd_standard_error": null,
+    "auc_standard_error": null,
+    "human_repetition_rate": null,
+    "repetition_margin": null
+  },
+  "multiplicity": "holm",
+  "notes": "Operator must replace nulls from visible human/control pilot evidence before candidate outputs exist. The materializer rejects nulls and any simulation that misses type-I, power, or coverage targets."
+}
