@@ -46,16 +46,25 @@ REPLAY_HISTORICAL_CONFIG_PATH = (
 REPLAY_HISTORICAL_CONFIG_SHA256 = (
     "a02d893eda4c5e457864e1145e5cb4a4d238ab04037bc74e269a1ab20e52a72c"
 )
-REPLAY_PROTOCOLS = {"dftr.adapter_merge_replay.v1", "dftr.adapter_merge_replay.v2"}
+REPLAY_PROTOCOLS = {
+    "dftr.adapter_merge_replay.v1",
+    "dftr.adapter_merge_replay.v2",
+    "dftr.adapter_merge_replay.v3",
+}
 REPLAY_PROTOCOL_V1 = "dftr.adapter_merge_replay.v1"
 REPLAY_PROTOCOL_V2 = "dftr.adapter_merge_replay.v2"
+REPLAY_PROTOCOL_V3 = "dftr.adapter_merge_replay.v3"
 REPLAY_COMPARISON_V1 = "M2-adapter-merge-fidelity-replay-v1"
 REPLAY_COMPARISON_V2 = "M2-adapter-merge-fidelity-replay-v2"
+REPLAY_COMPARISON_V3 = "M2-adapter-merge-fidelity-replay-v3"
 REPLAY_CANONICAL_V1_CONFIG_HASH = (
     "859798f2ce66b81a2db32665b7f8fda5a76f5d9e82c64789e7e1f797c4587b9f"
 )
 REPLAY_CANONICAL_V2_CONFIG_HASH = (
     "ee76ca0ecda72321f07cecd1c70fba5905779321e3169579e357bafdad4cd1da"
+)
+REPLAY_CANONICAL_V3_CONFIG_HASH = (
+    "82ef89e5f78f205083392ad2a74f3a4795debc5856cd7ce5f7fe906f728fd6b9"
 )
 REPLAY_SNAPSHOT_IDENTITY_PATH = (
     "configs/m2/manifests/m2_adapter_merge_snapshot_identity_v2.json"
@@ -67,6 +76,18 @@ REPLAY_ORIGINAL_MERGE_HASH_V2 = "7f095c31e83f8b03"
 REPLAY_SUBMITTED_SNAPSHOT_HASH_V2 = "0f437f62bc1cca0c"
 REPLAY_V1_MERGED_CONTENT_HASH = REPLAY_SUBMITTED_SNAPSHOT_HASH_V2
 REPLAY_EXACT_SERIALIZATION_IDENTITY = "exact_serialization_bytes"
+REPLAY_TOKENIZER_IDENTITY_PATH = (
+    "configs/m2/manifests/m2_adapter_merge_tokenizer_identity_v3.json"
+)
+REPLAY_TOKENIZER_IDENTITY_SHA256 = (
+    "54891d4320ee45db4f4ad08124c22b1696410b70210e63f0da5239e3958a7712"
+)
+REPLAY_ADAPTER_TOKENIZER_CONFIG_SHA256_V3 = (
+    "443bfa629eb16387a12edbf92a76f6a6f10b2af3b53d87ba1550adfcf45f7fa0"
+)
+REPLAY_MERGED_TOKENIZER_CONFIG_SHA256_V3 = (
+    "a32ee532e3437966f2b52bb0fe0e7c525234dc1034814718b0467d8104a09371"
+)
 REPLAY_SENSITIVE_KEY_WORDS = {
     "api", "provider", "judge", "sealed", "hidden", "private",
     "credential", "credentials", "secret", "secrets",
@@ -175,24 +196,60 @@ def validate_replay_launch_contract(config: dict[str, Any]) -> None:
                 "replay v1 is restricted to the exact canonical historical config identity"
             )
         return
-    if protocol != REPLAY_PROTOCOL_V2 or comparison != REPLAY_COMPARISON_V2:
+    if protocol == REPLAY_PROTOCOL_V2:
+        audit = config.get("submitted_snapshot_audit") or {}
+        if (
+            comparison != REPLAY_COMPARISON_V2
+            or artifacts.get("merged_content_hash") != REPLAY_ORIGINAL_MERGE_HASH_V2
+            or audit.get("identity_manifest") != REPLAY_SNAPSHOT_IDENTITY_PATH
+            or audit.get("identity_manifest_sha256") != REPLAY_SNAPSHOT_IDENTITY_SHA256
+            or audit.get("canonical_directory_hash") != REPLAY_SUBMITTED_SNAPSHOT_HASH_V2
+            or list(audit.get("metadata_difference_files") or [])
+            != ["generation_config.json", "train_config.json"]
+            or audit.get("weights_tokenizer_index_identity")
+            != REPLAY_EXACT_SERIALIZATION_IDENTITY
+            or audit.get("generation_arguments_authority")
+            != REPLAY_GENERATION_CONTRACT_PATH
+            or canonical_hash(config) != REPLAY_CANONICAL_V2_CONFIG_HASH
+        ):
+            raise PolicyError(
+                "replay v2 requires the exact canonical prospective config and artifact identity"
+            )
+        return
+    if protocol != REPLAY_PROTOCOL_V3 or comparison != REPLAY_COMPARISON_V3:
         raise PolicyError("replay protocol and comparison identity must match bidirectionally")
-    audit = config.get("submitted_snapshot_audit") or {}
+    snapshot_audit = config.get("submitted_snapshot_audit") or {}
+    tokenizer_audit = config.get("adapter_merge_tokenizer_audit") or {}
     if (
         artifacts.get("merged_content_hash") != REPLAY_ORIGINAL_MERGE_HASH_V2
-        or audit.get("identity_manifest") != REPLAY_SNAPSHOT_IDENTITY_PATH
-        or audit.get("identity_manifest_sha256") != REPLAY_SNAPSHOT_IDENTITY_SHA256
-        or audit.get("canonical_directory_hash") != REPLAY_SUBMITTED_SNAPSHOT_HASH_V2
-        or list(audit.get("metadata_difference_files") or [])
+        or snapshot_audit.get("identity_manifest") != REPLAY_SNAPSHOT_IDENTITY_PATH
+        or snapshot_audit.get("identity_manifest_sha256")
+        != REPLAY_SNAPSHOT_IDENTITY_SHA256
+        or snapshot_audit.get("canonical_directory_hash")
+        != REPLAY_SUBMITTED_SNAPSHOT_HASH_V2
+        or list(snapshot_audit.get("metadata_difference_files") or [])
         != ["generation_config.json", "train_config.json"]
-        or audit.get("weights_tokenizer_index_identity")
+        or snapshot_audit.get("weights_tokenizer_index_identity")
         != REPLAY_EXACT_SERIALIZATION_IDENTITY
-        or audit.get("generation_arguments_authority")
+        or snapshot_audit.get("generation_arguments_authority")
         != REPLAY_GENERATION_CONTRACT_PATH
-        or canonical_hash(config) != REPLAY_CANONICAL_V2_CONFIG_HASH
+        or tokenizer_audit.get("identity_manifest") != REPLAY_TOKENIZER_IDENTITY_PATH
+        or tokenizer_audit.get("identity_manifest_sha256")
+        != REPLAY_TOKENIZER_IDENTITY_SHA256
+        or tokenizer_audit.get("adapter_tokenizer_config_sha256")
+        != REPLAY_ADAPTER_TOKENIZER_CONFIG_SHA256_V3
+        or tokenizer_audit.get("merged_tokenizer_config_sha256")
+        != REPLAY_MERGED_TOKENIZER_CONFIG_SHA256_V3
+        or list(tokenizer_audit.get("tokenizer_metadata_difference_files") or [])
+        != ["tokenizer_config.json"]
+        or tokenizer_audit.get("shared_file_identity")
+        != REPLAY_EXACT_SERIALIZATION_IDENTITY
+        or tokenizer_audit.get("runtime_attestation")
+        != "exact_prompt_token_and_attention_mask_before_diagnostics"
+        or canonical_hash(config) != REPLAY_CANONICAL_V3_CONFIG_HASH
     ):
         raise PolicyError(
-            "replay v2 requires the exact canonical prospective config and artifact identity"
+            "replay v3 requires the exact canonical tokenizer-aware config and artifact identity"
         )
 
 

@@ -24,9 +24,11 @@ from .contracts import (
 
 REPLAY_SCHEMA = "dftr.adapter_merge_replay.v1"
 REPLAY_SCHEMA_V2 = "dftr.adapter_merge_replay.v2"
-REPLAY_SCHEMAS = {REPLAY_SCHEMA, REPLAY_SCHEMA_V2}
+REPLAY_SCHEMA_V3 = "dftr.adapter_merge_replay.v3"
+REPLAY_SCHEMAS = {REPLAY_SCHEMA, REPLAY_SCHEMA_V2, REPLAY_SCHEMA_V3}
 REPLAY_COMPARISON_V1 = "M2-adapter-merge-fidelity-replay-v1"
 REPLAY_COMPARISON_V2 = "M2-adapter-merge-fidelity-replay-v2"
+REPLAY_COMPARISON_V3 = "M2-adapter-merge-fidelity-replay-v3"
 CANONICAL_REPLAY_V1_CONFIG_PATH = "configs/m2/m2_adapter_merge_fidelity_replay_v1.yaml"
 CANONICAL_REPLAY_V1_CONFIG_SHA256 = (
     "8015afd23f7d21953e0e7f0f1045db824a87377ec38de4c7c478b7455570ef4c"
@@ -40,6 +42,13 @@ CANONICAL_REPLAY_V2_CONFIG_SHA256 = (
 )
 CANONICAL_REPLAY_V2_CONFIG_HASH = (
     "ee76ca0ecda72321f07cecd1c70fba5905779321e3169579e357bafdad4cd1da"
+)
+CANONICAL_REPLAY_V3_CONFIG_PATH = "configs/m2/m2_adapter_merge_fidelity_replay_v3.yaml"
+CANONICAL_REPLAY_V3_CONFIG_SHA256 = (
+    "71ac41a8cbf8eaa0fc4346e3c87cfa7c6e7ea196eeeb8797d0dba819a3d4405b"
+)
+CANONICAL_REPLAY_V3_CONFIG_HASH = (
+    "82ef89e5f78f205083392ad2a74f3a4795debc5856cd7ce5f7fe906f728fd6b9"
 )
 CONTRACT_SCHEMA = "dftr.canonical_generation.v1"
 REPLAY_TRANSFORMERS_VERSION = "4.57.6"
@@ -63,6 +72,33 @@ SNAPSHOT_IDENTITY_MANIFEST_SHA256 = (
 ORIGINAL_MERGE_CONTENT_HASH_V2 = "7f095c31e83f8b03"
 SUBMITTED_SNAPSHOT_CONTENT_HASH_V2 = "0f437f62bc1cca0c"
 SNAPSHOT_METADATA_DIFFERENCE_FILES = ["generation_config.json", "train_config.json"]
+TOKENIZER_IDENTITY_MANIFEST_PATH = (
+    "configs/m2/manifests/m2_adapter_merge_tokenizer_identity_v3.json"
+)
+TOKENIZER_IDENTITY_MANIFEST_SHA256 = (
+    "54891d4320ee45db4f4ad08124c22b1696410b70210e63f0da5239e3958a7712"
+)
+ADAPTER_TOKENIZER_CONFIG_SHA256_V3 = (
+    "443bfa629eb16387a12edbf92a76f6a6f10b2af3b53d87ba1550adfcf45f7fa0"
+)
+MERGED_TOKENIZER_CONFIG_SHA256_V3 = (
+    "a32ee532e3437966f2b52bb0fe0e7c525234dc1034814718b0467d8104a09371"
+)
+TOKENIZER_METADATA_DIFFERENCE_FILES = ["tokenizer_config.json"]
+TOKENIZER_EXACT_MATCH_FILES = [
+    "added_tokens.json",
+    "chat_template.jinja",
+    "merges.txt",
+    "special_tokens_map.json",
+    "tokenizer.json",
+    "vocab.json",
+]
+MERGED_TOKENIZER_CONFIG_ADDITIONS = {
+    "max_length": 384,
+    "stride": 0,
+    "truncation_side": "right",
+    "truncation_strategy": "longest_first",
+}
 EXACT_SAMPLING_SEEDS = [101, 202, 303]
 TOKENIZER_FILES = {
     "added_tokens.json",
@@ -260,8 +296,8 @@ def load_generation_contract(config: dict[str, Any]) -> tuple[dict[str, Any], Pa
 
 def load_snapshot_identity_audit(config: dict[str, Any]) -> tuple[dict[str, Any], Path, str]:
     workflow = config.get("workflow") or {}
-    if workflow.get("protocol_version") != REPLAY_SCHEMA_V2:
-        raise M1ConfigError("snapshot identity audit is required only for replay protocol v2")
+    if workflow.get("protocol_version") not in {REPLAY_SCHEMA_V2, REPLAY_SCHEMA_V3}:
+        raise M1ConfigError("snapshot identity audit is required only for replay protocol v2/v3")
     audit_config = config.get("submitted_snapshot_audit") or {}
     if str(audit_config.get("identity_manifest") or "") != SNAPSHOT_IDENTITY_MANIFEST_PATH:
         raise M1ConfigError("replay v2 requires the canonical snapshot identity manifest path")
@@ -323,6 +359,72 @@ def load_snapshot_identity_audit(config: dict[str, Any]) -> tuple[dict[str, Any]
     return manifest, path, SNAPSHOT_IDENTITY_MANIFEST_SHA256
 
 
+def load_tokenizer_identity_audit(
+    config: dict[str, Any],
+) -> tuple[dict[str, Any], Path, str]:
+    workflow = config.get("workflow") or {}
+    if workflow.get("protocol_version") != REPLAY_SCHEMA_V3:
+        raise M1ConfigError("tokenizer identity audit is required only for replay protocol v3")
+    audit = config.get("adapter_merge_tokenizer_audit") or {}
+    if audit.get("identity_manifest") != TOKENIZER_IDENTITY_MANIFEST_PATH:
+        raise M1ConfigError("replay v3 requires the canonical tokenizer identity manifest path")
+    if audit.get("identity_manifest_sha256") != TOKENIZER_IDENTITY_MANIFEST_SHA256:
+        raise M1ConfigError("replay v3 requires the canonical tokenizer identity manifest SHA-256")
+    path = resolve_repo_path(TOKENIZER_IDENTITY_MANIFEST_PATH)
+    if not path.is_file() or file_sha256(path) != TOKENIZER_IDENTITY_MANIFEST_SHA256:
+        raise M1ConfigError("canonical tokenizer identity manifest SHA-256 mismatch")
+    manifest = read_structured(path)
+    adapter = manifest.get("adapter") or {}
+    merged = manifest.get("original_merge") or {}
+    relation = manifest.get("relation") or {}
+    artifacts = config.get("artifacts") or {}
+    if (
+        manifest.get("artifact_schema") != "dftr.adapter_merge_tokenizer_identity.v3"
+        or manifest.get("comparison_id") != REPLAY_COMPARISON_V3
+        or adapter.get("path") != artifacts.get("adapter_path")
+        or merged.get("path") != artifacts.get("merged_path")
+    ):
+        raise M1ConfigError("replay v3 tokenizer identity manifest scope mismatch")
+    adapter_files = dict(adapter.get("file_sha256") or {})
+    merged_files = dict(merged.get("file_sha256") or {})
+    expected_files = set(TOKENIZER_EXACT_MATCH_FILES + TOKENIZER_METADATA_DIFFERENCE_FILES)
+    if set(adapter_files) != expected_files or set(merged_files) != expected_files:
+        raise M1ConfigError("replay v3 tokenizer manifest must bind the exact tokenizer file set")
+    if (
+        adapter_files.get("tokenizer_config.json") != ADAPTER_TOKENIZER_CONFIG_SHA256_V3
+        or merged_files.get("tokenizer_config.json") != MERGED_TOKENIZER_CONFIG_SHA256_V3
+        or audit.get("adapter_tokenizer_config_sha256")
+        != ADAPTER_TOKENIZER_CONFIG_SHA256_V3
+        or audit.get("merged_tokenizer_config_sha256")
+        != MERGED_TOKENIZER_CONFIG_SHA256_V3
+    ):
+        raise M1ConfigError("replay v3 tokenizer_config identity mismatch")
+    if any(adapter_files[name] != merged_files[name] for name in TOKENIZER_EXACT_MATCH_FILES):
+        raise M1ConfigError("replay v3 shared tokenizer file identity mismatch")
+    difference = relation.get("tokenizer_config_json_difference") or {}
+    if (
+        list(relation.get("exact_match_files") or []) != TOKENIZER_EXACT_MATCH_FILES
+        or list(relation.get("metadata_difference_files") or [])
+        != TOKENIZER_METADATA_DIFFERENCE_FILES
+        or list(audit.get("tokenizer_metadata_difference_files") or [])
+        != TOKENIZER_METADATA_DIFFERENCE_FILES
+        or difference.get("adapter_only_fields") != {}
+        or difference.get("merged_only_fields") != MERGED_TOKENIZER_CONFIG_ADDITIONS
+        or difference.get("changed_fields") != {}
+        or relation.get("shared_file_identity") != "exact_serialization_bytes"
+        or audit.get("shared_file_identity") != "exact_serialization_bytes"
+        or relation.get("chat_template_identity") != "exact_utf8_bytes"
+        or relation.get("runtime_authority")
+        != "independent_adapter_and_merge_tokenization"
+        or relation.get("runtime_attestation")
+        != "exact_prompt_token_and_attention_mask_before_diagnostics"
+        or audit.get("runtime_attestation")
+        != "exact_prompt_token_and_attention_mask_before_diagnostics"
+    ):
+        raise M1ConfigError("replay v3 tokenizer metadata exception is not exact")
+    return manifest, path, TOKENIZER_IDENTITY_MANIFEST_SHA256
+
+
 def validate_replay_spec(config: dict[str, Any]) -> tuple[list[str], list[int]]:
     assert_public_only_config(config)
     workflow = config.get("workflow") or {}
@@ -335,7 +437,9 @@ def validate_replay_spec(config: dict[str, Any]) -> tuple[list[str], list[int]]:
             raise M1ConfigError(
                 "replay protocol and comparison identity must match bidirectionally"
             )
-    elif comparison_id != REPLAY_COMPARISON_V2:
+    elif protocol_version == REPLAY_SCHEMA_V2 and comparison_id != REPLAY_COMPARISON_V2:
+        raise M1ConfigError("replay protocol and comparison identity must match bidirectionally")
+    elif protocol_version == REPLAY_SCHEMA_V3 and comparison_id != REPLAY_COMPARISON_V3:
         raise M1ConfigError("replay protocol and comparison identity must match bidirectionally")
     if str((config.get("runtime") or {}).get("transformers_version")) != REPLAY_TRANSFORMERS_VERSION:
         raise M1ConfigError(
@@ -387,6 +491,19 @@ def validate_replay_spec(config: dict[str, Any]) -> tuple[list[str], list[int]]:
             raise M1ConfigError(
                 "replay v2 is restricted to the exact canonical prospective config identity"
             )
+    elif protocol_version == REPLAY_SCHEMA_V3:
+        load_snapshot_identity_audit(config)
+        load_tokenizer_identity_audit(config)
+        canonical_path = resolve_repo_path(CANONICAL_REPLAY_V3_CONFIG_PATH)
+        if (
+            not canonical_path.is_file()
+            or file_sha256(canonical_path) != CANONICAL_REPLAY_V3_CONFIG_SHA256
+            or canonical_hash(config) != CANONICAL_REPLAY_V3_CONFIG_HASH
+            or config != read_structured(canonical_path)
+        ):
+            raise M1ConfigError(
+                "replay v3 is restricted to the exact canonical prospective config identity"
+            )
     else:
         canonical_path = resolve_repo_path(CANONICAL_REPLAY_V1_CONFIG_PATH)
         if (
@@ -424,6 +541,26 @@ def _tokenizer_file_map(root: Path) -> dict[str, str]:
     }
 
 
+def _tokenizer_config_json_difference(
+    adapter: dict[str, Any], merged: dict[str, Any]
+) -> dict[str, dict[str, Any]]:
+    adapter_keys = set(adapter)
+    merged_keys = set(merged)
+    return {
+        "adapter_only_fields": {
+            key: adapter[key] for key in sorted(adapter_keys - merged_keys)
+        },
+        "merged_only_fields": {
+            key: merged[key] for key in sorted(merged_keys - adapter_keys)
+        },
+        "changed_fields": {
+            key: {"adapter": adapter[key], "merged": merged[key]}
+            for key in sorted(adapter_keys & merged_keys)
+            if adapter[key] != merged[key]
+        },
+    }
+
+
 def verify_artifact_identities(config: dict[str, Any]) -> dict[str, Any]:
     artifacts = config.get("artifacts") or {}
     adapter_dir = Path(str(artifacts.get("adapter_path") or ""))
@@ -452,20 +589,55 @@ def verify_artifact_identities(config: dict[str, Any]) -> dict[str, Any]:
     merged_files = _verify_file_map(
         merged_dir, dict(artifacts.get("merged_weight_files") or {}), "merged"
     )
+    protocol_version = (config.get("workflow") or {}).get("protocol_version")
     snapshot_identity: dict[str, Any] | None = None
-    if (config.get("workflow") or {}).get("protocol_version") == REPLAY_SCHEMA_V2:
+    tokenizer_identity: dict[str, Any] | None = None
+    if protocol_version in {REPLAY_SCHEMA_V2, REPLAY_SCHEMA_V3}:
         snapshot_identity, identity_path, identity_sha = load_snapshot_identity_audit(config)
         _verify_file_map(
             merged_dir,
             dict((snapshot_identity.get("original_merge") or {}).get("file_sha256") or {}),
             "original merged",
         )
+    if protocol_version == REPLAY_SCHEMA_V3:
+        tokenizer_identity, tokenizer_identity_path, tokenizer_identity_sha = (
+            load_tokenizer_identity_audit(config)
+        )
+        _verify_file_map(
+            adapter_dir,
+            dict((tokenizer_identity.get("adapter") or {}).get("file_sha256") or {}),
+            "adapter tokenizer",
+        )
+        _verify_file_map(
+            merged_dir,
+            dict(
+                (tokenizer_identity.get("original_merge") or {}).get("file_sha256")
+                or {}
+            ),
+            "merged tokenizer",
+        )
+        observed_tokenizer_difference = _tokenizer_config_json_difference(
+            read_structured(adapter_dir / "tokenizer_config.json"),
+            read_structured(merged_dir / "tokenizer_config.json"),
+        )
+        expected_tokenizer_difference = (
+            (tokenizer_identity.get("relation") or {}).get(
+                "tokenizer_config_json_difference"
+            )
+            or {}
+        )
+        if observed_tokenizer_difference != expected_tokenizer_difference:
+            raise M1ConfigError(
+                "runtime tokenizer_config JSON difference exceeds the v3 exception"
+            )
     merged_content_hash = canonical_directory_hash(merged_dir)
     if merged_content_hash != str(artifacts.get("merged_content_hash")):
         raise M1ConfigError("merged directory content hash mismatch")
     adapter_tokenizer = _tokenizer_file_map(adapter_dir)
     merged_tokenizer = _tokenizer_file_map(merged_dir)
-    if not adapter_tokenizer or adapter_tokenizer != merged_tokenizer:
+    if not adapter_tokenizer or not merged_tokenizer:
+        raise M1ConfigError("adapter and merged tokenizer file identities are absent")
+    if protocol_version != REPLAY_SCHEMA_V3 and adapter_tokenizer != merged_tokenizer:
         raise M1ConfigError("adapter and merged tokenizer file identities differ")
     result = {
         "adapter": {
@@ -500,6 +672,19 @@ def verify_artifact_identities(config: dict[str, Any]) -> dict[str, Any]:
             "weights_tokenizer_index_identity": "exact_serialization_bytes",
             "generation_arguments_authority": CANONICAL_GENERATION_CONTRACT_PATH,
         }
+    if tokenizer_identity is not None:
+        result["tokenizer"].update({
+            "merged_files": merged_tokenizer,
+            "adapter_identity_sha256": _canonical_json_sha256(adapter_tokenizer),
+            "merged_identity_sha256": _canonical_json_sha256(merged_tokenizer),
+            "identity_manifest_path": str(tokenizer_identity_path),
+            "identity_manifest_sha256": tokenizer_identity_sha,
+            "metadata_difference_files": TOKENIZER_METADATA_DIFFERENCE_FILES,
+            "runtime_attestation": (
+                "exact_prompt_token_and_attention_mask_before_diagnostics"
+            ),
+            "tokenizer_config_json_difference": observed_tokenizer_difference,
+        })
     return result
 
 
@@ -922,9 +1107,13 @@ def replay_equivalence(
     protocol_version = str(workflow.get("protocol_version"))
     result = {
         "artifact_schema": (
-            "dftr.adapter_merge_replay_result.v2"
-            if protocol_version == REPLAY_SCHEMA_V2
-            else "dftr.adapter_merge_replay_result.v1"
+            "dftr.adapter_merge_replay_result.v3"
+            if protocol_version == REPLAY_SCHEMA_V3
+            else (
+                "dftr.adapter_merge_replay_result.v2"
+                if protocol_version == REPLAY_SCHEMA_V2
+                else "dftr.adapter_merge_replay_result.v1"
+            )
         ),
         "protocol_version": protocol_version,
         "run_id": run_id,
