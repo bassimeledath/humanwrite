@@ -204,6 +204,26 @@ def test_14b_requires_human_flag():
     assert validate_launch(value).comparison_id == "M2-A-vs-SFT"
 
 
+def test_frozen_estimator_audit_is_hash_bound_and_checkpoint_scoped():
+    value = payload()
+    config_path = (
+        Path(__file__).resolve().parents[2]
+        / "configs/m2/m2_frozen_estimator_audit_4b_v1.yaml"
+    )
+    value["config"] = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    value["budget_class"] = "screen"
+    value["preregistration"]["comparison"] = value["config"]["run"]["comparison_id"]
+    value["config_hash"] = canonical_hash(value["config"])
+    policy = validate_launch(value)
+    assert policy.comparison_id == "M2-frozen-estimator-audit-4b-v1"
+    assert policy.worst_case_cost_usd < 5.0
+
+    value["config"]["audit"]["replicates"] = 8
+    value["config_hash"] = canonical_hash(value["config"])
+    with pytest.raises(PolicyError, match="frozen contract"):
+        validate_launch(value)
+
+
 def test_brief_synthesis_reserves_api_not_gpu():
     value = payload()
     value["config"]["run"]["task_kind"] = "brief_synthesis"

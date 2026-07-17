@@ -1,0 +1,68 @@
+artifact_schema: dftr.m2.frozen_estimator_audit.v1
+run:
+  comparison_id: M2-frozen-estimator-audit-4b-v1
+  arm: frozen-estimator-audit
+  budget_class: screen
+  task_kind: experiment
+  command: [python, -m, experiments.runner]
+  seed: 11
+compute:
+  gpu: L40S
+  gpus: 1
+  timeout_min: 120
+model:
+  base: Qwen/Qwen3-4B
+  revision: 1cfa9a7208912126459214e8b04321603b3df60c
+  torch_dtype: bfloat16
+initial_adapter:
+  path: /checkpoints/runs/dftr-1784216516-91130dd3/seed-11
+  adapter_model_sha256: b7b590ca0d40b8b51951d44beb2e7928fccabbd6a2a7290f47e927da0fb81178
+  adapter_config_sha256: 9a72a9527c48cc2acf703f40047f1a6dec59e92fdc7021d59523ba5ed6fb965c
+  file_manifest_sha256: bd9843c196f6685c3e3c83f829726b09e3c87188d07ccbe66613616cd032d643
+data:
+  rollout_path: /checkpoints/data/m1-realdata-adherence-v1/train_briefs.jsonl
+  rollout_sha256: 4ac15ea8a56a89e4f5b24841e3581c68de607359823e5851d585542c2d7562da
+  human_targets_path: /checkpoints/data/m1-realdata-adherence-v1/train_briefs.jsonl
+  human_targets_sha256: 4ac15ea8a56a89e4f5b24841e3581c68de607359823e5851d585542c2d7562da
+  human_text_field: completion
+  prompt_format: "USER:\n{brief}\nASSISTANT:"
+  prompt_schema_version: dft.full-brief.v2
+  prompt_serializer_sha256: 4b8410439f74f7653061151ffd3335a1b77b2b34e3e2dbf279791e51378cbe28
+  legacy_target_length_semantics: provider_requested_token_estimate_missing_unit_field
+representation:
+  model: Qwen/Qwen3-4B
+  revision: 1cfa9a7208912126459214e8b04321603b3df60c
+  layer: -1
+  pooling: attention_masked_mean
+  normalize: true
+  role: diagnostic_training_only_not_evaluation
+  batch_size: 4
+  max_tokens: 256
+audit:
+  replicates: 16
+  group_sizes: [4, 8, 16, 32]
+  max_new_tokens: 64
+  rollout_target_length_tokens: 64
+  max_input_tokens: 1024
+  prompt_schedule_seed: 3101
+  rollout_seed_start: 4101
+  gradient_supports: [full_humans, rollout_horizon_humans]
+  sketch_dimension: 256
+  sketch_seed: 5101
+  bandwidth_scales: [0.25, 0.5, 1.0, 2.0, 4.0]
+  go_thresholds:
+    k32_split_half_cosine_min: 0.5
+    k32_gradient_norm_cv_max: 1.0
+runtime:
+  torch_version: 2.13.0+cu130
+  transformers_version: 4.57.6
+  peft_version: 0.19.1
+  deterministic_algorithms: true
+  cublas_workspace_config: ":4096:8"
+output:
+  filename: estimator_audit.json
+  overwrite: false
+workflow:
+  protocol_version: dftr.m2.frozen_estimator_audit.v1
+  step: audit_estimator
+  audit_contract_sha256: ae86a9148122672564d24f3ae377a2dfaa633185bcc551fb84bc91ea05732e80

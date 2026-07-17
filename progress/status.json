@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-17T11:35:00Z",
+  "updated_at": "2026-07-17T15:35:29Z",
   "phase": "M2 — fresh-instrument and estimator rebuild",
-  "headline": "A64 recipe failed, but independent audit found the test was underdosed and its absolute instrument invalid",
-  "summary": "The A64-versus-A0 treatment contrast remains essentially zero after independent recomputation, so that exact eight-step recipe stays rejected. The broader DFT-negative interpretation is withdrawn: prompt sources were also used as distribution references, shifting absolute MMD by about -0.0069; the authorship gate became impossible; power did not simulate the scored rule; and training had token/word, EOS, language, cleaning, and dose defects. A fresh unpaired evaluator and frozen-policy K=4/8/16/32 audit are now the active gates before the next 4B treatment.",
+  "headline": "Frozen K=4/8/16/32 gradient audit implemented and preregistered for launch",
+  "summary": "The exact A64 recipe remains rejected, but the next diagnostic is now executable: 16 nested frozen-policy rollout groups compare K=4/8/16/32 under both full-human and 64-token-matched reward support. The new versioned path requests 64 tokens explicitly, terminates scoring at EOS, sketches the whole LoRA gradient, takes no optimizer step, and has a frozen pass rule. Gateway deployment and one Modal launch are next.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
@@ -25,6 +25,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "08:35",
+      "title": "K-scaling estimator audit preregistered and ready for deployment",
+      "detail": "A new versioned sampler fixes token units and post-EOS reward pollution without altering historical A64 code. The no-training audit runs 16 nested K=4/8/16/32 groups, compares full versus 64-token-truncated human support, and requires K32 split-half gradient cosine at least 0.50 with norm CV at most 1.0. The runner and both gateway guards pass 101 focused tests; worst-case reservation is under $5.",
+      "tone": "active"
+    },
     {
       "at": "04:35",
       "title": "Independent reviews narrowed the A64 conclusion and reset the next cycle",

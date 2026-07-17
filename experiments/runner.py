@@ -16,6 +16,11 @@ from experiments.m2.generate_dft import (
     GENERATION_STEP,
     run_generate_dft,
 )
+from experiments.m2.estimator_audit import (
+    ESTIMATOR_AUDIT_SCHEMA,
+    ESTIMATOR_AUDIT_STEP,
+    run_estimator_audit,
+)
 from experiments.m2.prepare_dft import (
     PREPARE_DFT_SCHEMA,
     PREPARE_DFT_STEP,
@@ -169,12 +174,18 @@ def main(argv: list[str] | None = None) -> int:
         raise ValueError("adapter-native generation protocol requires generate_dft")
     if step == GENERATION_STEP and protocol != GENERATION_SCHEMA:
         raise ValueError("generate_dft requires the frozen adapter-native generation protocol")
+    if protocol == ESTIMATOR_AUDIT_SCHEMA and step != ESTIMATOR_AUDIT_STEP:
+        raise ValueError("estimator-audit protocol requires audit_estimator")
+    if step == ESTIMATOR_AUDIT_STEP and protocol != ESTIMATOR_AUDIT_SCHEMA:
+        raise ValueError("audit_estimator requires the frozen estimator-audit protocol")
     if protocol == PREPARE_DFT_SCHEMA:
         manifest = run_prepare_dft(config, args.run_id)
     elif protocol == DFT_SCHEMA:
         manifest = run_dft(config, args.run_id)
     elif protocol == GENERATION_SCHEMA:
         manifest = run_generate_dft(config, args.run_id)
+    elif protocol == ESTIMATOR_AUDIT_SCHEMA:
+        manifest = run_estimator_audit(config, args.run_id)
     elif (
         str(workflow.get("protocol_version", "")).casefold().startswith("m1")
         or str(workflow.get("step", "")).casefold() == "replay_equivalence"

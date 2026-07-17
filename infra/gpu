@@ -41,6 +41,7 @@ from infra.backend.policy import (  # noqa: E402
     forbidden_replay_surface_keys,
     validate_replay_launch_contract,
     validate_dft_generation_launch_config,
+    validate_estimator_audit_launch_config,
 )
 
 LEDGER = ROOT / "ledger" / "ledger.py"
@@ -52,6 +53,7 @@ BUDGET = {
 UNRESOLVED_REVISION_PREFIX = "__M1_RESOLVE_"
 DFT_PROTOCOL = "dftr.m2.score_function_mmd.v1"
 DFT_GENERATION_PROTOCOL = "dftr.m2.adapter_native_generation.v1"
+ESTIMATOR_AUDIT_PROTOCOL = "dftr.m2.frozen_estimator_audit.v1"
 PREPARE_DFT_PROTOCOL = "dftr.m2.prepare_training_bandwidths.v1"
 PREPARE_DFT_SUPPORTED_GPUS = {"L40S", "A100-80GB", "H100"}
 PREPARE_DFT_METHOD_KEYS = (
@@ -219,7 +221,7 @@ def _validate_submit(config: dict, budget_class: str) -> tuple[str, dict]:
     revision = str((config.get("model") or {}).get("revision", "")).strip()
     if workflow_step in {
         "train_sft", "sample_sweep", "merge_adapter", "replay_equivalence", "train_dft",
-        "prepare_dft", "generate_dft",
+        "prepare_dft", "generate_dft", "audit_estimator",
     } and (
         not revision or revision.startswith(UNRESOLVED_REVISION_PREFIX)
     ):
@@ -282,6 +284,16 @@ def _validate_submit(config: dict, budget_class: str) -> tuple[str, dict]:
     if workflow_step == "generate_dft":
         try:
             validate_dft_generation_launch_config(
+                config,
+                backend="local" if _use_local_backend() else "modal",
+                budget_class=budget_class,
+                task_kind=str(run.get("task_kind") or ""),
+            )
+        except PolicyError as exc:
+            _die(f"REJECTED: {exc}")
+    if workflow_step == "audit_estimator":
+        try:
+            validate_estimator_audit_launch_config(
                 config,
                 backend="local" if _use_local_backend() else "modal",
                 budget_class=budget_class,

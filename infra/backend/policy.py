@@ -53,6 +53,10 @@ REPLAY_PROTOCOLS = {
 }
 DFT_PROTOCOL = "dftr.m2.score_function_mmd.v1"
 DFT_GENERATION_PROTOCOL = "dftr.m2.adapter_native_generation.v1"
+ESTIMATOR_AUDIT_PROTOCOL = "dftr.m2.frozen_estimator_audit.v1"
+ESTIMATOR_AUDIT_SERIALIZER_SHA256 = (
+    "4b8410439f74f7653061151ffd3335a1b77b2b34e3e2dbf279791e51378cbe28"
+)
 DFT_FULL_BRIEF_SERIALIZER_SHA256 = "eed171580857ef228cb83d8219fbd49926cda555c86a93a085f461714149d7ec"
 PREPARE_DFT_PROTOCOL = "dftr.m2.prepare_training_bandwidths.v1"
 PREPARE_DFT_SUPPORTED_GPUS = {"L40S", "A100-80GB", "H100"}
@@ -370,6 +374,135 @@ def validate_replay_launch_contract(config: dict[str, Any]) -> None:
         )
 
 
+def validate_estimator_audit_launch_config(
+    config: dict[str, Any], *, backend: str, budget_class: str, task_kind: str
+) -> None:
+    """Fail closed before reserving a GPU for the frozen estimator audit."""
+    run = config.get("run") or {}
+    compute = config.get("compute") or {}
+    adapter = config.get("initial_adapter") or {}
+    data = config.get("data") or {}
+    representation = config.get("representation") or {}
+    audit = config.get("audit") or {}
+    runtime = config.get("runtime") or {}
+    workflow = config.get("workflow") or {}
+    exact_sets = (
+        (config, {
+            "artifact_schema", "run", "compute", "model", "initial_adapter", "data",
+            "representation", "audit", "runtime", "output", "workflow",
+        }),
+        (run, {"comparison_id", "arm", "budget_class", "task_kind", "command", "seed"}),
+        (compute, {"gpu", "gpus", "timeout_min"}),
+        (adapter, {"path", "adapter_model_sha256", "adapter_config_sha256", "file_manifest_sha256"}),
+        (data, {
+            "rollout_path", "rollout_sha256", "human_targets_path", "human_targets_sha256",
+            "human_text_field", "prompt_format", "prompt_schema_version",
+            "prompt_serializer_sha256", "legacy_target_length_semantics",
+        }),
+        (representation, {"model", "revision", "layer", "pooling", "normalize", "role", "batch_size", "max_tokens"}),
+        (audit, {
+            "replicates", "group_sizes", "max_new_tokens", "rollout_target_length_tokens",
+            "max_input_tokens", "prompt_schedule_seed", "rollout_seed_start",
+            "gradient_supports", "sketch_dimension", "sketch_seed", "bandwidth_scales",
+            "go_thresholds",
+        }),
+        (runtime, {"torch_version", "transformers_version", "peft_version", "deterministic_algorithms", "cublas_workspace_config"}),
+        (workflow, {"protocol_version", "step", "audit_contract_sha256"}),
+    )
+    if any(not isinstance(value, dict) or set(value) != keys for value, keys in exact_sets):
+        raise PolicyError("audit_estimator exact schema mismatch")
+    sha_values = (
+        adapter.get("adapter_model_sha256"), adapter.get("adapter_config_sha256"),
+        adapter.get("file_manifest_sha256"), data.get("rollout_sha256"),
+        data.get("human_targets_sha256"), workflow.get("audit_contract_sha256"),
+    )
+    paths = (
+        Path(str(adapter.get("path") or "")),
+        Path(str(data.get("rollout_path") or "")),
+        Path(str(data.get("human_targets_path") or "")),
+    )
+    contract_payload = {
+        key: config.get(key)
+        for key in (
+            "artifact_schema", "run", "compute", "model", "initial_adapter", "data",
+            "representation", "audit", "runtime", "output",
+        )
+    } | {
+        "protocol_version": workflow.get("protocol_version"),
+        "step": workflow.get("step"),
+    }
+    if (
+        config.get("artifact_schema") != ESTIMATOR_AUDIT_PROTOCOL
+        or workflow.get("protocol_version") != ESTIMATOR_AUDIT_PROTOCOL
+        or workflow.get("step") != "audit_estimator"
+        or canonical_hash(contract_payload) != workflow.get("audit_contract_sha256")
+        or task_kind != "experiment"
+        or budget_class != "screen"
+        or run != {
+            "comparison_id": "M2-frozen-estimator-audit-4b-v1",
+            "arm": "frozen-estimator-audit",
+            "budget_class": "screen",
+            "task_kind": "experiment",
+            "command": ALLOWED_COMMAND_PREFIX,
+            "seed": 11,
+        }
+        or str(compute.get("gpu") or "").upper() not in {"L40S", "A100-80GB", "H100"}
+        or compute.get("gpus") != 1
+        or compute.get("timeout_min") != 120
+        or config.get("model") != {
+            "base": "Qwen/Qwen3-4B",
+            "revision": "1cfa9a7208912126459214e8b04321603b3df60c",
+            "torch_dtype": "bfloat16",
+        }
+        or any(not re.fullmatch(r"[0-9a-f]{64}", str(value or "")) for value in sha_values)
+        or data.get("human_text_field") != "completion"
+        or data.get("prompt_format") != "USER:\n{brief}\nASSISTANT:"
+        or data.get("prompt_schema_version") != "dft.full-brief.v2"
+        or data.get("prompt_serializer_sha256") != ESTIMATOR_AUDIT_SERIALIZER_SHA256
+        or data.get("legacy_target_length_semantics")
+        != "provider_requested_token_estimate_missing_unit_field"
+        or representation != {
+            "model": "Qwen/Qwen3-4B",
+            "revision": "1cfa9a7208912126459214e8b04321603b3df60c",
+            "layer": -1,
+            "pooling": "attention_masked_mean",
+            "normalize": True,
+            "role": "diagnostic_training_only_not_evaluation",
+            "batch_size": 4,
+            "max_tokens": 256,
+        }
+        or audit != {
+            "replicates": 16,
+            "group_sizes": [4, 8, 16, 32],
+            "max_new_tokens": 64,
+            "rollout_target_length_tokens": 64,
+            "max_input_tokens": 1024,
+            "prompt_schedule_seed": 3101,
+            "rollout_seed_start": 4101,
+            "gradient_supports": ["full_humans", "rollout_horizon_humans"],
+            "sketch_dimension": 256,
+            "sketch_seed": 5101,
+            "bandwidth_scales": [0.25, 0.5, 1.0, 2.0, 4.0],
+            "go_thresholds": {
+                "k32_split_half_cosine_min": 0.5,
+                "k32_gradient_norm_cv_max": 1.0,
+            },
+        }
+        or runtime != {
+            "torch_version": "2.13.0+cu130",
+            "transformers_version": "4.57.6",
+            "peft_version": "0.19.1",
+            "deterministic_algorithms": True,
+            "cublas_workspace_config": ":4096:8",
+        }
+        or config.get("output") != {"filename": "estimator_audit.json", "overwrite": False}
+        or any(not path.is_absolute() for path in paths)
+        or any(any(part in {"harness", "measurement_v2"} for part in path.parts) for path in paths[1:])
+        or backend == "modal" and any(not _is_checkpoint_volume_path(path) for path in paths)
+    ):
+        raise PolicyError("audit_estimator frozen contract mismatch")
+
+
 def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> LaunchPolicy:
     config = payload.get("config")
     if not isinstance(config, dict):
@@ -412,7 +545,7 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
         raise PolicyError("14B scale-up lacks human approval")
     if workflow_step in {
         "train_sft", "sample_sweep", "merge_adapter", "replay_equivalence", "train_dft",
-        "prepare_dft", "generate_dft",
+        "prepare_dft", "generate_dft", "audit_estimator",
     } and revision_is_unresolved(
         (config.get("model") or {}).get("revision")
     ):
@@ -565,6 +698,12 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
         validate_dft_generation_launch_config(
             config, backend=backend, budget_class=budget_class, task_kind=task_kind
         )
+    if workflow_step == "audit_estimator":
+        validate_estimator_audit_launch_config(
+            config, backend=backend, budget_class=budget_class, task_kind=task_kind
+        )
+        if payload.get("dft_a64_readiness") is not None:
+            raise PolicyError("audit_estimator cannot consume an A64 readiness attestation")
     if workflow_step == "replay_equivalence":
         replay_workflow = config.get("workflow") or {}
         protocol_version = str(replay_workflow.get("protocol_version"))

@@ -2264,3 +2264,28 @@ and style-sensitive, test it directly; otherwise use a one-round shared-rollout
 reward-weighted SFT comparison. Prepare a clean 256/1024 data ladder in
 parallel. Compute scale is authorized, but 14B remains gated on a real 4B
 effect.
+
+## [2026-07-17] M2 / frozen-estimator-audit-preregistration
+HYPOTHESIS: If the current score-function MMD mechanism is usable at Qwen3-4B,
+increasing the nested on-policy group from K=4 to K=32 under EOS-aware,
+length-matched 64-token support will produce a coherent gradient estimate:
+K32 split-half CountSketch cosine at least `0.50` and gradient-norm coefficient
+of variation at most `1.0`.
+SETUP: Frozen adapter `dftr-1784216516-91130dd3/seed-11`; no optimizer update;
+16 independently seeded nested K=`4,8,16,32` groups; one fixed 256-dimensional
+whole-LoRA gradient CountSketch; prompts explicitly request 64 tokens; EOS is
+included as the final scored action and all post-EOS padding is masked. Compute
+both full-human and human-truncated-to-64-token reward supports with separately
+human-derived bandwidths. Config hash is
+`186744e14b0f428dc0aed79ab3a7d270751ff41cc9912c28cf37fe303f9443ca`;
+contract hash is
+`ae86a9148122672564d24f3ae377a2dfaa633185bcc551fb84bc91ea05732e80`.
+RESULTS: Pending. The implementation, runner dispatch, client guard, and Modal
+gateway guard pass 101 focused tests. Maximum generated exposure is 32,768
+tokens and the two-hour L40S reservation is below $5.
+DECISION: Launch this diagnostic before any K32 training. A passing
+length-matched K32 audit permits a direct global-K32 score-function screen. A
+failure routes the next arm to a lower-variance differentiable or
+reward-weighted SFT objective rather than spending more on the same estimator.
+NEXT: Deploy the gateway at the committed audit code, launch once, and archive
+the result before selecting a treatment.
