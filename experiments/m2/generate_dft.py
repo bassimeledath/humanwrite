@@ -344,7 +344,7 @@ def run_generate_dft(config: dict[str, Any], run_id: str) -> dict[str, Any]:
         "decoding_policy_sha256": config["workflow"]["decoding_policy_sha256"],
         "documents": len(generated),
         "generated_tokens_per_document": config["sampling"]["new_tokens"],
-        "output_path": str(output_path.resolve()),
+        "output_path": str(output_path),
         "output_sha256": output_sha,
         "token_accounting": {"total_tokens": len(generated) * config["sampling"]["new_tokens"]},
     }

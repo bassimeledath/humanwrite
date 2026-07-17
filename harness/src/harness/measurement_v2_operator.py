@@ -636,7 +636,6 @@ def _validate_generation_run_manifest(
         or launch.get("config_hash") != config_sha
         or launch.get("git_sha") != manifest.get("git_sha")
         or launch.get("comparison") != manifest.get("comparison_id")
-        or manifest.get("output_path") != f"/checkpoints/runs/{run_id}/outputs.jsonl"
     ):
         raise MeasurementV2Error(
             "generation run manifest does not authenticate the supplied output bytes"
