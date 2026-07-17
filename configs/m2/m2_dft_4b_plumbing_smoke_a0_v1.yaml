@@ -1,0 +1,90 @@
+artifact_schema: dftr.m2.score_function_mmd.v1
+run:
+  comparison_id: M2-dft-4b-plumbing-smoke-v1
+  arm: A0-vs-A64
+  budget_class: smoke
+  task_kind: experiment
+  command: [python, -m, experiments.runner]
+  seed: 11
+compute:
+  gpu: L40S
+  gpus: 1
+  timeout_min: 20
+model:
+  base: Qwen/Qwen3-4B
+  revision: 1cfa9a7208912126459214e8b04321603b3df60c
+  torch_dtype: bfloat16
+initial_adapter:
+  path: /checkpoints/runs/dftr-1784216516-91130dd3/seed-11
+  adapter_model_sha256: b7b590ca0d40b8b51951d44beb2e7928fccabbd6a2a7290f47e927da0fb81178
+  adapter_config_sha256: 9a72a9527c48cc2acf703f40047f1a6dec59e92fdc7021d59523ba5ed6fb965c
+  file_manifest_sha256: bd9843c196f6685c3e3c83f829726b09e3c87188d07ccbe66613616cd032d643
+data:
+  rollout_path: /checkpoints/data/m1-realdata-adherence-v1/train_briefs.jsonl
+  rollout_sha256: 4ac15ea8a56a89e4f5b24841e3581c68de607359823e5851d585542c2d7562da
+  sft_anchor_path: /checkpoints/data/m1-realdata-adherence-v1/train_briefs.jsonl
+  sft_anchor_sha256: 4ac15ea8a56a89e4f5b24841e3581c68de607359823e5851d585542c2d7562da
+  human_targets_path: /checkpoints/data/m1-realdata-adherence-v1/train_briefs.jsonl
+  human_targets_sha256: 4ac15ea8a56a89e4f5b24841e3581c68de607359823e5851d585542c2d7562da
+  completion_field: completion
+  human_text_field: completion
+  prompt_format: "USER:\n{brief}\nASSISTANT:"
+  prompt_schema_version: dft.full-brief.v1
+  prompt_serializer_sha256: eed171580857ef228cb83d8219fbd49926cda555c86a93a085f461714149d7ec
+representation:
+  model: Qwen/Qwen3-4B
+  revision: 1cfa9a7208912126459214e8b04321603b3df60c
+  layer: -1
+  pooling: attention_masked_mean
+  normalize: true
+  role: training_only_not_measurement_v2
+  batch_size: 4
+  max_tokens: 256
+kernel:
+  bandwidths_path: /checkpoints/runs/dftr-1784278707-34173dcb/training_bandwidths.json
+  bandwidths_sha256: 833b28faa5cf616e3601193fdbe31555a8c2a6beb37eb35840d23b662f378939
+  source: training_humans_only
+runtime:
+  torch_version: 2.13.0+cu130
+  transformers_version: 4.57.6
+  peft_version: 0.19.1
+  deterministic_algorithms: true
+  cublas_workspace_config: ":4096:8"
+training:
+  steps: 1
+  rollout_batch_size: 3
+  sft_batch_size: 1
+  learning_rate: 0.00001
+  max_input_tokens: 1024
+  generated_tokens: 64
+  sampling_distribution: raw_policy_categorical
+  kl_coefficient: 0.01
+  sft_coefficient: 0.1
+  gradient_clip_norm: 1.0
+  checkpoint_every: 1
+arms:
+  - id: A0
+    mmd_coefficient: 0.0
+  - id: A64
+    mmd_coefficient: 0.1
+stop:
+  max_kl: 0.2
+  min_unique_fraction: 0.5
+  max_repeated_trigram_fraction: 0.5
+  min_outline_fact_recall: 0.0
+  max_unsupported_claim_rate: 1.0
+  max_mean_abs_target_error: 1000.0
+readiness_trust:
+  trusted_public_keys_path: /checkpoints/measurement-v2/trusted-keys.json
+  trusted_public_keys_sha256: e8ca52ff1d998547a9977e9acfa6818f8f5b156796d92c31b52a6ce414a6ca60
+  protocol_signer_key_id: measurement-operator-v1
+  blind_signer_key_id: measurement-blind-tester-v1
+resume:
+  A0: null
+  A64: null
+execution:
+  arm: A0
+workflow:
+  protocol_version: dftr.m2.score_function_mmd.v1
+  step: train_dft
+  method_contract_sha256: 4f7e38a16f573278b9bbcdb7d04b56ce2f642d696ff7ccb5df5924a738e540da
