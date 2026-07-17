@@ -2131,3 +2131,50 @@ DECISION: Accept and freeze only the repaired brief artifact for measurement
 v2. The un-repaired SHA remains a documented negative data artifact.
 NEXT: Bind repaired SHA `b5c8b665...` into the A0 generation config, then
 freeze/sign the real protocol before generating A64.
+
+## [2026-07-17] M2 / first-genuine-dft-a64-versus-a0-result
+HYPOTHESIS: At 4B and 64 generated tokens, adding the frozen score-function
+MMD term (`mmd_coefficient=0.1`) will improve held-out human-distribution
+similarity relative to an exposure-matched zero-MMD continuation from the
+same seed-11 SFT adapter.
+SETUP: A0 training run `dftr-1784279399-17837c4a` and A64 run
+`dftr-1784283279-cbace20d` used the same method-contract SHA
+`57fd684468f2...`, eight steps, the same 256-record training-only corpus,
+Qwen3-4B revision, seeds, optimizer, rollout budget, KL/SFT anchors, and LoRA
+initialization. Adapter-native generation runs `dftr-1784282330-d16f81d5`
+(A0) and `dftr-1784283920-38506a78` (A64) each produced 64 prompt-aligned
+documents and 4,096 sampled tokens under generation-contract SHA
+`1554d88b...` and decoding SHA `85acea23...`. Before A64 existed, the
+independent operator froze n=64 power, human panels, bandwidths, thresholds,
+seed rules, and a signed protocol. All runs have hash-bound manifests and
+signed wrapper receipts.
+RESULTS:
+
+| endpoint | A0 control | A64 candidate | frozen decision |
+| --- | ---: | ---: | --- |
+| Unbiased MMD2 to human eval | -0.0045134 | -0.0045804 | treatment delta `-0.0000670`, fail (`<= -0.0018` required) |
+| Paired permutation p | — | 0.739626 | fail (`<= 0.05` required) |
+| Authorship separability | 0.093701 | 0.103271 | worsened by 0.00957; fail (`>= 0.15` improvement required) |
+| Repeated-start rate | 0.015625 | 0.03125 | candidate passes human non-inferiority |
+| Outline-fact recall, diagnostic | 0.25979 | 0.26804 | small +0.00825 movement |
+| Unsupported proxy, nonempty outlines | 0.05325 | 0.04762 | small favorable movement |
+
+Training was stable: eight A64 steps completed, MMD rewards were finite and
+nonconstant, KL stayed below `0.00118`, maximum gradient norm was `0.587`, and
+the rollout uniqueness/collapse sentinels did not trip. The signed report SHA
+is `facfd43c...`; the blind attestation SHA is `0c8d3353...`, with all 13
+qualification groups passing and historical inventory verified. The durable
+copies live under
+`/checkpoints/measurement-v2/results/m2-a0-a64-seed11-v1/`.
+DECISION: This is the first genuine, measurement-valid negative DFT result.
+The direct 64-token score-function MMD treatment was trainable but produced no
+material paired public-v2 effect. Apply the prospective stop rule: do not run
+seeds 29/47, 128 tokens, a paid quality judge, sealed evaluation, 14B, or
+Tier 3 for A64. Quality judging cannot repair failed distribution and
+authorship intersections, so skipping it saves provider spend without changing
+the decision.
+NEXT: Retain A0 as the current matched control and preregister one cheaper,
+lower-variance mechanism (teacher-forced distribution moments is the leading
+candidate) as a new arm with its own coefficient and stop rules. Do not tune
+A64 after observing this endpoint. Require a fresh single-seed 64-token public
+effect before confirmations or scale-up.

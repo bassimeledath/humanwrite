@@ -1,12 +1,12 @@
 {
-  "updated_at": "2026-07-17T09:10:00Z",
+  "updated_at": "2026-07-17T10:34:00Z",
   "phase": "M2 — first genuine adapter-native DFT comparison",
-  "headline": "First genuine 4B DFT cycle active: matched A0 control training",
-  "summary": "The signed A0/A64 sequencing boundary and wrapper-guarded training bandwidth producer passed repeated adversarial review. Training-only Qwen3-4B bandwidths were materialized from 256 frozen human completions for $0.016, and the exact 4B CUDA/PEFT plumbing smoke passed for $0.025. The eight-step A0 control is now training; A64 remains locked until A0 output, protocol freeze, and independent blind qualification.",
-  "run_state": "active",
+  "headline": "First genuine 4B DFT screen completed: stable A64 treatment had no material effect",
+  "summary": "Matched adapter-native A0 and A64 training and 64-document generation completed under the signed, prospective measurement-v2 protocol. A64 passed stability and repetition checks, but its candidate-minus-control MMD was only -0.000067 versus the frozen -0.0018 threshold (paired p=0.740), while authorship separability worsened by 0.0096 instead of improving by at least 0.15. The report is independently attested and archived; the score-function A64 path stops before extra seeds, 128 tokens, sealed evaluation, 14B, or GPTZero.",
+  "run_state": "decision_complete",
   "budget": {
     "modal_cap_usd": 40,
-    "modal_committed_usd": 3.92086,
+    "modal_committed_usd": 5.460194,
     "openrouter_cap_usd": 100,
     "openrouter_spend_usd": 1.061925
   },
@@ -20,11 +20,23 @@
     {"id": "setup", "label": "Setup", "detail": "Harness, sources, storage, and guardrails", "status": "complete"},
     {"id": "M0", "label": "M0", "detail": "Data pipeline and GPU contract smoke test", "status": "complete"},
     {"id": "M1", "label": "M1", "detail": "4B three-seed directional confirmation passed", "status": "complete"},
-    {"id": "M2", "label": "M2", "detail": "Sealed SFT checkpoint rejected; prospective fidelity and evaluator repair active", "status": "active"},
+    {"id": "M2", "label": "M2", "detail": "First genuine 4B A64 score-function DFT screen completed with a valid negative result", "status": "active"},
     {"id": "M3", "label": "M3", "detail": "Length curriculum and LoRA staging", "status": "queued"},
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "03:34",
+      "title": "First genuine DFT result: stable negative A64 screen",
+      "detail": "The signed n=64 A64-versus-A0 report found candidate-minus-control MMD -0.000067 (required <= -0.0018; paired p=0.740) and authorship separability 0.1033 versus control 0.0937 (required improvement >= 0.15). Repetition passed and deterministic factual proxies moved only slightly. Independent attestation passed all 13 blind groups. Per the frozen stop rule, no confirmation seeds, 128-token expansion, sealed run, 14B, quality-judge spend, or Tier 3 call will be used for this failed arm.",
+      "tone": "blocked"
+    },
+    {
+      "at": "03:30",
+      "title": "Matched A0 and A64 artifacts completed",
+      "detail": "A0 training cost 0.062237 dollars and A64 training cost 0.071844 dollars. Their matched 64-document adapter-native generations cost 0.097087 and 0.053972 dollars. Every completed artifact has a hash-bound run manifest and Ed25519 wrapper receipt; both output panels contain exactly 64 prompt-aligned rows and 4096 sampled tokens.",
+      "tone": "complete"
+    },
     {
       "at": "02:10",
       "title": "Matched 4B A0 scientific control launched",
