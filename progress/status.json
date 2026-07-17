@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-17T16:11:09Z",
+  "updated_at": "2026-07-17T19:29:19Z",
   "phase": "M2 — fresh-instrument and estimator rebuild",
-  "headline": "K32 score-function gradient audit failed direction stability; lower-variance branch selected",
-  "summary": "The repaired frozen-policy audit completed successfully for $0.567. K32 reduced gradient-norm variability enough to pass that sub-gate, but its length-matched split-half gradient cosine was -0.014 versus the preregistered 0.50 requirement; full-human support was also near zero at 0.041. Length matching changed absolute MMD substantially without stabilizing direction. Global-K32 REINFORCE training is closed; the next 4B cycle uses differentiable token moments and MMD-witness-weighted SFT on cleaned data with a fresh unpaired evaluator.",
+  "headline": "Lower-variance objectives and measurement-v3 are implemented while Qwen cleaning runs",
+  "summary": "Three parallel engineering tracks completed: differentiable token moments plus MMD witness weights, an unpaired two-embedder measurement-v3 core with corrected inference, and deterministic clean-pool qualification/partitioning. Their combined suites pass 117 tests. Qwen3-32B cleaning has 550 committed accepted training documents and remains narrowly on track for 1,024. Runner integration and frozen panel assembly are next and can proceed before cleaning finishes.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
@@ -25,6 +25,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "12:29",
+      "title": "Three parallel foundations completed; cleaner at 550/1024",
+      "detail": "Token-moment and MMD-witness objective cores, measurement-v3, and clean-pool qualification/partitioning are implemented in separate modules. Combined tests pass 117 cases. The remote Qwen cleaner has accepted 550 documents with 194 rejections, a 73.9 percent rate versus 73.1 percent required; runner integration proceeds concurrently.",
+      "tone": "active"
+    },
     {
       "at": "09:11",
       "title": "Estimator audit completed: K32 direction gate failed",

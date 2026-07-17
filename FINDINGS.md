@@ -2352,3 +2352,21 @@ MMD-witness-weighted training arms. Evaluation and training pools remain
 domain/fingerprint disjoint by construction.
 NEXT: Commit and deploy the gateway, materialize the raw pool, verify overlap
 and content quality, then launch bounded Qwen3-32B cleaning.
+
+## [2026-07-17] M2 / parallel-lower-variance-foundations
+HYPOTHESIS: The lower-variance training screen, fresh evaluator, and clean-pool
+qualification can be implemented independently while Qwen3-32B cleaning runs.
+SETUP: Three isolated workstreams added new modules only: differentiable
+teacher-forced token moments plus one-round MMD witness weights; measurement-v3
+with unpaired panels, two independent embedders, correct MMD tails, token L2,
+human-calibrated margins, and exact-rule power; and deterministic provenance
+qualification plus 128/256/128/128 evaluation partitioning.
+RESULTS: Combined local verification passes 117 tests (`100` experiment/data
+and `17` measurement). Qwen cleaning has 550 committed accepted training
+documents and 194 logged rejections, a `73.9%` acceptance rate versus `73.1%`
+required to reach 1,024 from 1,400 candidates.
+DECISION: Integrate these cores now rather than waiting for cleaning. Training
+runner/config wiring still remains; the pure objectives and decision metrics
+are implemented and independently testable.
+NEXT: Commit the foundations, finish cleaning/qualification, then bind one
+matched three-arm runner and freeze the measurement-v3 panel before outputs.
