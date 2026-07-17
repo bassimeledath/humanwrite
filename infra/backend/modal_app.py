@@ -96,54 +96,6 @@ def _record(event: dict) -> None:
     state_volume.commit()
 
 
-@app.function(
-    image=worker_image,
-    secrets=[receipt_signing_secret],
-    timeout=60,
-    retries=0,
-    single_use_containers=True,
-)
-def sign_generation_receipt(receipt: dict) -> dict:
-    """Sign wrapper-produced hashes in a container isolated from experiment code."""
-    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-
-    expected = {
-        "artifact_schema", "status", "key_id", "run_id", "comparison_id",
-        "config_sha256", "git_sha", "manifest_path", "manifest_sha256",
-        "output_path", "output_sha256",
-    }
-    run_id = str(receipt.get("run_id") or "")
-    if (
-        set(receipt) != expected
-        or receipt.get("artifact_schema") != "dftr.wrapper.generation_receipt.v1"
-        or receipt.get("status") != "completed"
-        or receipt.get("key_id") != "humanwrite-modal-wrapper-receipt-v1"
-        or not re.fullmatch(r"dftr-[0-9]+-[0-9a-f]{8}", run_id)
-        or receipt.get("manifest_path") != f"/checkpoints/runs/{run_id}/run_manifest.json"
-        or receipt.get("output_path") != f"/checkpoints/runs/{run_id}/outputs.jsonl"
-        or any(
-            not re.fullmatch(r"[0-9a-f]{64}", str(receipt.get(field) or ""))
-            for field in ("config_sha256", "manifest_sha256", "output_sha256")
-        )
-        or not re.fullmatch(r"[0-9a-f]{40}", str(receipt.get("git_sha") or ""))
-        or not str(receipt.get("comparison_id") or "")
-    ):
-        raise ValueError("wrapper receipt signing request is invalid")
-    canonical = json.dumps(receipt, sort_keys=True, separators=(",", ":")).encode()
-    try:
-        private_raw = base64.b64decode(
-            os.environ["DFTR_RECEIPT_SIGNING_KEY_BASE64"], validate=True
-        )
-        private_key = Ed25519PrivateKey.from_private_bytes(private_raw)
-    except (KeyError, ValueError) as error:
-        raise ValueError("wrapper receipt signing key is unavailable") from error
-    return {
-        "algorithm": "ed25519",
-        "signed_payload_sha256": __import__("hashlib").sha256(canonical).hexdigest(),
-        "signature_base64": base64.b64encode(private_key.sign(canonical)).decode("ascii"),
-    }
-
-
 def _notify(event: str, details: dict) -> None:
     webhook = os.environ.get("DFTR_ALERT_WEBHOOK_URL")
     if not webhook:
@@ -216,7 +168,18 @@ def _write_generation_receipt(run_id: str, payload: dict, config: dict) -> Path:
         "output_path": str(output_path),
         "output_sha256": _file_sha256(output_path),
     }
-    receipt["signature"] = sign_generation_receipt.remote(receipt)
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+    canonical = json.dumps(receipt, sort_keys=True, separators=(",", ":")).encode()
+    private_raw = base64.b64decode(
+        os.environ["DFTR_RECEIPT_SIGNING_KEY_BASE64"], validate=True
+    )
+    private_key = Ed25519PrivateKey.from_private_bytes(private_raw)
+    receipt["signature"] = {
+        "algorithm": "ed25519",
+        "signed_payload_sha256": __import__("hashlib").sha256(canonical).hexdigest(),
+        "signature_base64": base64.b64encode(private_key.sign(canonical)).decode("ascii"),
+    }
     path = artifact_dir / "wrapper_generation_receipt.json"
     path.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return path
@@ -224,18 +187,50 @@ def _write_generation_receipt(run_id: str, payload: dict, config: dict) -> Path:
 
 @app.function(
     image=worker_image,
+    secrets=[receipt_signing_secret],
+    volumes={CHECKPOINT_PATH: checkpoint_volume},
+    timeout=60,
+    retries=0,
+    single_use_containers=True,
+)
+def finalize_generation_receipt(run_id: str, expected: dict) -> dict:
+    """Read canonical volume bytes and sign them after the restricted worker exits."""
+    checkpoint_volume.reload()
+    manifest_path = _artifact_dir(run_id) / "run_manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if (
+        set(expected) != {"config_hash", "git_sha", "comparison"}
+        or manifest.get("run_id") != run_id
+        or manifest.get("config_sha256") != expected.get("config_hash")
+        or manifest.get("git_sha") != expected.get("git_sha")
+        or manifest.get("comparison_id") != expected.get("comparison")
+        or manifest.get("status") != "completed"
+    ):
+        raise ValueError("generation finalizer identity mismatch")
+    receipt_path = _write_generation_receipt(
+        run_id,
+        {"config_hash": expected["config_hash"], "git_sha": expected["git_sha"]},
+        {"run": {"comparison_id": expected["comparison"]}},
+    )
+    checkpoint_volume.commit()
+    return {"path": str(receipt_path), "sha256": _file_sha256(receipt_path)}
+
+
+@app.function(
+    image=worker_image,
     secrets=[provider_secret],
-    volumes={"/state": state_volume, CHECKPOINT_PATH: checkpoint_volume},
+    volumes={CHECKPOINT_PATH: checkpoint_volume},
     timeout=8 * 60 * 60,
     retries=0,
     single_use_containers=True,
+    restrict_modal_access=True,
 )
 def training_worker(run_id: str, payload: dict) -> dict:
     """Run only the allowlisted experiment module at an immutable git SHA."""
     started = time.time()
     config = payload["config"]
     worktree = Path("/tmp") / run_id
-    log_path = Path("/state/logs") / f"{run_id}.log"
+    log_path = _artifact_dir(run_id) / "worker.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)
     status = "failed"
     return_code = None
@@ -361,8 +356,6 @@ def training_worker(run_id: str, payload: dict) -> dict:
             )
         return_code = result.returncode
         status = "completed" if return_code == 0 else "failed"
-        if status == "completed" and workflow_step == "generate_dft":
-            _write_generation_receipt(run_id, payload, config)
     except subprocess.TimeoutExpired:
         status = "reaped"
         with log_path.open("a", encoding="utf-8") as logs:
@@ -375,8 +368,7 @@ def training_worker(run_id: str, payload: dict) -> dict:
         reserved = float(payload["reserved_cost_usd"])
         actual = min(reserved, reserved * elapsed / float(payload["timeout_seconds"]))
         artifact_dir = _artifact_dir(run_id)
-        _record({
-            "kind": "run_update",
+        result_payload = {
             "run_id": run_id,
             "status": status,
             "return_code": return_code,
@@ -385,9 +377,9 @@ def training_worker(run_id: str, payload: dict) -> dict:
             "tokens": _count_artifact_tokens(artifact_dir),
             "actual_cost_usd": round(actual, 6),
             "artifact_dir": str(artifact_dir.resolve()),
-        })
+        }
         checkpoint_volume.commit()
-    return {"run_id": run_id, "status": status, "return_code": return_code}
+    return result_payload
 
 
 def _volume_path(uri: str) -> Path:
@@ -801,6 +793,7 @@ def gateway():
             "api_reserved_cost_usd": policy.api_reserved_cost_usd,
             "config_hash": payload["config_hash"],
             "git_sha": payload["git_sha"],
+            "workflow_step": str((payload.get("config") or {}).get("workflow", {}).get("step") or ""),
             "billing_month": datetime.now(timezone.utc).strftime("%Y-%m"),
             "started_at": time.time(),
         }
@@ -850,6 +843,45 @@ def gateway():
         state = run_snapshot(_events(), run_id)
         if not state:
             raise HTTPException(status_code=404, detail="run not found")
+        if state.get("status") == "running" and state.get("function_call_id"):
+            try:
+                result = modal.FunctionCall.from_id(state["function_call_id"]).get(timeout=0)
+            except TimeoutError:
+                result = None
+            except Exception as exc:
+                _record({
+                    "kind": "run_update", "run_id": run_id, "status": "failed",
+                    "finished_at": time.time(), "worker_result_error": type(exc).__name__,
+                })
+                result = None
+            if isinstance(result, dict):
+                _record({"kind": "run_update", **result})
+            state = run_snapshot(_events(), run_id) or state
+        if (
+            state.get("status") == "completed"
+            and state.get("workflow_step") == "generate_dft"
+            and not state.get("wrapper_receipt_sha256")
+        ):
+            try:
+                receipt = finalize_generation_receipt.remote(
+                    run_id,
+                    {
+                        "config_hash": state["config_hash"],
+                        "git_sha": state["git_sha"],
+                        "comparison": state["comparison"],
+                    },
+                )
+            except Exception as exc:
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"generation receipt finalization failed: {type(exc).__name__}",
+                ) from exc
+            _record({
+                "kind": "run_update", "run_id": run_id,
+                "wrapper_receipt_path": receipt["path"],
+                "wrapper_receipt_sha256": receipt["sha256"],
+            })
+            state = run_snapshot(_events(), run_id) or state
         return {key: value for key, value in state.items() if key != "function_call_id"}
 
     @api.get("/logs/{run_id}")

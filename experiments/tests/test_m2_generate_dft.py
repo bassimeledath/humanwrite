@@ -113,4 +113,7 @@ def test_receipt_signing_secret_is_isolated_from_training_worker() -> None:
     training_prefix = source.split("def training_worker", 1)[0].rsplit("@app.function", 1)[-1]
     assert "secrets=[provider_secret]" in training_prefix
     assert "receipt_signing_secret" not in training_prefix
-    assert "receipt[\"signature\"] = sign_generation_receipt.remote(receipt)" in source
+    assert "restrict_modal_access=True" in training_prefix
+    assert "def finalize_generation_receipt" in source
+    assert "secrets=[receipt_signing_secret]" in source
+    assert "finalize_generation_receipt.remote(" in source
