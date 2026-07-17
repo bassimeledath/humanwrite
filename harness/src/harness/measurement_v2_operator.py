@@ -29,6 +29,7 @@ from .measurement_v2 import (
     validate_protocol,
     validate_report_v2,
     verify_historical_inventory,
+    verify_signed_document,
 )
 from .metrics.distribution_v2 import (
     EmbeddingPanel,
@@ -1719,6 +1720,7 @@ def attest_operator_bundle(
     repo_root: str | Path,
     operator: str,
     attested_at: str,
+    private_key: str | Path,
 ) -> dict[str, Any]:
     root = Path(artifact_root)
     protocol, trusted = _load_bundle_protocol(root)
@@ -1734,6 +1736,18 @@ def attest_operator_bundle(
         trusted_public_keys=trusted,
         repo_root=repo_root,
     )
+    _sign(attestation, private_key)
+    verification = verify_signed_document(
+        attestation,
+        signature_field="operator_signature",
+        trusted_public_keys=trusted,
+    )
+    if verification["key_id"] != (
+        blind.get("operator_signature") or {}
+    ).get("key_id"):
+        raise MeasurementV2Error(
+            "attestation signer must match the independent blind-test signer"
+        )
     _write_json(root / "measurement_attestation_v2.json", attestation)
     return attestation
 
@@ -1803,6 +1817,7 @@ def _parser() -> argparse.ArgumentParser:
         "repo-root",
         "operator",
         "attested-at",
+        "private-key",
     ):
         attest.add_argument(f"--{field}", required=True)
     return parser
@@ -1873,6 +1888,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 repo_root=args.repo_root,
                 operator=args.operator,
                 attested_at=args.attested_at,
+                private_key=args.private_key,
             )
     except (MeasurementV2Error, OSError, ValueError) as error:
         print(f"measurement-v2-operator: {error}")

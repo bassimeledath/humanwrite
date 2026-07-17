@@ -2162,7 +2162,8 @@ RESULTS:
 Training was stable: eight A64 steps completed, MMD rewards were finite and
 nonconstant, KL stayed below `0.00118`, maximum gradient norm was `0.587`, and
 the rollout uniqueness/collapse sentinels did not trip. The signed report SHA
-is `facfd43c...`; the blind attestation SHA is `0c8d3353...`, with all 13
+is `facfd43c...`; the independently signed blind attestation SHA is
+`2c03689f...`, with all 13
 qualification groups passing and historical inventory verified. The durable
 copies live under
 `/checkpoints/measurement-v2/results/m2-a0-a64-seed11-v1/`.
@@ -2178,3 +2179,34 @@ lower-variance mechanism (teacher-forced distribution moments is the leading
 candidate) as a new arm with its own coefficient and stop rules. Do not tune
 A64 after observing this endpoint. Require a fresh single-seed 64-token public
 effect before confirmations or scale-up.
+
+## [2026-07-17] M2 / A64-reviewer-audit-and-uncertainty-correction
+HYPOTHESIS: Independent review of the reviewer and score artifacts will find
+no sign, threshold, cardinality, seed, or provenance error capable of changing
+the A64 stop decision.
+SETUP: A read-only reviewer checked the signed protocol/report, training logs,
+both generation manifests and receipts, ledger identities, seed grid, and
+attestation. It specifically audited the evaluator rather than duplicating the
+scientific vote.
+RESULTS: The A64 stability, MMD sign, frozen thresholds, n=64 cardinality,
+training/sampling seeds, output hashes, receipts, and stop interpretation all
+passed. The reviewer found one non-decision defect: bootstrap copies were
+assigned occurrence-specific group IDs, allowing identical text to cross
+authorship-probe folds. This inflated the original interval to roughly
+`0.79-0.92` despite point AUC near `0.40`. The implementation now preserves
+source group IDs and stratifies disjoint classes; a leakage regression and 25
+focused tests pass. Recomputing from the same immutable bytes gives A0 AUC
+`0.4063`, corrected interval `[0.3249, 0.6966]`, and A64 AUC `0.3967`,
+corrected interval `[0.3351, 0.6588]`. Point separabilities remain exactly
+`0.09370` and `0.10327`, so the preregistered authorship failure is unchanged.
+The correction is stored as a post-hoc, non-decision diagnostic rather than
+silently rewriting the old code-hash-bound report. The reviewer also noted
+that the old attestation copied its source manifest signature; the operator
+now signs the attestation itself with the independent blind-test key, and
+direct Ed25519 verification passes.
+DECISION: Preserve the A64 negative result. Do not cite the superseded original
+authorship interval. Future protocols must bind the corrected metric code and
+independently signed attestation path.
+NEXT: Before spending on another objective, quantify how little A64 moved the
+policy (48 of 64 sampled outputs were byte-identical) and preregister the next
+lower-variance mechanism against the same matched control.

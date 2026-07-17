@@ -363,7 +363,8 @@ def test_signed_content_addressed_protocol_report_and_attestation(tmp_path):
         trusted_public_keys=trusted,
     )
     assert attestation["status"] == "qualified"
-    assert attestation["signature_verification"]["status"] == "verified"
+    assert attestation["blind_manifest_signature_verification"]["status"] == "verified"
+    assert "operator_signature" not in attestation
 
 
 def test_bound_protocol_detects_artifact_byte_tampering(tmp_path):

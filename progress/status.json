@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-07-17T10:34:00Z",
+  "updated_at": "2026-07-17T10:51:00Z",
   "phase": "M2 — first genuine adapter-native DFT comparison",
   "headline": "First genuine 4B DFT screen completed: stable A64 treatment had no material effect",
   "summary": "Matched adapter-native A0 and A64 training and 64-document generation completed under the signed, prospective measurement-v2 protocol. A64 passed stability and repetition checks, but its candidate-minus-control MMD was only -0.000067 versus the frozen -0.0018 threshold (paired p=0.740), while authorship separability worsened by 0.0096 instead of improving by at least 0.15. The report is independently attested and archived; the score-function A64 path stops before extra seeds, 128 tokens, sealed evaluation, 14B, or GPTZero.",
@@ -25,6 +25,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "03:51",
+      "title": "Reviewer audit preserved the decision and repaired uncertainty",
+      "detail": "All run bindings, signs, thresholds, seeds, and point estimates passed independent review. A bootstrap grouping defect inflated the reported authorship confidence intervals but did not enter the promotion rule; corrected post-hoc intervals are A0 0.325-0.697 and A64 0.335-0.659 with unchanged point separability. Future protocols use the repaired code. The attestation is now independently Ed25519-signed rather than reusing its source signature.",
+      "tone": "complete"
+    },
     {
       "at": "03:34",
       "title": "First genuine DFT result: stable negative A64 screen",

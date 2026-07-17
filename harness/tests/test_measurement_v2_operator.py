@@ -460,6 +460,7 @@ def test_candidate_blind_template_cannot_attest(tmp_path):
             repo_root=inputs["source_root"],
             operator="operator-test",
             attested_at="2026-07-17T00:00:00Z",
+            private_key=inputs["blind_private"],
         )
 
 

@@ -89,6 +89,40 @@ def test_grouped_authorship_refits_full_pipeline_and_marks_small_n_underpowered(
     assert result["separability"] == pytest.approx(abs(result["auc"] - 0.5))
 
 
+def test_grouped_authorship_bootstrap_never_splits_duplicate_source_copies(monkeypatch):
+    generated_rows = [
+        {"text": f"neutral generated passage {index}", "cluster_id": f"g-{index}"}
+        for index in range(8)
+    ]
+    human_rows = [
+        {"text": f"neutral human passage {index}", "cluster_id": f"h-{index}"}
+        for index in range(8)
+    ]
+    from harness.metrics import quality_v2
+
+    original = quality_v2._grouped_oof_auc
+    observed_duplicate_refits = 0
+
+    def leak_guard(texts, labels, groups, *, folds, fold_seed):
+        nonlocal observed_duplicate_refits
+        if len(texts) > len(set(texts.tolist())):
+            observed_duplicate_refits += 1
+            for text in set(texts.tolist()):
+                assert len(set(groups[texts == text].tolist())) == 1
+        return original(texts, labels, groups, folds=folds, fold_seed=fold_seed)
+
+    monkeypatch.setattr(quality_v2, "_grouped_oof_auc", leak_guard)
+    grouped_authorship_auc(
+        generated_rows,
+        human_rows,
+        fold_seeds=(11, 12),
+        uncertainty_refits=20,
+        min_effective_clusters=8,
+        seed=17,
+    )
+    assert observed_duplicate_refits > 0
+
+
 def test_selection_firewall_rejects_promotion_endpoint_selection():
     accepted = validate_selection_firewall(
         {"selection": {"rule_type": "fixed_seed", "seed": 29}}

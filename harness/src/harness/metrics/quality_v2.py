@@ -213,7 +213,11 @@ def grouped_authorship_auc(
     labels = np.asarray([0] * len(humans) + [1] * len(generated), dtype=int)
     groups = np.asarray([_required(row, "cluster_id") for row in rows], dtype=object)
     unique_groups = sorted(set(groups.tolist()))
-    class_group_counts = [len(set(groups[labels == label].tolist())) for label in (0, 1)]
+    groups_by_class = {
+        label: sorted(set(groups[labels == label].tolist())) for label in (0, 1)
+    }
+    shared_groups = bool(set(groups_by_class[0]) & set(groups_by_class[1]))
+    class_group_counts = [len(groups_by_class[label]) for label in (0, 1)]
     folds = min(5, *class_group_counts)
     if folds < 2:
         raise MeasurementV2Error("authorship requires at least two groups per class")
@@ -231,13 +235,20 @@ def grouped_authorship_auc(
     successful_refit_seeds = []
     for replicate in range(int(uncertainty_refits)):
         sampled_indices, sampled_groups = [], []
-        selected = rng.choice(
-            np.asarray(unique_groups, dtype=object), len(unique_groups), replace=True
+        # Preserve the balanced class design, and retain the original group ID
+        # for repeated draws.  Occurrence-specific IDs would let byte-identical
+        # bootstrap copies cross train/test folds and inflate the interval.
+        sampling_strata = (
+            [np.asarray(unique_groups, dtype=object)]
+            if shared_groups
+            else [np.asarray(groups_by_class[label], dtype=object) for label in (0, 1)]
         )
-        for occurrence, group in enumerate(selected):
-            group_indices = np.flatnonzero(groups == group)
-            sampled_indices.extend(group_indices.tolist())
-            sampled_groups.extend([f"{occurrence}:{group}"] * len(group_indices))
+        for class_groups in sampling_strata:
+            selected = rng.choice(class_groups, len(class_groups), replace=True)
+            for group in selected:
+                group_indices = np.flatnonzero(groups == group)
+                sampled_indices.extend(group_indices.tolist())
+                sampled_groups.extend([str(group)] * len(group_indices))
         indices = np.asarray(sampled_indices, dtype=int)
         boot_labels = labels[indices]
         boot_groups = np.asarray(sampled_groups, dtype=object)

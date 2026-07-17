@@ -1,0 +1,21 @@
+{
+  "artifact_schema": "dftr.measurement.authorship_interval_diagnostic.v1",
+  "correction": "Bootstrap duplicate copies retain original group IDs; disjoint label classes are resampled separately to preserve the balanced design.",
+  "decision_effect": "none",
+  "results": {
+    "A0": {
+      "auc": 0.406298828125,
+      "interval_high": 0.69656982421875,
+      "interval_low": 0.324945068359375,
+      "separability": 0.09370117187499999
+    },
+    "A64": {
+      "auc": 0.396728515625,
+      "interval_high": 0.6588012695312497,
+      "interval_low": 0.335113525390625,
+      "separability": 0.103271484375
+    }
+  },
+  "source_report_sha256": "facfd43c1ec4412c074946da84fbc9dd2fa1a9018b79838f707ac6867cd6b4f1",
+  "status": "posthoc_nondecision"
+}
