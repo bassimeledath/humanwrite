@@ -33,6 +33,30 @@ def write_jsonl(path: Path, rows) -> None:
     path.write_text("".join(json.dumps(row, sort_keys=True) + "\n" for row in rows))
 
 
+def write_generation_manifest(path: Path, outputs: Path, *, arm: str, checkpoint: str) -> None:
+    write_json(
+        path,
+        {
+            "artifact_schema": "dftr.m2.adapter_native_generation.v1",
+            "status": "completed",
+            "run_id": "dftr-1784280000-deadbeef",
+            "git_sha": "a" * 40,
+            "config_sha256": "b" * 64,
+            "comparison_id": "M2-score-function-MMD-A0-vs-A64-v1",
+            "arm": arm,
+            "adapter_native": True,
+            "checkpoint_sha256": checkpoint,
+            "generation_contract_sha256": sha("generation-contract"),
+            "decoding_policy_sha256": sha("decoding-policy"),
+            "documents": 64,
+            "generated_tokens_per_document": 64,
+            "output_path": str(outputs.resolve()),
+            "output_sha256": hashlib.sha256(outputs.read_bytes()).hexdigest(),
+            "token_accounting": {"total_tokens": 4096},
+        },
+    )
+
+
 def source_inputs(tmp_path: Path):
     source_root = tmp_path / "source"
     source_root.mkdir()
@@ -77,6 +101,13 @@ def source_inputs(tmp_path: Path):
     ]
     control_path = source_root / "control.jsonl"
     write_jsonl(control_path, control)
+    control_manifest = source_root / "control-run-manifest.json"
+    write_generation_manifest(
+        control_manifest,
+        control_path,
+        arm="A0",
+        checkpoint=sha("control-checkpoint"),
+    )
 
     # Reproduce the production selection ranking so the supplied embedding
     # bundle covers exactly the selected 192 IDs. With exactly 192 source rows,
@@ -180,6 +211,7 @@ def source_inputs(tmp_path: Path):
         "humans": human_path,
         "prompts": prompt_path,
         "control": control_path,
+        "control_manifest": control_manifest,
         "embeddings": embedding_path,
         "power": assumption_path,
         "decision": decision_path,
@@ -200,6 +232,7 @@ def freeze(tmp_path: Path):
         human_source=inputs["humans"],
         prompt_briefs=inputs["prompts"],
         control_outputs=inputs["control"],
+        control_generation_manifest=inputs["control_manifest"],
         human_embeddings=inputs["embeddings"],
         power_assumptions=inputs["power"],
         decision_contract=inputs["decision"],
@@ -252,6 +285,7 @@ def test_missing_humans_and_incomplete_control_grid_fail_closed(tmp_path):
             human_source=short,
             prompt_briefs=inputs["prompts"],
             control_outputs=inputs["control"],
+            control_generation_manifest=inputs["control_manifest"],
             human_embeddings=inputs["embeddings"],
             power_assumptions=inputs["power"],
             decision_contract=inputs["decision"],
@@ -279,6 +313,7 @@ def test_missing_humans_and_incomplete_control_grid_fail_closed(tmp_path):
             human_source=inputs["humans"],
             prompt_briefs=inputs["prompts"],
             control_outputs=incomplete,
+            control_generation_manifest=inputs["control_manifest"],
             human_embeddings=inputs["embeddings"],
             power_assumptions=inputs["power"],
             decision_contract=inputs["decision"],
@@ -308,6 +343,7 @@ def test_underpowered_assumptions_write_fail_closed_status(tmp_path):
             human_source=inputs["humans"],
             prompt_briefs=inputs["prompts"],
             control_outputs=inputs["control"],
+            control_generation_manifest=inputs["control_manifest"],
             human_embeddings=inputs["embeddings"],
             power_assumptions=inputs["power"],
             decision_contract=inputs["decision"],
@@ -342,6 +378,37 @@ def test_candidate_blind_template_cannot_attest(tmp_path):
         )
 
 
+def test_freeze_rejects_relabelled_control_text_not_bound_by_run_manifest(tmp_path):
+    inputs = source_inputs(tmp_path)
+    forged = tmp_path / "forged-control.jsonl"
+    rows = _jsonl(inputs["control"])
+    for index, row in enumerate(rows):
+        row["text"] = f"Relabelled text that was never generated {index}."
+    write_jsonl(forged, rows)
+    with pytest.raises(MeasurementV2Error, match="manifest.*output bytes"):
+        freeze_operator_bundle(
+            artifact_root=tmp_path / "forged-artifact",
+            human_source=inputs["humans"],
+            prompt_briefs=inputs["prompts"],
+            control_outputs=forged,
+            control_generation_manifest=inputs["control_manifest"],
+            human_embeddings=inputs["embeddings"],
+            power_assumptions=inputs["power"],
+            decision_contract=inputs["decision"],
+            dependency_lock=inputs["lock"],
+            metric_code=inputs["metric"],
+            private_key=inputs["private"],
+            trusted_keys=inputs["trust"],
+            historical_inventory=inputs["inventory"],
+            repo_root=inputs["source_root"],
+            control_checkpoint_sha256=sha("control-checkpoint"),
+            decoding_policy_sha256=sha("decoding-policy"),
+            generation_contract_sha256=sha("generation-contract"),
+            operator="operator-test",
+            reviewed_at="2026-07-17T00:00:00Z",
+        )
+
+
 def test_score_rejects_candidate_grid_before_any_metric_work(tmp_path):
     root, inputs, _result = freeze(tmp_path)
     candidate = tmp_path / "candidate.jsonl"
@@ -351,12 +418,20 @@ def test_score_rejects_candidate_grid_before_any_metric_work(tmp_path):
     for row in rows:
         row["checkpoint_sha256"] = sha("candidate-checkpoint")
     write_jsonl(candidate, rows)
+    candidate_manifest = tmp_path / "candidate-run-manifest.json"
+    write_generation_manifest(
+        candidate_manifest,
+        candidate,
+        arm="A64",
+        checkpoint=sha("candidate-checkpoint"),
+    )
     score_embeddings = tmp_path / "unused-score-embeddings.json"
     write_json(score_embeddings, {"status": "unused"})
     with pytest.raises(MeasurementV2Error, match="exact 64-prompt"):
         score_candidate_bundle(
             artifact_root=root,
             candidate_outputs=candidate,
+            candidate_generation_manifest=candidate_manifest,
             score_embeddings=score_embeddings,
             candidate_checkpoint_sha256=sha("candidate-checkpoint"),
             private_key=inputs["private"],
@@ -395,6 +470,13 @@ def test_complete_candidate_grid_emits_valid_nonpromoting_report(tmp_path, monke
             }
         )
     write_jsonl(candidate, candidate_rows)
+    candidate_manifest = tmp_path / "candidate-run-manifest.json"
+    write_generation_manifest(
+        candidate_manifest,
+        candidate,
+        arm="A64",
+        checkpoint=sha("candidate-checkpoint"),
+    )
     human_meta = json.loads(inputs["embeddings"].read_text())
     score_vectors = []
     for index, row in enumerate(candidate_rows):
@@ -452,6 +534,7 @@ def test_complete_candidate_grid_emits_valid_nonpromoting_report(tmp_path, monke
     result = score_candidate_bundle(
         artifact_root=root,
         candidate_outputs=candidate,
+        candidate_generation_manifest=candidate_manifest,
         score_embeddings=score_embeddings,
         candidate_checkpoint_sha256=sha("candidate-checkpoint"),
         private_key=inputs["private"],

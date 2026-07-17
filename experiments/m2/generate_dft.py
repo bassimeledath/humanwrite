@@ -332,6 +332,7 @@ def run_generate_dft(config: dict[str, Any], run_id: str) -> dict[str, Any]:
         "status": "completed",
         "run_id": run_id,
         "git_sha": git_sha(),
+        "config_sha256": canonical_hash(config),
         "comparison_id": config["run"]["comparison_id"],
         "arm": config["checkpoint"]["arm"],
         "adapter_native": True,

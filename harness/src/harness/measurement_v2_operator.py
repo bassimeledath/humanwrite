@@ -14,6 +14,7 @@ import hashlib
 import json
 import math
 from pathlib import Path
+import re
 import shutil
 from typing import Any, Sequence
 
@@ -577,6 +578,50 @@ def _validate_generation_provenance(
         )
 
 
+def _validate_generation_run_manifest(
+    manifest_path: str | Path,
+    outputs_path: str | Path,
+    *,
+    arm: str,
+    checkpoint_sha256: str,
+    generation_contract_sha256: str,
+    decoding_policy_sha256: str,
+) -> str:
+    manifest_file, output_file = Path(manifest_path), Path(outputs_path)
+    if (
+        not manifest_file.is_file()
+        or manifest_file.is_symlink()
+        or not output_file.is_file()
+        or output_file.is_symlink()
+    ):
+        raise MeasurementV2Error("generation manifest and output must be regular files")
+    manifest = _load_json(manifest_file)
+    output_sha = _sha(output_file)
+    accounting = manifest.get("token_accounting") or {}
+    if (
+        manifest.get("artifact_schema") != "dftr.m2.adapter_native_generation.v1"
+        or manifest.get("status") != "completed"
+        or manifest.get("arm") != arm
+        or manifest.get("adapter_native") is not True
+        or manifest.get("checkpoint_sha256") != checkpoint_sha256
+        or manifest.get("generation_contract_sha256") != generation_contract_sha256
+        or manifest.get("decoding_policy_sha256") != decoding_policy_sha256
+        or manifest.get("documents") != N
+        or manifest.get("generated_tokens_per_document") != 64
+        or manifest.get("output_sha256") != output_sha
+        or accounting != {"total_tokens": N * 64}
+        or not re.fullmatch(r"dftr-[0-9]+-[0-9a-f]{8}", str(manifest.get("run_id") or ""))
+        or not re.fullmatch(r"[0-9a-f]{40}", str(manifest.get("git_sha") or ""))
+        or not re.fullmatch(r"[0-9a-f]{64}", str(manifest.get("config_sha256") or ""))
+        or not str(manifest.get("comparison_id") or "")
+        or not Path(str(manifest.get("output_path") or "")).is_absolute()
+    ):
+        raise MeasurementV2Error(
+            "generation run manifest does not authenticate the supplied output bytes"
+        )
+    return _sha(manifest_file)
+
+
 def _simulate_power(
     assumptions: dict[str, Any],
     *,
@@ -797,6 +842,7 @@ def freeze_operator_bundle(
     human_source: str | Path,
     prompt_briefs: str | Path,
     control_outputs: str | Path,
+    control_generation_manifest: str | Path,
     human_embeddings: str | Path,
     power_assumptions: str | Path,
     decision_contract: str | Path,
@@ -839,6 +885,14 @@ def freeze_operator_bundle(
     seed_grid = _seed_grid(raw_control, prompt_ids)
     _validate_generation_provenance(
         raw_control,
+        checkpoint_sha256=control_checkpoint_sha256,
+        generation_contract_sha256=generation_contract_sha256,
+        decoding_policy_sha256=decoding_policy_sha256,
+    )
+    control_generation_manifest_sha = _validate_generation_run_manifest(
+        control_generation_manifest,
+        control_outputs,
+        arm="A0",
         checkpoint_sha256=control_checkpoint_sha256,
         generation_contract_sha256=generation_contract_sha256,
         decoding_policy_sha256=decoding_policy_sha256,
@@ -981,6 +1035,7 @@ def freeze_operator_bundle(
         "checkpoint_sha256": control_checkpoint_sha256,
         "decoding_policy_sha256": decoding_policy_sha256,
         "generation_contract_sha256": generation_contract_sha256,
+        "source_generation_manifest_sha256": control_generation_manifest_sha,
     }
     baseline_path = root / "matched_baseline.json"
     baseline_sha = _write_json(baseline_path, baseline)
@@ -1274,6 +1329,7 @@ def score_candidate_bundle(
     *,
     artifact_root: str | Path,
     candidate_outputs: str | Path,
+    candidate_generation_manifest: str | Path,
     score_embeddings: str | Path,
     candidate_checkpoint_sha256: str,
     private_key: str | Path,
@@ -1291,6 +1347,14 @@ def score_candidate_bundle(
     matched = protocol["matched_design"]
     _validate_generation_provenance(
         raw_candidate,
+        checkpoint_sha256=candidate_checkpoint_sha256,
+        generation_contract_sha256=matched["generation_contract_sha256"],
+        decoding_policy_sha256=matched["decoding_policy_sha256"],
+    )
+    _validate_generation_run_manifest(
+        candidate_generation_manifest,
+        candidate_outputs,
+        arm="A64",
         checkpoint_sha256=candidate_checkpoint_sha256,
         generation_contract_sha256=matched["generation_contract_sha256"],
         decoding_policy_sha256=matched["decoding_policy_sha256"],
@@ -1597,6 +1661,7 @@ def _parser() -> argparse.ArgumentParser:
         "human-source",
         "prompt-briefs",
         "control-outputs",
+        "control-generation-manifest",
         "human-embeddings",
         "power-assumptions",
         "decision-contract",
@@ -1618,6 +1683,7 @@ def _parser() -> argparse.ArgumentParser:
     for field in (
         "artifact-root",
         "candidate-outputs",
+        "candidate-generation-manifest",
         "score-embeddings",
         "candidate-checkpoint-sha256",
         "private-key",
@@ -1661,6 +1727,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 human_source=args.human_source,
                 prompt_briefs=args.prompt_briefs,
                 control_outputs=args.control_outputs,
+                control_generation_manifest=args.control_generation_manifest,
                 human_embeddings=args.human_embeddings,
                 power_assumptions=args.power_assumptions,
                 decision_contract=args.decision_contract,
@@ -1681,6 +1748,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             result = score_candidate_bundle(
                 artifact_root=args.artifact_root,
                 candidate_outputs=args.candidate_outputs,
+                candidate_generation_manifest=args.candidate_generation_manifest,
                 score_embeddings=args.score_embeddings,
                 candidate_checkpoint_sha256=args.candidate_checkpoint_sha256,
                 private_key=args.private_key,
