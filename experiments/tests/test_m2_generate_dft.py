@@ -116,6 +116,7 @@ def test_receipt_signing_secret_is_isolated_from_training_worker() -> None:
     assert "restrict_modal_access=True" in training_prefix
     training_body = source.split("def training_worker", 1)[1].split("def _volume_path", 1)[0]
     assert "checkpoint_volume.commit()" not in training_body
+    assert 'log_path = Path("/tmp")' in training_body
     assert "def finalize_generation_receipt" in source
     assert "secrets=[receipt_signing_secret]" in source
     assert "finalize_generation_receipt.remote(" in source

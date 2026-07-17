@@ -230,7 +230,7 @@ def training_worker(run_id: str, payload: dict) -> dict:
     started = time.time()
     config = payload["config"]
     worktree = Path("/tmp") / run_id
-    log_path = _artifact_dir(run_id) / "worker.log"
+    log_path = Path("/tmp") / f"{run_id}.worker.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)
     status = "failed"
     return_code = None
@@ -377,6 +377,8 @@ def training_worker(run_id: str, payload: dict) -> dict:
             "actual_cost_usd": round(actual, 6),
             "artifact_dir": str(artifact_dir.resolve()),
         }
+        if log_path.is_file():
+            (artifact_dir / "worker.log").write_bytes(log_path.read_bytes())
     return result_payload
 
 
