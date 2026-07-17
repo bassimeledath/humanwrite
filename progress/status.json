@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-17T00:53:54Z",
+  "updated_at": "2026-07-17T06:31:51Z",
   "phase": "Next cycle — instrument and fidelity audit",
-  "headline": "Strict fidelity replay and measurement-v2 repair are active",
-  "summary": "The score-blind public-canary implementation passed independent private tests. The first public adapter/merge replay stopped before generation on a metadata identity mismatch: the original merged weights and tokenizer match the later sealed snapshot, but two provenance/config files differ. A v2 replay now binds both identities explicitly. Independent adversarial testing also rejected six remaining measurement-v2 semantic shortcuts; those are being repaired before any evaluator promotion or new training spend.",
+  "headline": "Measurement-v2 passed; final fidelity classifier repair is active",
+  "summary": "No new model run has launched. Measurement-v2 passed independent verification with 201 tests and all six historical inventories green; its unmaterialized candidate remains correctly fail-closed. Fidelity-v2's exact protocol and artifact guards passed, but final review found the public-surface key classifier both missed wrapped private aliases and rejected legitimate tokenizer metadata. A narrow structured classifier repair is active before any replay authorization.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
@@ -25,6 +25,30 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "23:31",
+      "title": "Measurement-v2 independently passed; fidelity remains blocked",
+      "detail": "Measurement-v2 passed a final 201-test independent suite with all historical inventories green. Fidelity's exact artifact and protocol guards passed, but its public-surface classifier missed wrapped private aliases while rejecting legitimate tokenizer keys. A targeted correction is active; no replay, deployment, or provider call launched.",
+      "tone": "active"
+    },
+    {
+      "at": "23:15",
+      "title": "Both rejected evaluator candidates repaired",
+      "detail": "Fidelity-v2 closed all three launch-guard findings with 196 forced tests passing. Measurement-v2 added exact signed hard-gate evidence semantics with 190 tests passing. Final cross-review is active with neither implementer reviewing its own repair; no model run or provider call launched.",
+      "tone": "active"
+    },
+    {
+      "at": "22:50",
+      "title": "Independent reviews kept both evaluators blocked",
+      "detail": "Fidelity-v2 was rejected for a v2-to-v1 downgrade path, incomplete launch validation of exact serialization, and a nested credential alias. Measurement-v2 was rejected because multiple required hard gates could reuse one plaintext placeholder. Separate native repairs are active; neither candidate is preregistered, deployed, or authorized for model spend.",
+      "tone": "blocked"
+    },
+    {
+      "at": "22:45",
+      "title": "Public-canary isolation resources prepared",
+      "detail": "Created separate public-manifest and canary-state Modal volumes plus a distinct canary auth secret stored in Keychain. The endpoint remains undeployed until runtime/image pins, public manifests, and a real-checkpoint replay pass.",
+      "tone": "active"
+    },
     {
       "at": "17:53",
       "title": "Fidelity replay failed safely before generation",
