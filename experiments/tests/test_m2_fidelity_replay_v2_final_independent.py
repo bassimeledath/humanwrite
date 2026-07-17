@@ -17,7 +17,7 @@ from infra.backend.policy import PolicyError, canonical_hash, validate_launch
 
 
 ROOT = Path(__file__).resolve().parents[2]
-TARGET = "d36b2e2dc8b162bb3e3978d8841307afda24e879"
+TARGET = "a32ab25181766aff589619942b27526d9778654d"
 CONFIG_V1 = ROOT / "configs" / "m2" / "m2_adapter_merge_fidelity_replay_v1.yaml"
 CONFIG_V2 = ROOT / "configs" / "m2" / "m2_adapter_merge_fidelity_replay_v2.yaml"
 V1_FILE_SHA256 = "8015afd23f7d21953e0e7f0f1045db824a87377ec38de4c7c478b7455570ef4c"
