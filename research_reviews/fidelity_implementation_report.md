@@ -225,6 +225,64 @@ PYTHONPATH=infra:. python -m pytest -q
 162 passed in 5.64s
 ```
 
+## Final public-surface classifier correction
+
+Final independent review at `7bb4b8c` found that the recursive public-only
+scanner missed wrapped camel/Pascal credential aliases while treating standard
+tokenizer metadata as credential tokens. The worker and canonical backend
+policy now classify structured key words after splitting camel/Pascal, snake,
+kebab, dotted, and other non-alphanumeric boundaries. The local GPU client uses
+that canonical backend classifier.
+
+Sensitive words are rejected in any key position, including the tested
+`remoteServiceUrl`, `privateEndpointUrl`, `externalAuthConfig`,
+`clientSecretValue`, and `gatewayAccessTokenValue` forms. Token-bearing keys
+remain rejected unless every word belongs to a bounded public tokenizer or
+generation-metadata vocabulary with a non-token modifier. This permits audited
+fields such as `special_tokens_map`, `added_tokens`, `max_new_tokens`, and
+`pad_token_policy`, while continuing to reject `access_token`, `provider_token`,
+and unqualified token-value fields.
+
+No replay schema, comparison, artifact identity, canonical contract, exact
+serialization, or v1 historical-config guard changed. The v1 YAML SHA-256 is
+still `8015afd23f7d21953e0e7f0f1045db824a87377ec38de4c7c478b7455570ef4c`;
+the v2 YAML SHA-256 is still
+`a5f0504dfdcfd12cfda5081e068919a603a395c7155a725bd9e7c13016ba1d8c`;
+and the identity-manifest SHA-256 is still
+`602cb05fed6fe3a0ecc1e37bc811ae5bb255c2624b57b051ae0744c7a0973b2c`.
+
+Final verification:
+
+```text
+# Raw final tester pack with inherited strict-xfail markers.
+PYTHONPATH=infra:. python -m pytest -q \
+  experiments/tests/test_m2_fidelity_replay_v2_final_independent.py
+15 passed, 8 failed
+
+# Forced bodies: all 22 semantic assertions pass; the sole remaining failure
+# is the tester-only assertion that implementation still equals old target d36b2e2.
+PYTHONPATH=infra:. python -m pytest -q --runxfail \
+  experiments/tests/test_m2_fidelity_replay_v2_final_independent.py
+22 passed, 1 failed
+
+PYTHONPATH=infra:. python -m pytest -q --runxfail \
+  experiments/tests/test_m2_fidelity_replay_v2_final_independent.py \
+  -k 'not test_tester_commit_does_not_modify_fidelity_implementation_surfaces'
+22 passed, 1 deselected in 0.20s
+
+# Focused replay/policy suite.
+109 passed, 1 deselected in 3.78s
+
+# Repository-wide forced suite, excluding only that stale scope assertion.
+PYTHONPATH=infra:. python -m pytest -q --runxfail \
+  -k 'not test_tester_commit_does_not_modify_fidelity_implementation_surfaces'
+218 passed, 1 deselected in 6.09s
+```
+
+`py_compile`, structured key spot checks, `git diff --check`, and exact artifact
+hash checks also passed. No preregistration, deployment, launch, or spend was
+performed.
+
 ## Fidelity-v2 launch-boundary repair
 
 Independent tester commit `25c2f60` confirmed the direct artifact-identity

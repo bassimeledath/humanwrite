@@ -8,6 +8,7 @@ import hmac
 import json
 import os
 from pathlib import Path
+import re
 from typing import Any
 
 
@@ -63,12 +64,26 @@ REPLAY_ORIGINAL_MERGE_HASH_V2 = "7f095c31e83f8b03"
 REPLAY_SUBMITTED_SNAPSHOT_HASH_V2 = "0f437f62bc1cca0c"
 REPLAY_V1_MERGED_CONTENT_HASH = REPLAY_SUBMITTED_SNAPSHOT_HASH_V2
 REPLAY_EXACT_SERIALIZATION_IDENTITY = "exact_serialization_bytes"
-REPLAY_FORBIDDEN_SURFACE_PARTS = {
-    "api", "provider", "judge", "sealed", "hidden",
-    "credential", "credentials", "secret", "secrets", "token", "tokens",
+REPLAY_SENSITIVE_KEY_WORDS = {
+    "api", "provider", "judge", "sealed", "hidden", "private",
+    "credential", "credentials", "secret", "secrets",
     "auth", "authentication", "authorization", "key", "keys",
     "endpoint", "endpoints", "service", "services",
 }
+REPLAY_TOKEN_KEY_WORDS = {"token", "tokens"}
+REPLAY_PUBLIC_TOKEN_METADATA_WORDS = {
+    "add", "added", "additional", "begin", "bos", "cls", "count", "counts",
+    "decoder", "eos", "exact", "forced", "generation", "greedy", "id", "ids",
+    "input", "map", "mask", "max", "min", "new", "output", "pad", "parity",
+    "policy", "sep", "skip", "special", "start", "suppress", "teacher", "token",
+    "tokens", "type", "types", "unk",
+}
+REPLAY_PUBLIC_TOKEN_METADATA_MODIFIERS = (
+    REPLAY_PUBLIC_TOKEN_METADATA_WORDS - REPLAY_TOKEN_KEY_WORDS
+)
+REPLAY_KEY_WORD_RE = re.compile(
+    r"[A-Z]+(?=[A-Z][a-z]|[0-9]|$)|[A-Z]?[a-z]+|[0-9]+"
+)
 
 
 class PolicyError(ValueError):
@@ -98,31 +113,34 @@ def revision_is_unresolved(value: Any) -> bool:
     return not text or text.startswith(UNRESOLVED_REVISION_PREFIX)
 
 
+def replay_key_words(key: Any) -> tuple[str, ...]:
+    words: list[str] = []
+    for chunk in re.split(r"[^A-Za-z0-9]+", str(key)):
+        words.extend(
+            match.casefold() for match in REPLAY_KEY_WORD_RE.findall(chunk)
+        )
+    return tuple(words)
+
+
+def replay_key_is_sensitive(key: Any) -> bool:
+    words = replay_key_words(key)
+    word_set = set(words)
+    if word_set & REPLAY_SENSITIVE_KEY_WORDS:
+        return True
+    if not word_set & REPLAY_TOKEN_KEY_WORDS:
+        return False
+    return not (
+        word_set <= REPLAY_PUBLIC_TOKEN_METADATA_WORDS
+        and bool(word_set & REPLAY_PUBLIC_TOKEN_METADATA_MODIFIERS)
+    )
+
+
 def forbidden_replay_surface_keys(value: Any) -> list[str]:
     """Find paid/private surface aliases recursively in a replay config."""
     found: list[str] = []
     if isinstance(value, dict):
         for key, child in value.items():
-            normalized = str(key).casefold().replace("-", "_")
-            parts = {part for part in normalized.split("_") if part}
-            if parts & REPLAY_FORBIDDEN_SURFACE_PARTS or any(
-                normalized.startswith(part) or normalized.endswith(part)
-                for part in REPLAY_FORBIDDEN_SURFACE_PARTS
-                if part in {"api", "provider", "judge", "sealed", "hidden"}
-            ) or any(
-                normalized == part
-                or normalized.endswith(part)
-                or (
-                    part in {
-                        "credential", "credentials", "secret", "secrets",
-                        "auth", "authentication", "authorization",
-                        "endpoint", "endpoints", "service", "services",
-                    }
-                    and normalized.startswith(part)
-                )
-                for part in REPLAY_FORBIDDEN_SURFACE_PARTS
-                if part not in {"api", "provider", "judge", "sealed", "hidden"}
-            ):
+            if replay_key_is_sensitive(key):
                 found.append(str(key))
             found.extend(forbidden_replay_surface_keys(child))
     elif isinstance(value, list):

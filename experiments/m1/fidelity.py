@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import struct
 from typing import Any, Callable
 
@@ -64,12 +65,22 @@ TOKENIZER_FILES = {
     "tokenizer_config.json",
     "vocab.json",
 }
-PAID_OR_HIDDEN_KEY_PARTS = {
-    "api", "judge", "provider", "sealed", "hidden",
-    "credential", "credentials", "secret", "secrets", "token", "tokens",
+SENSITIVE_REPLAY_KEY_WORDS = {
+    "api", "judge", "provider", "sealed", "hidden", "private",
+    "credential", "credentials", "secret", "secrets",
     "auth", "authentication", "authorization", "key", "keys",
     "endpoint", "endpoints", "service", "services",
 }
+TOKEN_KEY_WORDS = {"token", "tokens"}
+PUBLIC_TOKEN_METADATA_WORDS = {
+    "add", "added", "additional", "begin", "bos", "cls", "count", "counts",
+    "decoder", "eos", "exact", "forced", "generation", "greedy", "id", "ids",
+    "input", "map", "mask", "max", "min", "new", "output", "pad", "parity",
+    "policy", "sep", "skip", "special", "start", "suppress", "teacher", "token",
+    "tokens", "type", "types", "unk",
+}
+PUBLIC_TOKEN_METADATA_MODIFIERS = PUBLIC_TOKEN_METADATA_WORDS - TOKEN_KEY_WORDS
+KEY_WORD_RE = re.compile(r"[A-Z]+(?=[A-Z][a-z]|[0-9]|$)|[A-Z]?[a-z]+|[0-9]+")
 
 
 def _sha256_bytes(value: bytes) -> str:
@@ -135,30 +146,31 @@ def derive_record_seed(global_seed: int, fingerprint: str) -> int:
     return int.from_bytes(hashlib.sha256(payload).digest()[:8], "big") % (2**63)
 
 
+def _key_words(key: Any) -> tuple[str, ...]:
+    words: list[str] = []
+    for chunk in re.split(r"[^A-Za-z0-9]+", str(key)):
+        words.extend(match.casefold() for match in KEY_WORD_RE.findall(chunk))
+    return tuple(words)
+
+
+def _is_sensitive_replay_key(key: Any) -> bool:
+    words = _key_words(key)
+    word_set = set(words)
+    if word_set & SENSITIVE_REPLAY_KEY_WORDS:
+        return True
+    if not word_set & TOKEN_KEY_WORDS:
+        return False
+    return not (
+        word_set <= PUBLIC_TOKEN_METADATA_WORDS
+        and bool(word_set & PUBLIC_TOKEN_METADATA_MODIFIERS)
+    )
+
+
 def _forbidden_surface_keys(value: Any) -> list[str]:
     keys: list[str] = []
     if isinstance(value, dict):
         for key, child in value.items():
-            normalized = str(key).casefold().replace("-", "_")
-            parts = {part for part in normalized.split("_") if part}
-            if parts & PAID_OR_HIDDEN_KEY_PARTS or any(
-                normalized.startswith(part) or normalized.endswith(part)
-                for part in PAID_OR_HIDDEN_KEY_PARTS
-                if part in {"api", "judge", "provider", "sealed", "hidden"}
-            ) or any(
-                normalized == part
-                or normalized.endswith(part)
-                or (
-                    part in {
-                        "credential", "credentials", "secret", "secrets",
-                        "auth", "authentication", "authorization",
-                        "endpoint", "endpoints", "service", "services",
-                    }
-                    and normalized.startswith(part)
-                )
-                for part in PAID_OR_HIDDEN_KEY_PARTS
-                if part not in {"api", "judge", "provider", "sealed", "hidden"}
-            ):
+            if _is_sensitive_replay_key(key):
                 keys.append(str(key))
             keys.extend(_forbidden_surface_keys(child))
     elif isinstance(value, list):
