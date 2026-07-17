@@ -42,6 +42,37 @@ The public synthetic positive-path fixture generates a temporary Ed25519 key and
 
 The inventory covers six sets: the two harness calibration artifacts, harness baseline, all 98 Tier-1 JSON reports/indexes/summaries, five top-level M1 calibration/baseline artifacts, five seed-29 selection manifests, and the exact sealed aggregate. Each set carries a canonical manifest SHA-256 over sorted `relative_path NUL file_sha256 LF` records.
 
+## Second-round semantic-binding repair
+
+Independent tester commit `3e5b781` confirmed the first repair closed its 11
+original defects, then supplied six new signed, internally hash-consistent
+falsifications. This repair closes those cases without editing either
+tester-owned pack:
+
+- human panel fingerprints are recomputed from the exact `document_id`/`text`
+  JSONL bundle, with exact 3n membership and no extra or missing IDs; the same
+  rows carry passing eligibility basis and empty exclusion flags whose canonical
+  digest must equal the signed panel eligibility attestation;
+- matched-control output JSONL must contain the exact prompt x training-seed x
+  sampling-seed grid, with unique cells and per-row bindings to the complete
+  brief, prompt panel, sampling grid, checkpoint, decoding policy, and
+  generation contract;
+- the power artifact freezes minimally important effects, null and alternative
+  generators, prompt-cluster/document/seed design, at least 1,000 trials per
+  required scenario, multiplicity, analysis code, and content hashes, and the
+  validator recomputes every reported rate from successes/trials;
+- attestation accepts only a trusted-key-signed inventory result that embeds its
+  source inventory, then reruns that inventory against the supplied repository
+  root and requires exact row-for-row agreement;
+- the protocol freezes the exact named/versioned hard-gate set; promotion
+  requires equality, pass decisions, and byte-verified gate evidence files; and
+- promotion-eligible reports require a trusted Ed25519 signature plus a signed,
+  byte-verified candidate-output binding. Any post-signature mutation fails.
+
+The checked-in protocol candidate remains deliberately unmaterialized and now
+advertises these fields as null/empty prerequisites rather than satisfying
+them with placeholders.
+
 Post-implementation verification result: all six sets `pass`. The quarantine permits exact historical reproduction and preserves the original sealed rejection, but forbids using v1 artifacts as prospective v2 floors, calibrations, selection endpoints, uncertainty estimates, or promotion evidence.
 
 ## Public invariant coverage
@@ -75,6 +106,14 @@ PYTHONPATH=<repo>:<repo>/harness/src:<repo>/infra harness/.venv/bin/pytest -q \
   data/tests experiments/tests harness/tests infra/tests ledger/tests \
   research_reviews/test_measurement_v2_independent_adversarial.py --runxfail
 164 passed, 8 warnings in 5.20s
+
+Second-round tester pack, executed as ordinary requirements:
+
+```text
+uv run --project harness --extra test pytest -q --runxfail \
+  research_reviews/test_measurement_v2_retest_adversarial.py
+6 passed
+```
 ```
 
 `--runxfail` executes the tester-owned strict-xfail bodies as ordinary tests. The markers were deliberately preserved; without that flag, repaired strict xfails correctly appear as strict XPASS until the independent tester updates its verdict artifact.

@@ -17,6 +17,19 @@
   "matched_baseline_sha256": null,
   "dependency_lock_sha256": null,
   "results": {},
+  "simulation_contract": {
+    "prospective": true,
+    "documents_per_cell": 64,
+    "prompt_clusters": 64,
+    "seed_grid": [],
+    "minimally_important_effects": {},
+    "null_generator_sha256": null,
+    "alternative_generator_sha256": null,
+    "analysis_code_sha256": null
+  },
+  "trial_manifest_sha256": null,
+  "simulation_results": [],
+  "simulation_results_sha256": null,
   "multiplicity": {"method": null},
   "notes": "Materialize from pilot assumptions before protocol transfer. A nominal n alone is not power evidence."
 }

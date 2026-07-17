@@ -3,7 +3,7 @@
   "$id": "dftr.measurement.protocol.v2",
   "title": "Frozen prospective measurement protocol v2",
   "type": "object",
-  "required": ["artifact_schema", "status", "frozen", "design", "hashes", "panels", "bandwidth_contract", "power", "seeds", "selection_policy", "matched_design", "artifact_bindings", "operator_approval", "operator_signature"],
+  "required": ["artifact_schema", "status", "frozen", "design", "hashes", "panels", "bandwidth_contract", "power", "seeds", "selection_policy", "required_hard_gates", "matched_design", "artifact_bindings", "operator_approval", "operator_signature"],
   "properties": {
     "artifact_schema": {"const": "dftr.measurement.protocol.v2"},
     "status": {"const": "ready"},
@@ -27,6 +27,11 @@
     "power": {"type": "object"},
     "seeds": {"type": "object"},
     "selection_policy": {"type": "object"},
+    "required_hard_gates": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {"type": "string", "minLength": 1}
+    },
     "matched_design": {"type": "object"},
     "artifact_bindings": {
       "type": "object",

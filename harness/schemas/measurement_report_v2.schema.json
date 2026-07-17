@@ -30,7 +30,33 @@
     "quality": {"type": "object", "required": ["status"]},
     "repetition": {"type": "object", "required": ["status"]},
     "authorship": {"type": "object", "required": ["status", "effective_clusters", "fit_count"]},
-    "promotion": {"type": "object", "required": ["eligible"], "properties": {"eligible": {"type": "boolean"}}}
+    "promotion": {"type": "object", "required": ["eligible"], "properties": {"eligible": {"type": "boolean"}}},
+    "hard_gates": {"type": "object"},
+    "candidate_output_binding": {
+      "type": "object",
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "operator_signature": {"$ref": "#/$defs/signature"}
   },
-  "$defs": {"sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+  "allOf": [{
+    "if": {"properties": {"promotion": {"properties": {"eligible": {"const": true}}}}},
+    "then": {
+      "required": ["hard_gates", "candidate_output_binding", "operator_signature"],
+      "properties": {
+        "hashes": {"required": ["candidate_output_manifest_sha256"]}
+      }
+    }
+  }],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "signature": {
+      "type": "object",
+      "required": ["algorithm", "key_id", "signed_payload_sha256", "signature_base64"],
+      "properties": {"algorithm": {"const": "ed25519"}}
+    }
+  }
 }

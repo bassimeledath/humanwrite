@@ -51,12 +51,21 @@
     "selection": {"rule_type": "fixed_seed", "value": null},
     "declared_before_measurement": true
   },
+  "required_hard_gates": {
+    "factuality": "dftr.gate.factuality.v1",
+    "brief_adherence": "dftr.gate.brief_adherence.v1",
+    "validity": "dftr.gate.validity.v1",
+    "collapse": "dftr.gate.collapse.v1"
+  },
   "matched_design": {
     "candidate_full_brief_sha256": null,
     "control_full_brief_sha256": null,
     "sampling_grid_sha256": null,
     "seed_grid": [],
-    "control_output_manifest_sha256": null
+    "control_output_manifest_sha256": null,
+    "control_checkpoint_sha256": null,
+    "decoding_policy_sha256": null,
+    "generation_contract_sha256": null
   },
   "quality_reference_split": "quality_visible_human",
   "artifacts": {
