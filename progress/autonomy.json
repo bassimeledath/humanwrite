@@ -15,6 +15,10 @@
     {
       "role": "training_brief_synthesis",
       "run_id": "dftr-1784324765-528d37bd"
+    },
+    {
+      "role": "partial_128_sft_runtime_smoke",
+      "run_id": "dftr-1784329721-16bf1bb2"
     }
   ]
 }

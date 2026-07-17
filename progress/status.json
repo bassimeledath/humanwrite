@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-17T21:46:28Z",
+  "updated_at": "2026-07-17T23:08:59Z",
   "phase": "M2 — fresh-instrument and estimator rebuild",
-  "headline": "Evaluation cleaning and faithful training-brief synthesis now run concurrently",
-  "summary": "The validated 1,024-document training corpus is no longer waiting on the evaluation pool. Two-provider synthesis is active as dftr-1784324765-528d37bd: Qwen3-32B produces prompt/use-case/style metadata and GPT-5-mini produces outlines with exactly 25 percent empty. Evaluation cleaner dftr-1784323983-2f70b1f2 continues independently. The new privileged path and surrounding lower-variance system pass 162 tests; GPU tuning starts after the training briefs validate.",
+  "headline": "A real 4B fine-tuning smoke is running before the full briefs finish",
+  "summary": "A frozen 128-brief partial snapshot is now exercising the real Qwen3-4B lower-variance training path as dftr-1784329721-16bf1bb2 while the full brief and evaluation jobs continue. The smoke is plumbing-only, not model-quality evidence. Preparing it caught and repaired the token-versus-word prompt bug before GPU spend. The full matched tuning experiment still uses all 1,024 validated briefs.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
@@ -25,6 +25,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "16:08",
+      "title": "Early 4B fine-tuning smoke launched on 128 completed briefs",
+      "detail": "Run dftr-1784329721-16bf1bb2 is testing one real SFT-arm optimizer step, token-unit prompt serialization, gradients, runtime compatibility, and checkpoint persistence on L40S. It is explicitly non-evidentiary and will be replaced by the full 1,024-brief matched run.",
+      "tone": "active"
+    },
     {
       "at": "14:46",
       "title": "Training preparation moved ahead in parallel",
