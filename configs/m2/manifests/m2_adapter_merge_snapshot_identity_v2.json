@@ -1,0 +1,64 @@
+{
+  "artifact_schema": "dftr.adapter_merge_snapshot_identity.v2",
+  "comparison_id": "M2-adapter-merge-fidelity-replay-v2",
+  "original_merge": {
+    "path": "/checkpoints/runs/dftr-1784224462-c1f83ed3/merged-model",
+    "canonical_directory_hash": "7f095c31e83f8b03",
+    "file_sha256": {
+      "added_tokens.json": "c0284b582e14987fbd3d5a2cb2bd139084371ed9acbae488829a1c900833c680",
+      "chat_template.jinja": "a55ee1b1660128b7098723e0abcd92caa0788061051c62d51cbe87d9cf1974d8",
+      "config.json": "bd0d45ac9fa17c4a7d97e67537f90169325004fda58ae219eef89a7e7ce565a8",
+      "generation_config.json": "64d86df2173901c58389974bde21f7d2ab9eb7d79f35a337753329d39cf265c0",
+      "merges.txt": "8831e4f1a044471340f7c0a83d7bd71306a5b867e95fd870f74d0c5308a904d5",
+      "model-00001-of-00003.safetensors": "a71dbb017fabaca073df4f9a30f32dd005be7bc3cbc6fbf29df915ef74dc634a",
+      "model-00002-of-00003.safetensors": "cc16bff3aa61d9c6dc3fa986b4ae9585c8de8955923c461f3f221fa406b07933",
+      "model-00003-of-00003.safetensors": "9fde8fbbba787c3f92981351da3cf6be74b01ec6f91fb538f5ac0c61fc95f177",
+      "model.safetensors.index.json": "5b36dbd79cdd00f76600e471c61157c10090952160d49c5a3d7e05840bda029a",
+      "special_tokens_map.json": "76862e765266b85aa9459767e33cbaf13970f327a0e88d1c65846c2ddd3a1ecd",
+      "tokenizer.json": "e7504a40cfacbd5e4662b7e9c171317c7d5f431a052e18381b2df19769cd8f2f",
+      "tokenizer_config.json": "a32ee532e3437966f2b52bb0fe0e7c525234dc1034814718b0467d8104a09371",
+      "train_config.json": "a09d02a3fce6aa2b2e4447dd69b24493d97694b63be0151e455e513ae4b93ef2",
+      "vocab.json": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+    }
+  },
+  "submitted_snapshot": {
+    "snapshot_role": "later_sealed_submission_snapshot",
+    "canonical_directory_hash": "0f437f62bc1cca0c",
+    "identical_file_sha256": {
+      "added_tokens.json": "c0284b582e14987fbd3d5a2cb2bd139084371ed9acbae488829a1c900833c680",
+      "chat_template.jinja": "a55ee1b1660128b7098723e0abcd92caa0788061051c62d51cbe87d9cf1974d8",
+      "config.json": "bd0d45ac9fa17c4a7d97e67537f90169325004fda58ae219eef89a7e7ce565a8",
+      "merges.txt": "8831e4f1a044471340f7c0a83d7bd71306a5b867e95fd870f74d0c5308a904d5",
+      "model-00001-of-00003.safetensors": "a71dbb017fabaca073df4f9a30f32dd005be7bc3cbc6fbf29df915ef74dc634a",
+      "model-00002-of-00003.safetensors": "cc16bff3aa61d9c6dc3fa986b4ae9585c8de8955923c461f3f221fa406b07933",
+      "model-00003-of-00003.safetensors": "9fde8fbbba787c3f92981351da3cf6be74b01ec6f91fb538f5ac0c61fc95f177",
+      "model.safetensors.index.json": "5b36dbd79cdd00f76600e471c61157c10090952160d49c5a3d7e05840bda029a",
+      "special_tokens_map.json": "76862e765266b85aa9459767e33cbaf13970f327a0e88d1c65846c2ddd3a1ecd",
+      "tokenizer.json": "e7504a40cfacbd5e4662b7e9c171317c7d5f431a052e18381b2df19769cd8f2f",
+      "tokenizer_config.json": "a32ee532e3437966f2b52bb0fe0e7c525234dc1034814718b0467d8104a09371",
+      "vocab.json": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+    },
+    "metadata_differences": {
+      "generation_config.json": {
+        "original_sha256": "64d86df2173901c58389974bde21f7d2ab9eb7d79f35a337753329d39cf265c0",
+        "snapshot_sha256": "0ba4fa0fce9b70e3a1a830c618de7fd1a1e4adb3008eaa147fa22aa35550d0f0",
+        "classification": "submission_generation_metadata"
+      },
+      "train_config.json": {
+        "original_sha256": "a09d02a3fce6aa2b2e4447dd69b24493d97694b63be0151e455e513ae4b93ef2",
+        "snapshot_sha256": "bdeb26ea942bd28eeae6d4522849636c3459b8406b00288380ba8b41c7a3ba18",
+        "classification": "submission_provenance_metadata"
+      }
+    }
+  },
+  "relation": {
+    "difference_files": [
+      "generation_config.json",
+      "train_config.json"
+    ],
+    "weights_tokenizer_index_identity": "exact_serialization_bytes",
+    "generation_arguments_authority": "configs/m2/canonical_full_brief_generation_v1.json",
+    "generation_arguments_are_explicit": true,
+    "scientific_scope": "The replay targets the original merge directory. The later snapshot identity is audited separately and does not substitute for the replay target."
+  }
+}

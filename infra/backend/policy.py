@@ -45,6 +45,15 @@ REPLAY_HISTORICAL_CONFIG_PATH = (
 REPLAY_HISTORICAL_CONFIG_SHA256 = (
     "a02d893eda4c5e457864e1145e5cb4a4d238ab04037bc74e269a1ab20e52a72c"
 )
+REPLAY_PROTOCOLS = {"dftr.adapter_merge_replay.v1", "dftr.adapter_merge_replay.v2"}
+REPLAY_SNAPSHOT_IDENTITY_PATH = (
+    "configs/m2/manifests/m2_adapter_merge_snapshot_identity_v2.json"
+)
+REPLAY_SNAPSHOT_IDENTITY_SHA256 = (
+    "602cb05fed6fe3a0ecc1e37bc811ae5bb255c2624b57b051ae0744c7a0973b2c"
+)
+REPLAY_ORIGINAL_MERGE_HASH_V2 = "7f095c31e83f8b03"
+REPLAY_SUBMITTED_SNAPSHOT_HASH_V2 = "0f437f62bc1cca0c"
 
 
 class PolicyError(ValueError):
@@ -142,7 +151,8 @@ def validate_launch(payload: dict[str, Any]) -> LaunchPolicy:
         )
     if workflow_step == "replay_equivalence":
         replay_workflow = config.get("workflow") or {}
-        if str(replay_workflow.get("protocol_version")) != "dftr.adapter_merge_replay.v1":
+        protocol_version = str(replay_workflow.get("protocol_version"))
+        if protocol_version not in REPLAY_PROTOCOLS:
             raise PolicyError("replay_equivalence requires the frozen public replay protocol")
         if task_kind != "experiment":
             raise PolicyError("replay_equivalence requires the credential-free experiment task kind")
@@ -159,6 +169,19 @@ def validate_launch(payload: dict[str, Any]) -> LaunchPolicy:
         }
         if any(str(replay_workflow.get(key) or "") != value for key, value in expected_bindings.items()):
             raise PolicyError("replay_equivalence requires canonical frozen contract bindings")
+        if protocol_version == "dftr.adapter_merge_replay.v2":
+            audit = config.get("submitted_snapshot_audit") or {}
+            artifacts = config.get("artifacts") or {}
+            if (
+                comparison_id != "M2-adapter-merge-fidelity-replay-v2"
+                or artifacts.get("merged_content_hash") != REPLAY_ORIGINAL_MERGE_HASH_V2
+                or audit.get("identity_manifest") != REPLAY_SNAPSHOT_IDENTITY_PATH
+                or audit.get("identity_manifest_sha256") != REPLAY_SNAPSHOT_IDENTITY_SHA256
+                or audit.get("canonical_directory_hash") != REPLAY_SUBMITTED_SNAPSHOT_HASH_V2
+                or list(audit.get("metadata_difference_files") or [])
+                != ["generation_config.json", "train_config.json"]
+            ):
+                raise PolicyError("replay v2 requires the exact original/snapshot identity repair")
     api_reserved = 0.0
     if task_kind == "experiment":
         command = run.get("command", ALLOWED_COMMAND_PREFIX)

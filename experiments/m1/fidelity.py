@@ -22,6 +22,8 @@ from .contracts import (
 
 
 REPLAY_SCHEMA = "dftr.adapter_merge_replay.v1"
+REPLAY_SCHEMA_V2 = "dftr.adapter_merge_replay.v2"
+REPLAY_SCHEMAS = {REPLAY_SCHEMA, REPLAY_SCHEMA_V2}
 CONTRACT_SCHEMA = "dftr.canonical_generation.v1"
 REPLAY_TRANSFORMERS_VERSION = "4.57.6"
 CANONICAL_GENERATION_CONTRACT_PATH = "configs/m2/canonical_full_brief_generation_v1.json"
@@ -35,6 +37,15 @@ CANONICAL_HISTORICAL_CONFIG_SHA256 = (
     "a02d893eda4c5e457864e1145e5cb4a4d238ab04037bc74e269a1ab20e52a72c"
 )
 FROZEN_SUBSET_HASH = "18a8031ed63cf72636523974000af05e1d8bdd16f351b4f5a13fbe3dcfefe9e3"
+SNAPSHOT_IDENTITY_MANIFEST_PATH = (
+    "configs/m2/manifests/m2_adapter_merge_snapshot_identity_v2.json"
+)
+SNAPSHOT_IDENTITY_MANIFEST_SHA256 = (
+    "602cb05fed6fe3a0ecc1e37bc811ae5bb255c2624b57b051ae0744c7a0973b2c"
+)
+ORIGINAL_MERGE_CONTENT_HASH_V2 = "7f095c31e83f8b03"
+SUBMITTED_SNAPSHOT_CONTENT_HASH_V2 = "0f437f62bc1cca0c"
+SNAPSHOT_METADATA_DIFFERENCE_FILES = ["generation_config.json", "train_config.json"]
 EXACT_SAMPLING_SEEDS = [101, 202, 303]
 TOKENIZER_FILES = {
     "added_tokens.json",
@@ -194,10 +205,76 @@ def load_generation_contract(config: dict[str, Any]) -> tuple[dict[str, Any], Pa
     return contract, path, observed
 
 
+def load_snapshot_identity_audit(config: dict[str, Any]) -> tuple[dict[str, Any], Path, str]:
+    workflow = config.get("workflow") or {}
+    if workflow.get("protocol_version") != REPLAY_SCHEMA_V2:
+        raise M1ConfigError("snapshot identity audit is required only for replay protocol v2")
+    audit_config = config.get("submitted_snapshot_audit") or {}
+    if str(audit_config.get("identity_manifest") or "") != SNAPSHOT_IDENTITY_MANIFEST_PATH:
+        raise M1ConfigError("replay v2 requires the canonical snapshot identity manifest path")
+    if str(audit_config.get("identity_manifest_sha256") or "") != SNAPSHOT_IDENTITY_MANIFEST_SHA256:
+        raise M1ConfigError("replay v2 requires the canonical snapshot identity manifest SHA-256")
+    path = resolve_repo_path(SNAPSHOT_IDENTITY_MANIFEST_PATH)
+    if not path.is_file() or file_sha256(path) != SNAPSHOT_IDENTITY_MANIFEST_SHA256:
+        raise M1ConfigError("canonical snapshot identity manifest SHA-256 mismatch")
+    manifest = read_structured(path)
+    if manifest.get("artifact_schema") != "dftr.adapter_merge_snapshot_identity.v2":
+        raise M1ConfigError("unexpected snapshot identity manifest schema")
+    original = manifest.get("original_merge") or {}
+    snapshot = manifest.get("submitted_snapshot") or {}
+    relation = manifest.get("relation") or {}
+    artifacts = config.get("artifacts") or {}
+    if (
+        original.get("path") != artifacts.get("merged_path")
+        or original.get("canonical_directory_hash") != ORIGINAL_MERGE_CONTENT_HASH_V2
+        or artifacts.get("merged_content_hash") != ORIGINAL_MERGE_CONTENT_HASH_V2
+    ):
+        raise M1ConfigError("replay v2 original merge identity mismatch")
+    if (
+        snapshot.get("canonical_directory_hash") != SUBMITTED_SNAPSHOT_CONTENT_HASH_V2
+        or audit_config.get("canonical_directory_hash") != SUBMITTED_SNAPSHOT_CONTENT_HASH_V2
+    ):
+        raise M1ConfigError("replay v2 submitted snapshot identity mismatch")
+    difference_files = list(relation.get("difference_files") or [])
+    if difference_files != SNAPSHOT_METADATA_DIFFERENCE_FILES or list(
+        audit_config.get("metadata_difference_files") or []
+    ) != SNAPSHOT_METADATA_DIFFERENCE_FILES:
+        raise M1ConfigError("replay v2 metadata difference file set mismatch")
+    original_files = dict(original.get("file_sha256") or {})
+    identical_files = dict(snapshot.get("identical_file_sha256") or {})
+    metadata_differences = dict(snapshot.get("metadata_differences") or {})
+    if set(metadata_differences) != set(SNAPSHOT_METADATA_DIFFERENCE_FILES):
+        raise M1ConfigError("snapshot audit must contain exactly two metadata differences")
+    if set(identical_files) != set(original_files) - set(SNAPSHOT_METADATA_DIFFERENCE_FILES):
+        raise M1ConfigError("snapshot identical-file set does not cover every non-metadata file")
+    if any(identical_files[name] != original_files[name] for name in identical_files):
+        raise M1ConfigError("snapshot shared file identity differs from original merge")
+    for name in SNAPSHOT_METADATA_DIFFERENCE_FILES:
+        row = metadata_differences.get(name) or {}
+        if row.get("original_sha256") != original_files.get(name):
+            raise M1ConfigError(f"snapshot metadata original hash mismatch: {name}")
+        _require_sha(row.get("snapshot_sha256"), f"snapshot {name} SHA-256")
+        if row.get("snapshot_sha256") == row.get("original_sha256"):
+            raise M1ConfigError(f"snapshot metadata difference is not a difference: {name}")
+    expected_authority = CANONICAL_GENERATION_CONTRACT_PATH
+    if (
+        relation.get("generation_arguments_authority") != expected_authority
+        or relation.get("generation_arguments_are_explicit") is not True
+        or audit_config.get("generation_arguments_authority") != expected_authority
+        or audit_config.get("weights_tokenizer_index_identity")
+        != "exact_serialization_bytes"
+        or relation.get("weights_tokenizer_index_identity")
+        != "exact_serialization_bytes"
+    ):
+        raise M1ConfigError("snapshot audit does not preserve explicit generation authority")
+    return manifest, path, SNAPSHOT_IDENTITY_MANIFEST_SHA256
+
+
 def validate_replay_spec(config: dict[str, Any]) -> tuple[list[str], list[int]]:
     assert_public_only_config(config)
     workflow = config.get("workflow") or {}
-    if workflow.get("step") != "replay_equivalence" or workflow.get("protocol_version") != REPLAY_SCHEMA:
+    protocol_version = workflow.get("protocol_version")
+    if workflow.get("step") != "replay_equivalence" or protocol_version not in REPLAY_SCHEMAS:
         raise M1ConfigError("replay requires the exact replay workflow schema and step")
     if str((config.get("runtime") or {}).get("transformers_version")) != REPLAY_TRANSFORMERS_VERSION:
         raise M1ConfigError(
@@ -237,6 +314,10 @@ def validate_replay_spec(config: dict[str, Any]) -> tuple[list[str], list[int]]:
     _require_sha((config.get("artifacts") or {}).get("adapter_manifest_sha256"), "adapter manifest SHA-256")
     _require_sha((config.get("artifacts") or {}).get("adapter_sha256"), "adapter SHA-256")
     _require_sha((config.get("artifacts") or {}).get("merged_content_hash"), "merged content hash", length=16)
+    if protocol_version == REPLAY_SCHEMA_V2:
+        if str((config.get("run") or {}).get("comparison_id")) != "M2-adapter-merge-fidelity-replay-v2":
+            raise M1ConfigError("replay v2 requires its prospective comparison identity")
+        load_snapshot_identity_audit(config)
     return fingerprints, seeds
 
 
@@ -291,6 +372,14 @@ def verify_artifact_identities(config: dict[str, Any]) -> dict[str, Any]:
     merged_files = _verify_file_map(
         merged_dir, dict(artifacts.get("merged_weight_files") or {}), "merged"
     )
+    snapshot_identity: dict[str, Any] | None = None
+    if (config.get("workflow") or {}).get("protocol_version") == REPLAY_SCHEMA_V2:
+        snapshot_identity, identity_path, identity_sha = load_snapshot_identity_audit(config)
+        _verify_file_map(
+            merged_dir,
+            dict((snapshot_identity.get("original_merge") or {}).get("file_sha256") or {}),
+            "original merged",
+        )
     merged_content_hash = canonical_directory_hash(merged_dir)
     if merged_content_hash != str(artifacts.get("merged_content_hash")):
         raise M1ConfigError("merged directory content hash mismatch")
@@ -298,7 +387,7 @@ def verify_artifact_identities(config: dict[str, Any]) -> dict[str, Any]:
     merged_tokenizer = _tokenizer_file_map(merged_dir)
     if not adapter_tokenizer or adapter_tokenizer != merged_tokenizer:
         raise M1ConfigError("adapter and merged tokenizer file identities differ")
-    return {
+    result = {
         "adapter": {
             "path": str(adapter_dir.resolve()),
             "files": observed_adapter_files,
@@ -319,6 +408,19 @@ def verify_artifact_identities(config: dict[str, Any]) -> dict[str, Any]:
             "identity_sha256": _canonical_json_sha256(adapter_tokenizer),
         },
     }
+    if snapshot_identity is not None:
+        result["submitted_snapshot_audit"] = {
+            "manifest_path": str(identity_path),
+            "manifest_sha256": identity_sha,
+            "original_merge_content_hash": ORIGINAL_MERGE_CONTENT_HASH_V2,
+            "submitted_snapshot_content_hash": SUBMITTED_SNAPSHOT_CONTENT_HASH_V2,
+            "metadata_differences": snapshot_identity["submitted_snapshot"][
+                "metadata_differences"
+            ],
+            "weights_tokenizer_index_identity": "exact_serialization_bytes",
+            "generation_arguments_authority": CANONICAL_GENERATION_CONTRACT_PATH,
+        }
+    return result
 
 
 def _library_versions() -> dict[str, str]:
@@ -737,8 +839,14 @@ def replay_equivalence(
             )
             write_jsonl(checkpoint_dir / "prospective_adapter_merged_pairs.jsonl", pair_rows)
     passed = bool(diagnostics["gate_passed"] and archive_passed and pair_passed)
+    protocol_version = str(workflow.get("protocol_version"))
     result = {
-        "artifact_schema": "dftr.adapter_merge_replay_result.v1",
+        "artifact_schema": (
+            "dftr.adapter_merge_replay_result.v2"
+            if protocol_version == REPLAY_SCHEMA_V2
+            else "dftr.adapter_merge_replay_result.v1"
+        ),
+        "protocol_version": protocol_version,
         "run_id": run_id,
         "comparison_id": str(config["run"]["comparison_id"]),
         "status": "completed",

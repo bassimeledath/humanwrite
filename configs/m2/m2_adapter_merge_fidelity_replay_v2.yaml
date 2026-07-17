@@ -1,0 +1,80 @@
+run:
+  comparison_id: M2-adapter-merge-fidelity-replay-v2
+  arm: public-fidelity-replay-original-merge
+  budget_class: screen
+  task_kind: experiment
+  command: [python, -m, experiments.runner]
+compute:
+  gpu: L40S
+  gpus: 1
+  timeout_min: 35
+model:
+  base: Qwen/Qwen3-4B
+  revision: 1cfa9a7208912126459214e8b04321603b3df60c
+runtime:
+  transformers_version: 4.57.6
+artifacts:
+  adapter_path: /checkpoints/runs/dftr-1784216516-91130dd3/seed-29
+  adapter_seed: 29
+  adapter_sha256: a34c14230f4847001a3a0c4362a3bc26b3a43c1d0ef049e12a7a0d029aacea91
+  adapter_manifest: /checkpoints/runs/dftr-1784216516-91130dd3/checkpoints_manifest.json
+  adapter_manifest_sha256: f15e8eccd10c049a60655a29ecd126dcdce0cbcb233b71d25acdcc81a98e1cff
+  merged_path: /checkpoints/runs/dftr-1784224462-c1f83ed3/merged-model
+  merged_content_hash: 7f095c31e83f8b03
+  merged_weight_files:
+    model-00001-of-00003.safetensors: a71dbb017fabaca073df4f9a30f32dd005be7bc3cbc6fbf29df915ef74dc634a
+    model-00002-of-00003.safetensors: cc16bff3aa61d9c6dc3fa986b4ae9585c8de8955923c461f3f221fa406b07933
+    model-00003-of-00003.safetensors: 9fde8fbbba787c3f92981351da3cf6be74b01ec6f91fb538f5ac0c61fc95f177
+    model.safetensors.index.json: 5b36dbd79cdd00f76600e471c61157c10090952160d49c5a3d7e05840bda029a
+submitted_snapshot_audit:
+  identity_manifest: configs/m2/manifests/m2_adapter_merge_snapshot_identity_v2.json
+  identity_manifest_sha256: 602cb05fed6fe3a0ecc1e37bc811ae5bb255c2624b57b051ae0744c7a0973b2c
+  canonical_directory_hash: 0f437f62bc1cca0c
+  metadata_difference_files: [generation_config.json, train_config.json]
+  weights_tokenizer_index_identity: exact_serialization_bytes
+  generation_arguments_authority: configs/m2/canonical_full_brief_generation_v1.json
+archive:
+  index_path: experiments/m1/tier1/adherence_4b_three_seed_v1/index.json
+  index_sha256: c93f9ca1790a04bc9191cedca7f26d644452f8058dc6b7447286e922eaf8b5d1
+  sample_paths:
+    "101": /checkpoints/runs/dftr-1784217143-f01137b4/samples/checkpoint-seed-29/default_t1.0_p1.0/sampling-seed-101.jsonl
+    "202": /checkpoints/runs/dftr-1784217143-f01137b4/samples/checkpoint-seed-29/default_t1.0_p1.0/sampling-seed-202.jsonl
+    "303": /checkpoints/runs/dftr-1784217143-f01137b4/samples/checkpoint-seed-29/default_t1.0_p1.0/sampling-seed-303.jsonl
+  sample_sha256:
+    "101": 4b1f233d021879961b18466ce737700311affcdb729a6fd729902c22c718a6df
+    "202": 8942b8d5cd3d5a201dbf2976809429d26e09359288e98dac03d4344f637f6bb2
+    "303": e7f9b285406b27059352890836712e2fb3b423376644e51f1bbe1494421d20c2
+data:
+  dev_path: /checkpoints/data/m1-realdata-adherence-v1/dev_briefs.jsonl
+  dev_briefs_sha256: 78014ab7dd9e3ae1b96dac196001ab5ecbb65e534e90b7c8e9a971edb1acd4c2
+sampling:
+  seeds: [101, 202, 303]
+  dev_subset_fingerprints:
+    - 1e49e0badf25b50e6365953720528468fffb78c600dd6b3f0011a39bd55690ef
+    - 3c2bf8f0d020186d3928182f7d3d9a61485c91b329af2d9dacfb83227267204d
+    - a8ccd0a6cdc0947ffa218b8a552f6d9d15778bedf558ce9aa5611accaf60146d
+    - cab5ba88856768c838488fbdda430ef295276a2f768759ae2f8294352d55102f
+    - 8dbf136564a2af2a556234e74651c79ebd42417d487711ea8e500ef99dd5944b
+    - 615d5e759d744cf623b145c4567a7287ca9c51289d30353097a28c10225cce85
+    - 128b2fe8eac242b3b683877c188a2266bdc2a93a13ad73f7d463c92262797ee5
+    - e963cf25efa7b09d0a767bb1e45cc7e17ca7d6a644e3b99c5184fa1300364284
+    - f65008351876eea1b295a18dae1722e45a1d8f40fc72dcdaa0aeb9026a02b1b9
+    - 290fdcd5ceb3c32b10db4de356a733987ae998118c2a64edcb3b3390252b752c
+    - eef536b21677fda7447b6e71924ee95cd2962e99059affb860653e563d88696a
+    - 9de58704512423e49c6adedb83be943439076192b0d4216d6092ff6e4536749e
+    - 03e1931062a03822bd242e92b094523b86171b84290c9eba9d6591fca4b06f71
+    - 33165134edbf2b8d72d8c965ad715924976dd6186d955ae613146a61861616b8
+    - e3bfa60c1004153eb8c527e8b031d7fcec9009ed2102e7711a68508ff0b46557
+    - 5f4cf7b67fd1f7f0a8d3738f73fadec24fc9326ea63a88548f40e20c347da056
+  dev_subset_hash: 18a8031ed63cf72636523974000af05e1d8bdd16f351b4f5a13fbe3dcfefe9e3
+workflow:
+  protocol_version: dftr.adapter_merge_replay.v2
+  step: replay_equivalence
+  generation_contract: configs/m2/canonical_full_brief_generation_v1.json
+  generation_contract_sha256: db7c970440c451ffd21e634b53df3fa3d556b139e87257dfff7521442fe8f219
+  serializer_source: experiments/m1/workflow.py
+  serializer_source_sha256: 2c11f10df683da87675bf02b5de383849033e153697833efa11440b10caeef82
+  historical_sampling_config: configs/m1/m1_realdata_adherence_directional_qwen3_4b_three_seed_v1.yaml
+  historical_sampling_config_sha256: a02d893eda4c5e457864e1145e5cb4a4d238ab04037bc74e269a1ab20e52a72c
+  fixed_manifest: configs/m1/manifests/m1_realdata_adherence_fixed_inputs_v1.json
+  fixed_manifest_sha256: a2e15653a0eb2f06c7ed33b86a97d27d42fe86dcb46f68e78d4c98117d4e9684

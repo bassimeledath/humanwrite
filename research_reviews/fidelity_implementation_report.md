@@ -162,8 +162,65 @@ git diff --check
 
 Both completed successfully.
 
-## Launch boundary
+## Historical launch boundary
 
-No preregistration was opened and no `infra/gpu submit` command was run. A
-future operator can review and preregister `M2-adapter-merge-fidelity-replay-v1`
-before authorizing the bounded screen run.
+At the time of the original implementation, no preregistration had been opened
+and no `infra/gpu submit` command had been run. The v1 comparison was later
+preregistered and launched, then failed on the artifact-identity mismatch
+described below.
+
+## Prospective replay v2 identity repair
+
+The historical v1 replay is preserved byte-for-byte. Its config SHA-256 remains
+`8015afd23f7d21953e0e7f0f1045db824a87377ec38de4c7c478b7455570ef4c`,
+including its now-known incorrect binding of the original merged-model path to
+the later submitted-snapshot directory hash. The failed v1 attempt is not
+reinterpreted as evidence.
+
+The prospective v2 replay separates the two artifact identities:
+
+- original merged directory
+  `/checkpoints/runs/dftr-1784224462-c1f83ed3/merged-model`, canonical directory
+  hash `7f095c31e83f8b03`;
+- later submitted snapshot, canonical directory hash `0f437f62bc1cca0c`.
+
+The independently hashed identity manifest
+`configs/m2/manifests/m2_adapter_merge_snapshot_identity_v2.json` has SHA-256
+`602cb05fed6fe3a0ecc1e37bc811ae5bb255c2624b57b051ae0744c7a0973b2c`.
+It binds the complete original file map, the identical snapshot file map, and
+the only two differences:
+
+| File | Original SHA-256 | Submitted-snapshot SHA-256 |
+| --- | --- | --- |
+| `generation_config.json` | `64d86df2173901c58389974bde21f7d2ab9eb7d79f35a337753329d39cf265c0` | `0ba4fa0fce9b70e3a1a830c618de7fd1a1e4adb3008eaa147fa22aa35550d0f0` |
+| `train_config.json` | `a09d02a3fce6aa2b2e4447dd69b24493d97694b63be0151e455e513ae4b93ef2` | `bdeb26ea942bd28eeae6d4522849636c3459b8406b00288380ba8b41c7a3ba18` |
+
+All weights, tokenizer files, and the weight index are exact serialization-byte
+matches between the original merge and later snapshot. Replay generation does
+not consume the differing snapshot metadata: its arguments remain explicit and
+bound to `configs/m2/canonical_full_brief_generation_v1.json`.
+
+The workflow, local GPU client, and backend policy require the exact v2
+comparison ID, protocol, original hash, snapshot hash, manifest path/hash, and
+ordered two-file difference declaration. The workflow also independently hashes
+the manifest, validates both file maps, and verifies the original artifact's
+full file map before generation. Substitution of either directory identity or
+metadata-difference set fails closed; no check was weakened.
+
+This repair is prospective only. No v2 preregistration was created, no v2 job
+was submitted, and no budget was spent. A future operator must review and open
+`M2-adapter-merge-fidelity-replay-v2` before any bounded screen launch.
+
+Repair verification:
+
+```text
+PYTHONPATH=infra:. python -m pytest -q \
+  experiments/tests/test_m2_fidelity_replay_v2.py \
+  experiments/tests/test_m2_fidelity_replay.py \
+  experiments/tests/test_m2_fidelity_replay_independent.py \
+  infra/tests/test_policy.py
+53 passed in 3.18s
+
+PYTHONPATH=infra:. python -m pytest -q
+162 passed in 5.64s
+```
