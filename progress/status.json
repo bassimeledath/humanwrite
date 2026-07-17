@@ -1,14 +1,14 @@
 {
-  "updated_at": "2026-07-17T07:27:40Z",
-  "phase": "Next cycle — instrument and fidelity audit",
-  "headline": "Measurement-v2 passed; original bf16 merge failed behavioral fidelity",
-  "summary": "Measurement-v2 passed and is merged. Fidelity-v3 passed 453 CPU tests and completed a live replay with exact prompt tokenization, but the original bf16 merged checkpoint matched only 13 of 16 greedy adapter outputs. Teacher-forced top-1 agreement was 0.999023, with mean absolute logit difference 0.042519. The sealed merged score therefore cannot be treated as an exact adapter score. Numerical merge diagnosis and the shortest adapter-native DFT route are active.",
+  "updated_at": "2026-07-17T07:55:00Z",
+  "phase": "M2 — first genuine adapter-native DFT comparison",
+  "headline": "Measurement inputs nearly frozen; one brief is in bounded recovery",
+  "summary": "The 192-document public pool and independent BGE-small embeddings are materialized, with zero overlap against training or Tier-1 data. Brief synthesis produced 63 of 64 fully valid prompt-matched rows for $0.091 and failed closed on one row; a one-record quote-free recovery is preregistered under a $0.10 cap. The measurement operator pipeline is complete and independently tested. The A64 score-function MMD trainer and exposure-matched A0 control are finishing local verification; no candidate output has opened.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
     "modal_committed_usd": 3.92086,
     "openrouter_cap_usd": 100,
-    "openrouter_spend_usd": 0.945997
+    "openrouter_spend_usd": 1.036963
   },
   "services": [
     {"name": "GPU gateway", "detail": "Constrained launch API", "status": "online"},
@@ -25,6 +25,30 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "00:55",
+      "title": "63 of 64 prompt briefs validated; one-row recovery isolated",
+      "detail": "Two resumable synthesis attempts spent 0.090966 dollars and preserved 63 unique, source-matched valid briefs. One source ID remains missing, with no duplicates or unknown rows. A strict one-record quote-free recovery is preregistered under a 0.10 dollar cap.",
+      "tone": "active"
+    },
+    {
+      "at": "00:51",
+      "title": "Measurement-v2 operator pipeline completed",
+      "detail": "Deterministic key, embedding, freeze, score, and attest stages now fail closed on missing power, grid, signature, blind qualification, and hard-gate evidence. The independent BGE-small revision and 192 human embeddings are materialized locally; candidate generation remains closed.",
+      "tone": "complete"
+    },
+    {
+      "at": "00:37",
+      "title": "Public measurement-v2 source pool passed",
+      "detail": "CPU run dftr-1784273680-482885ef produced 192 records from a separate pinned FineWeb shard: 192 unique fingerprints, 192 unique domains, 128 floor records, 64 eval records, and zero overlap with existing training or Tier-1 fingerprints. Cost was zero. The 64-brief synthesis is now running under a one-dollar cap.",
+      "tone": "complete"
+    },
+    {
+      "at": "00:32",
+      "title": "Adapter-native DFT route selected",
+      "detail": "Independent post-v3 review selected a prospective 4B A64 score-function MMD treatment against an exposure-matched zero-MMD A0 continuation. Exact merge equality remains a deployment diagnostic, not a prerequisite for public native-adapter research.",
+      "tone": "active"
+    },
     {
       "at": "00:27",
       "title": "Original merged checkpoint failed exact adapter fidelity",

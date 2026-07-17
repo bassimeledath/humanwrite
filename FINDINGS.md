@@ -2062,3 +2062,17 @@ DECISION: Preregister the prompt panel. Reject partial or hash-inconsistent
 output and repair only through a separately recorded recovery config.
 NEXT: Download read-only, validate all 64 rows against their source records,
 then freeze the measurement protocol before model generation.
+
+## [2026-07-17] M2 / measurement-v2-prompt-briefs-partial-result
+HYPOTHESIS: Resumable fixed-code synthesis will preserve accepted rows and
+isolate any schema/quotation failure rather than silently admitting it.
+SETUP: Initial run `dftr-1784273798-046bcd91` and unchanged resume run
+`dftr-1784274016-25b847dd`; both loaded and revalidated existing output before
+new calls. Combined API spend was `$0.090966`.
+RESULTS: 63 of 64 unique source IDs validate and preserve every frozen source
+field. Exactly one source fingerprint, `dc919575...`, is missing; there are no
+duplicates or unknown IDs. The second run failed closed with one rejected row.
+DECISION: Preserve the 63 accepted bytes. Do not rerun them. Preregister a
+one-record quote-free recovery, the same bounded mechanism used in M1, with a
+strict `max_missing_records=1` gate and $0.10 cap.
+NEXT: Recover and validate only the missing row, then hash-freeze all 64 briefs.
