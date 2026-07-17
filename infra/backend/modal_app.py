@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import base64
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -40,6 +41,11 @@ from .brief_contract import (
     validate_brief,
     validate_repaired_user_prompt,
 )
+from .cleaning_contract import (
+    apply_line_selection,
+    cleaning_response_format,
+    numbered_cleaning_prompt,
+)
 from .volume_paths import checkpoint_volume_path
 
 
@@ -48,6 +54,7 @@ STATE_PATH = "/state/events.jsonl"
 CHECKPOINT_PATH = "/checkpoints"
 REPO_URL = "https://github.com/bassimeledath/humanwrite.git"
 BRIEF_FALLBACK_MODEL = "anthropic/claude-haiku-4.5"
+CLEANING_MODEL = "qwen/qwen3-32b"
 
 state_volume = modal.Volume.from_name("humanwrite-gateway-state", create_if_missing=True)
 checkpoint_volume = modal.Volume.from_name("humanwrite-checkpoints", create_if_missing=True)
@@ -396,7 +403,7 @@ def _volume_path(uri: str) -> Path:
 )
 def source_materialization_worker(run_id: str, payload: dict) -> dict:
     """Privileged fixed-code FineWeb selection with no token in research code."""
-    config = payload["config"]
+    config = json.loads(json.dumps(payload["config"]))
     source = config["source"]
     data = config["data"]
     log_path = Path("/state/logs") / f"{run_id}.log"
@@ -409,6 +416,30 @@ def source_materialization_worker(run_id: str, payload: dict) -> dict:
         os.environ["HF_HUB_ETAG_TIMEOUT"] = "60"
         from datasets import DownloadConfig, load_dataset
 
+        checkpoint_volume.reload()
+        excluded_fingerprints: set[str] = set()
+        excluded_domains: set[str] = set()
+        for uri in config.get("exclusion_input_uris") or []:
+            exclusion_path = _volume_path(str(uri))
+            if not exclusion_path.is_file():
+                raise FileNotFoundError(f"exclusion artifact not found: {uri}")
+            raw = exclusion_path.read_text(encoding="utf-8")
+            try:
+                values = [json.loads(raw)]
+            except json.JSONDecodeError:
+                values = [json.loads(line) for line in raw.splitlines() if line.strip()]
+            for value in values:
+                excluded_fingerprints.update(str(item) for item in value.get("fingerprints") or [])
+                excluded_domains.update(str(item).casefold() for item in value.get("domains") or [])
+                if value.get("fingerprint"):
+                    excluded_fingerprints.add(str(value["fingerprint"]))
+                if value.get("domain"):
+                    excluded_domains.add(str(value["domain"]).casefold())
+        inline = config.get("exclusions") or {}
+        config["exclusions"] = {
+            "fingerprints": sorted(excluded_fingerprints | {str(v) for v in inline.get("fingerprints") or []}),
+            "domains": sorted(excluded_domains | {str(v).casefold() for v in inline.get("domains") or []}),
+        }
         files = source.get("files") or []
         base = f"https://huggingface.co/datasets/{source['dataset_id']}/resolve/{source['revision']}"
         urls = [f"{base}/{str(path).lstrip('/')}" for path in files]
@@ -747,6 +778,130 @@ def brief_synthesis_worker(run_id: str, payload: dict) -> dict:
 
 
 @app.function(
+    image=worker_image,
+    secrets=[provider_secret],
+    volumes={"/state": state_volume, CHECKPOINT_PATH: checkpoint_volume},
+    timeout=8 * 60 * 60,
+    retries=0,
+    single_use_containers=True,
+)
+def document_cleaning_worker(run_id: str, payload: dict) -> dict:
+    """Qwen3-32B selects original lines; fixed code performs the only edit."""
+    import requests
+
+    config = payload["config"]
+    data = config["data"]
+    input_path = _volume_path(str(data["input_uri"]))
+    output_path = _volume_path(str(data["output_uri"]))
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    cost_cap = float(payload["api_reserved_cost_usd"])
+    spent = reported = 0.0
+    processed = failed = 0
+    status = "failed"
+    log_path = Path("/state/logs") / f"{run_id}.log"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        if config["api"]["model"] != CLEANING_MODEL:
+            raise ValueError("document cleaning requires the frozen Qwen3-32B route")
+        checkpoint_volume.reload()
+        if not input_path.is_file() or _file_sha256(input_path) != data["input_sha256"]:
+            raise ValueError("document-cleaning input hash mismatch")
+        records = [
+            json.loads(line) for line in input_path.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ][: int(data["max_records"])]
+        target_records = int(data["target_records"])
+        completed = set()
+        if output_path.exists():
+            for raw in output_path.read_text(encoding="utf-8").splitlines():
+                if raw.strip():
+                    row = json.loads(raw)
+                    source_id = str(row.get("source_fingerprint") or "")
+                    if not source_id or source_id in completed:
+                        raise ValueError("existing cleaning output has invalid provenance")
+                    completed.add(source_id)
+        api_key = os.environ["OPENROUTER_API_KEY"]
+        with output_path.open("a", encoding="utf-8") as sink:
+            for record in records:
+                if len(completed) >= target_records:
+                    break
+                source_fingerprint = str(record.get("fingerprint") or "")
+                if source_fingerprint in completed:
+                    continue
+                if spent >= cost_cap:
+                    break
+                source_text = str(record.get("completion") or "")
+                try:
+                    response = requests.post(
+                        "https://openrouter.ai/api/v1/chat/completions",
+                        headers={
+                            "Authorization": f"Bearer {api_key}",
+                            "Content-Type": "application/json",
+                            "HTTP-Referer": "https://github.com/bassimeledath/humanwrite",
+                            "X-OpenRouter-Title": "Humanwrite FineWeb line cleaning",
+                        },
+                        json={
+                            "model": CLEANING_MODEL,
+                            "messages": [{"role": "user", "content": numbered_cleaning_prompt(source_text)}],
+                            "response_format": cleaning_response_format(),
+                            "reasoning": {"effort": "minimal", "exclude": True},
+                            "max_completion_tokens": 2000,
+                        },
+                        timeout=180,
+                    )
+                    response.raise_for_status()
+                    body = response.json()
+                    usage_cost = (body.get("usage") or {}).get("cost")
+                    if usage_cost is None:
+                        raise RuntimeError("OpenRouter response omitted usage.cost")
+                    spent += float(usage_cost)
+                    choice = body["choices"][0]
+                    if choice.get("finish_reason") != "stop":
+                        raise RuntimeError(f"provider finish_reason={choice.get('finish_reason')}")
+                    value = json.loads(str(choice["message"]["content"]).strip())
+                    cleaned = apply_line_selection(value, source_text=source_text)
+                    word_count = len(re.findall(r"[^\W_]+(?:['’][^\W_]+)?", cleaned))
+                    limits = config["quality"]
+                    if not int(limits["min_word_count"]) <= word_count <= int(limits["max_word_count"]):
+                        raise ValueError("cleaned document violates word-count bounds")
+                    emitted = dict(record)
+                    emitted.update({
+                        "source_fingerprint": source_fingerprint,
+                        "source_word_count": record.get("word_count"),
+                        "completion": cleaned,
+                        "fingerprint": hashlib.sha256(cleaned.encode("utf-8")).hexdigest(),
+                        "word_count": word_count,
+                        "cleaning_model": CLEANING_MODEL,
+                        "cleaning_mode": "ordered_original_line_subset.v1",
+                    })
+                    sink.write(json.dumps(emitted, ensure_ascii=False, sort_keys=True) + "\n")
+                    sink.flush()
+                    completed.add(source_fingerprint)
+                    processed += 1
+                except Exception as exc:
+                    failed += 1
+                    with log_path.open("a", encoding="utf-8") as logs:
+                        logs.write(f"record failure id={source_fingerprint} error={type(exc).__name__} detail={str(exc)[:160]}\n")
+                if processed and processed % 50 == 0:
+                    checkpoint_volume.commit()
+                    _record({"kind": "api_cost", "run_id": run_id, "cost_usd": round(spent - reported, 6)})
+                    reported = spent
+        checkpoint_volume.commit()
+        status = "completed" if len(completed) == target_records else "failed"
+    except Exception as exc:
+        with log_path.open("a", encoding="utf-8") as logs:
+            logs.write(f"document cleaning failure: {type(exc).__name__}: {exc}\n")
+    finally:
+        if spent > reported:
+            _record({"kind": "api_cost", "run_id": run_id, "cost_usd": round(spent - reported, 6)})
+        _record({"kind": "run_update", "run_id": run_id, "status": status,
+                 "finished_at": time.time(), "actual_api_cost_usd": round(spent, 6),
+                 "records_processed": processed, "records_failed": failed})
+    return {"run_id": run_id, "status": status, "records_processed": processed,
+            "records_failed": failed, "actual_api_cost_usd": round(spent, 6)}
+
+
+@app.function(
     image=base_image,
     secrets=[gateway_secret, provider_secret],
     volumes={"/state": state_volume},
@@ -807,6 +962,10 @@ def gateway():
         try:
             if policy.task_kind == "brief_synthesis":
                 call = brief_synthesis_worker.with_options(
+                    timeout=policy.timeout_seconds + 120,
+                ).spawn(run_id, worker_payload)
+            elif policy.task_kind == "document_cleaning":
+                call = document_cleaning_worker.with_options(
                     timeout=policy.timeout_seconds + 120,
                 ).spawn(run_id, worker_payload)
             elif policy.task_kind == "source_materialization":

@@ -330,18 +330,23 @@ def _validate_submit(config: dict, budget_class: str) -> tuple[str, dict]:
         command = run.get("command", ["python", "-m", "experiments.runner"])
         if not isinstance(command, list) or command[:3] != ["python", "-m", "experiments.runner"]:
             _die("run.command must begin with: python -m experiments.runner")
-    elif task_kind == "brief_synthesis":
+    elif task_kind in {"brief_synthesis", "document_cleaning"}:
         api_cap = float((config.get("api") or {}).get("max_cost_usd", 0.0))
         if api_cap <= 0 or api_cap > 100:
-            _die("brief_synthesis requires 0 < api.max_cost_usd <= 100")
+            _die(f"{task_kind} requires 0 < api.max_cost_usd <= 100")
         data = config.get("data") or {}
         input_sha = str(data.get("input_sha256", ""))
         if len(input_sha) != 64 or any(character not in "0123456789abcdef" for character in input_sha):
-            _die("brief_synthesis requires lowercase data.input_sha256")
+            _die(f"{task_kind} requires lowercase data.input_sha256")
         if not str((config.get("api") or {}).get("model", "")):
-            _die("brief_synthesis requires a frozen api.model")
+            _die(f"{task_kind} requires a frozen api.model")
         api = config.get("api") or {}
-        if api.get("prompt_repair_only") is True:
+        if task_kind == "document_cleaning":
+            if api.get("model") != "qwen/qwen3-32b":
+                _die("document_cleaning requires qwen/qwen3-32b")
+            if data.get("input_uri") == data.get("output_uri"):
+                _die("document_cleaning input and output must be distinct")
+        elif api.get("prompt_repair_only") is True:
             if api.get("force_empty_quotations") is True:
                 _die("prompt repair cannot also run quote-free recovery")
             if data.get("input_uri") == data.get("output_uri"):
@@ -356,7 +361,7 @@ def _validate_submit(config: dict, budget_class: str) -> tuple[str, dict]:
             ):
                 _die(f"source_materialization data.{field} must use the checkpoint volume")
     else:
-        _die("run.task_kind must be experiment, brief_synthesis, or source_materialization")
+        _die("run.task_kind is not allowlisted")
     return str(run["comparison_id"]), _preregistration(str(run["comparison_id"]))
 
 

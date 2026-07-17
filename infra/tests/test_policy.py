@@ -256,6 +256,39 @@ def test_brief_synthesis_rejects_unsafe_volume_uri():
         validate_launch(value)
 
 
+def test_document_cleaning_is_qwen32b_only_and_volume_scoped():
+    value = payload()
+    value["budget_class"] = "promo"
+    value["config"] = {
+        "run": {
+            "comparison_id": "M2-clean-data-v1",
+            "budget_class": "promo",
+            "task_kind": "document_cleaning",
+        },
+        "compute": {"gpus": 1, "timeout_min": 480},
+        "data": {
+            "input_uri": "modal-volume://humanwrite-checkpoints/data/raw.jsonl",
+            "output_uri": "modal-volume://humanwrite-checkpoints/data/clean.jsonl",
+            "input_sha256": "a" * 64,
+            "max_records": 1024,
+            "target_records": 1024,
+        },
+        "api": {"model": "qwen/qwen3-32b", "max_cost_usd": 40.0},
+        "quality": {"min_word_count": 80, "max_word_count": 220},
+    }
+    value["preregistration"]["comparison"] = "M2-clean-data-v1"
+    value["config_hash"] = canonical_hash(value["config"])
+    policy = validate_launch(value)
+    assert policy.task_kind == "document_cleaning"
+    assert policy.api_reserved_cost_usd == 40.0
+    assert policy.worst_case_cost_usd == 0.0
+
+    value["config"]["api"]["model"] = "openai/gpt-5-mini"
+    value["config_hash"] = canonical_hash(value["config"])
+    with pytest.raises(PolicyError, match="qwen/qwen3-32b"):
+        validate_launch(value)
+
+
 def test_brief_synthesis_requires_hash_count_and_model_binding():
     value = payload()
     value["config"]["run"]["task_kind"] = "brief_synthesis"

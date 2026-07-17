@@ -2332,3 +2332,23 @@ NEXT: Build the lower-variance matched 4B screen: ordinary SFT control,
 teacher-forced token-distribution moments, and one-round shared-rollout
 MMD-witness-weighted SFT. Use cleaned data and a fresh unpaired two-embedder
 instrument. Keep 14B, sealed evaluation, and Tier 3 gated on a real 4B effect.
+
+## [2026-07-17] M2 / lower-variance-data-boundary
+HYPOTHESIS: A fresh, historically disjoint FineWeb pool plus Qwen3-32B
+line-selection cleaning will remove the raw-page artifacts that weakened the
+old 256-document human target while preserving original prose bytes.
+SETUP: Added a privileged cleaning contract in which Qwen3-32B returns only
+strictly increasing original line numbers. Fixed code reconstructs the text
+and rejects rewrites, reordered lines, out-of-range selections, and documents
+outside 80-220 words. Source materialization uses fresh shard
+`000_00002.parquet`, 2,200 unique domains, and wrapper-resolved exclusions from
+the old 256 training rows and 192 public measurement rows. Planned raw split is
+1,400 training candidates and 800 evaluation candidates, oversized for clean
+targets of 1,024 and 640.
+RESULTS: Cleaning, policy, source, and gateway code passes 57 focused tests.
+No source or provider job has launched yet.
+DECISION: This faithful data boundary precedes the token-moment and
+MMD-witness-weighted training arms. Evaluation and training pools remain
+domain/fingerprint disjoint by construction.
+NEXT: Commit and deploy the gateway, materialize the raw pool, verify overlap
+and content quality, then launch bounded Qwen3-32B cleaning.

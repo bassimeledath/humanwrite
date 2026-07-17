@@ -535,7 +535,7 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
     if timeout_seconds <= 0 or timeout_seconds > BUDGET_CLASSES[budget_class]["max_seconds"]:
         raise PolicyError("requested timeout exceeds budget class")
     task_kind = str(run.get("task_kind", "experiment"))
-    if task_kind not in {"experiment", "brief_synthesis", "source_materialization"}:
+    if task_kind not in {"experiment", "brief_synthesis", "document_cleaning", "source_materialization"}:
         raise PolicyError("unsupported task_kind")
     gpu = str(compute.get("gpu", "L40S")).upper() if task_kind == "experiment" else "CPU"
     if task_kind == "experiment" and gpu not in GPU_USD_PER_SECOND:
@@ -763,6 +763,41 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
         if api_reserved <= 0 or api_reserved > MONTHLY_API_CAP_USD:
             raise PolicyError("brief_synthesis requires api.max_cost_usd within the monthly cap")
         worst = 0.0
+    elif task_kind == "document_cleaning":
+        data = config.get("data") or {}
+        api = config.get("api") or {}
+        quality = config.get("quality") or {}
+        if set(config) != {"run", "compute", "data", "api", "quality"}:
+            raise PolicyError("document_cleaning exact schema mismatch")
+        if set(data) != {"input_uri", "output_uri", "input_sha256", "max_records", "target_records"}:
+            raise PolicyError("document_cleaning data schema mismatch")
+        if set(api) != {"model", "max_cost_usd"} or set(quality) != {"min_word_count", "max_word_count"}:
+            raise PolicyError("document_cleaning API or quality schema mismatch")
+        if any(
+            not str(data.get(field) or "").startswith("modal-volume://humanwrite-checkpoints/")
+            for field in ("input_uri", "output_uri")
+        ) or data.get("input_uri") == data.get("output_uri"):
+            raise PolicyError("document_cleaning requires distinct checkpoint-volume paths")
+        if not re.fullmatch(r"[0-9a-f]{64}", str(data.get("input_sha256") or "")):
+            raise PolicyError("document_cleaning requires lowercase data.input_sha256")
+        records = data.get("max_records")
+        if not isinstance(records, int) or isinstance(records, bool) or not 1 <= records <= 5000:
+            raise PolicyError("document_cleaning max_records must be between 1 and 5000")
+        target_records = data.get("target_records")
+        if (
+            not isinstance(target_records, int)
+            or isinstance(target_records, bool)
+            or not 1 <= target_records <= records
+        ):
+            raise PolicyError("document_cleaning target_records must be within max_records")
+        if api.get("model") != "qwen/qwen3-32b":
+            raise PolicyError("document_cleaning requires qwen/qwen3-32b")
+        if quality != {"min_word_count": 80, "max_word_count": 220}:
+            raise PolicyError("document_cleaning requires frozen word-count bounds")
+        api_reserved = float(api.get("max_cost_usd") or 0.0)
+        if api_reserved <= 0 or api_reserved > MONTHLY_API_CAP_USD:
+            raise PolicyError("document_cleaning requires api.max_cost_usd within the monthly cap")
+        worst = 0.0
     else:
         source = config.get("source") or {}
         data = config.get("data") or {}
@@ -775,6 +810,12 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
         selection = config.get("selection") or {}
         if int(selection.get("corpus_size", 0)) <= 0 or int(selection.get("corpus_size", 0)) > 5000:
             raise PolicyError("source_materialization corpus_size must be between 1 and 5000")
+        exclusion_uris = config.get("exclusion_input_uris") or []
+        if not isinstance(exclusion_uris, list) or any(
+            not str(uri).startswith("modal-volume://humanwrite-checkpoints/")
+            for uri in exclusion_uris
+        ):
+            raise PolicyError("source_materialization exclusions must use checkpoint-volume URIs")
         worst = 0.0
     return LaunchPolicy(
         comparison_id, budget_class, timeout_seconds, gpu, worst,
@@ -851,7 +892,7 @@ def budget_snapshot(events: list[dict[str, Any]], month: str | None = None) -> d
         if str(launch.get("billing_month") or utc_month(float(launch.get("ts", 0)))) != month:
             continue
         state = run_snapshot(events, run_id) or {}
-        if state.get("task_kind") != "brief_synthesis":
+        if state.get("task_kind") not in {"brief_synthesis", "document_cleaning"}:
             continue
         if state.get("status") not in TERMINAL:
             already_reported = sum(
