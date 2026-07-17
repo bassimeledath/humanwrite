@@ -54,6 +54,9 @@ REPLAY_COMPARISON_V2 = "M2-adapter-merge-fidelity-replay-v2"
 REPLAY_CANONICAL_V1_CONFIG_HASH = (
     "859798f2ce66b81a2db32665b7f8fda5a76f5d9e82c64789e7e1f797c4587b9f"
 )
+REPLAY_CANONICAL_V2_CONFIG_HASH = (
+    "ee76ca0ecda72321f07cecd1c70fba5905779321e3169579e357bafdad4cd1da"
+)
 REPLAY_SNAPSHOT_IDENTITY_PATH = (
     "configs/m2/manifests/m2_adapter_merge_snapshot_identity_v2.json"
 )
@@ -186,8 +189,11 @@ def validate_replay_launch_contract(config: dict[str, Any]) -> None:
         != REPLAY_EXACT_SERIALIZATION_IDENTITY
         or audit.get("generation_arguments_authority")
         != REPLAY_GENERATION_CONTRACT_PATH
+        or canonical_hash(config) != REPLAY_CANONICAL_V2_CONFIG_HASH
     ):
-        raise PolicyError("replay v2 requires the exact original/snapshot identity repair")
+        raise PolicyError(
+            "replay v2 requires the exact canonical prospective config and artifact identity"
+        )
 
 
 def validate_launch(payload: dict[str, Any]) -> LaunchPolicy:

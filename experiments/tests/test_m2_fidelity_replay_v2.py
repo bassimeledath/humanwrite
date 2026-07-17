@@ -125,7 +125,7 @@ def test_backend_policy_accepts_exact_v2_and_rejects_identity_substitution() -> 
     )
     changed = copy.deepcopy(config)
     changed["submitted_snapshot_audit"]["metadata_difference_files"].reverse()
-    with pytest.raises(PolicyError, match="identity repair"):
+    with pytest.raises(PolicyError, match="canonical prospective config"):
         validate_launch(_payload(changed))
 
 
@@ -238,3 +238,24 @@ def test_standard_public_model_token_fields_are_not_sensitive(field: str) -> Non
 def test_oauth_id_token_is_sensitive_in_worker_and_launch_policy() -> None:
     assert fidelity._is_sensitive_replay_key("id_token") is True
     assert replay_key_is_sensitive("id_token") is True
+
+
+@pytest.mark.parametrize(
+    "field",
+    ["split_special_tokens", "password", "id_token", "arbitrary_public_note"],
+)
+def test_v2_rejects_every_unknown_runtime_extension_at_all_layers(field: str) -> None:
+    config = _config()
+    config["runtime"]["public_metadata"] = {field: "value"}
+    with pytest.raises(M1ConfigError, match="canonical prospective config|paid or hidden"):
+        fidelity.validate_replay_spec(config)
+    with pytest.raises(PolicyError, match="canonical prospective config|paid or hidden"):
+        validate_launch(_payload(config))
+
+    client = runpy.run_path(str(ROOT / "infra" / "gpu"))
+    validate_submit = client["_validate_submit"]
+    validate_submit.__globals__["_preregistration"] = lambda comparison: {
+        "kind": "prereg", "comparison": comparison, "status": "open",
+    }
+    with pytest.raises(SystemExit):
+        validate_submit(config, "screen")

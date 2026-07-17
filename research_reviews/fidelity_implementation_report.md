@@ -344,3 +344,29 @@ Verification after the correction:
 
 No protocol, artifact, manifest, generation-contract, or historical-v1 bytes
 changed. No preregistration, deployment, launch, or spend occurred.
+
+## Strict canonical replay-config boundary
+
+The broadened tester matrix also exposed that fuzzy key classification is not
+the correct authorization boundary for this one-off replay. Its passing-field
+cases injected an invented `runtime.public_metadata` extension, but neither
+canonical replay YAML contains that extension: both runtime sections contain
+only `transformers_version`. All tokenizer and generation behavior lives in
+`configs/m2/canonical_full_brief_generation_v1.json`, whose path and raw
+SHA-256 are already frozen.
+
+Replay v2 is therefore now restricted to the exact checked-in prospective
+config, just as v1 was already restricted to its exact historical config. The
+worker binds raw YAML SHA-256
+`a5f0504dfdcfd12cfda5081e068919a603a395c7155a725bd9e7c13016ba1d8c`
+and parsed canonical hash
+`ee76ca0ecda72321f07cecd1c70fba5905779321e3169579e357bafdad4cd1da`;
+the backend and GPU client bind the same parsed hash. Any unknown field now
+fails closed regardless of whether its name looks public or private. The
+structured classifier remains defense in depth, not an extension mechanism.
+
+The independent reviewer explicitly confirmed this strict boundary matches
+both canonical configs and that the earlier arbitrary-public-metadata
+expectation was invalid. Focused worker/policy verification passes 72 tests.
+No model, artifact, protocol, generation-contract, or historical-v1 bytes
+changed, and no external action or spend occurred.

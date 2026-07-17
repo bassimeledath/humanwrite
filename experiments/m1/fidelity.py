@@ -34,6 +34,13 @@ CANONICAL_REPLAY_V1_CONFIG_SHA256 = (
 CANONICAL_REPLAY_V1_CONFIG_HASH = (
     "859798f2ce66b81a2db32665b7f8fda5a76f5d9e82c64789e7e1f797c4587b9f"
 )
+CANONICAL_REPLAY_V2_CONFIG_PATH = "configs/m2/m2_adapter_merge_fidelity_replay_v2.yaml"
+CANONICAL_REPLAY_V2_CONFIG_SHA256 = (
+    "a5f0504dfdcfd12cfda5081e068919a603a395c7155a725bd9e7c13016ba1d8c"
+)
+CANONICAL_REPLAY_V2_CONFIG_HASH = (
+    "ee76ca0ecda72321f07cecd1c70fba5905779321e3169579e357bafdad4cd1da"
+)
 CONTRACT_SCHEMA = "dftr.canonical_generation.v1"
 REPLAY_TRANSFORMERS_VERSION = "4.57.6"
 CANONICAL_GENERATION_CONTRACT_PATH = "configs/m2/canonical_full_brief_generation_v1.json"
@@ -370,6 +377,16 @@ def validate_replay_spec(config: dict[str, Any]) -> tuple[list[str], list[int]]:
     _require_sha((config.get("artifacts") or {}).get("merged_content_hash"), "merged content hash", length=16)
     if protocol_version == REPLAY_SCHEMA_V2:
         load_snapshot_identity_audit(config)
+        canonical_path = resolve_repo_path(CANONICAL_REPLAY_V2_CONFIG_PATH)
+        if (
+            not canonical_path.is_file()
+            or file_sha256(canonical_path) != CANONICAL_REPLAY_V2_CONFIG_SHA256
+            or canonical_hash(config) != CANONICAL_REPLAY_V2_CONFIG_HASH
+            or config != read_structured(canonical_path)
+        ):
+            raise M1ConfigError(
+                "replay v2 is restricted to the exact canonical prospective config identity"
+            )
     else:
         canonical_path = resolve_repo_path(CANONICAL_REPLAY_V1_CONFIG_PATH)
         if (

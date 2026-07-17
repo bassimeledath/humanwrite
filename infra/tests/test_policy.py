@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
+import yaml
 
 from backend.policy import (
     PolicyError,
@@ -10,6 +12,7 @@ from backend.policy import (
     REPLAY_GENERATION_CONTRACT_SHA256,
     REPLAY_HISTORICAL_CONFIG_PATH,
     REPLAY_HISTORICAL_CONFIG_SHA256,
+    REPLAY_CANONICAL_V2_CONFIG_HASH,
     REPLAY_ORIGINAL_MERGE_HASH_V2,
     REPLAY_SNAPSHOT_IDENTITY_PATH,
     REPLAY_SNAPSHOT_IDENTITY_SHA256,
@@ -54,31 +57,14 @@ def payload(**compute_overrides):
 
 
 def configure_replay(value):
-    comparison = "M2-adapter-merge-fidelity-replay-v2"
-    value["config"]["run"]["comparison_id"] = comparison
+    config_path = (
+        Path(__file__).resolve().parents[2]
+        / "configs/m2/m2_adapter_merge_fidelity_replay_v2.yaml"
+    )
+    value["config"] = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    comparison = value["config"]["run"]["comparison_id"]
+    value["budget_class"] = "screen"
     value["preregistration"]["comparison"] = comparison
-    value["config"]["workflow"] = {
-        "step": "replay_equivalence",
-        "protocol_version": "dftr.adapter_merge_replay.v2",
-        "generation_contract": REPLAY_GENERATION_CONTRACT_PATH,
-        "generation_contract_sha256": REPLAY_GENERATION_CONTRACT_SHA256,
-        "historical_sampling_config": REPLAY_HISTORICAL_CONFIG_PATH,
-        "historical_sampling_config_sha256": REPLAY_HISTORICAL_CONFIG_SHA256,
-    }
-    value["config"]["runtime"] = {
-        "transformers_version": REPLAY_TRANSFORMERS_VERSION,
-    }
-    value["config"]["artifacts"] = {
-        "merged_content_hash": REPLAY_ORIGINAL_MERGE_HASH_V2,
-    }
-    value["config"]["submitted_snapshot_audit"] = {
-        "identity_manifest": REPLAY_SNAPSHOT_IDENTITY_PATH,
-        "identity_manifest_sha256": REPLAY_SNAPSHOT_IDENTITY_SHA256,
-        "canonical_directory_hash": REPLAY_SUBMITTED_SNAPSHOT_HASH_V2,
-        "metadata_difference_files": ["generation_config.json", "train_config.json"],
-        "weights_tokenizer_index_identity": "exact_serialization_bytes",
-        "generation_arguments_authority": REPLAY_GENERATION_CONTRACT_PATH,
-    }
 
 
 def test_valid_launch_reserves_conservative_cost():
@@ -115,18 +101,19 @@ def test_hash_tampering_is_rejected():
 def test_replay_equivalence_requires_immutable_revision_and_public_runner():
     value = payload()
     configure_replay(value)
+    exact_revision = value["config"]["model"]["revision"]
     value["config"]["model"]["revision"] = "__M1_RESOLVE_QWEN__"
     value["config_hash"] = canonical_hash(value["config"])
     with pytest.raises(PolicyError, match="resolved immutable"):
         validate_launch(value)
 
-    value["config"]["model"]["revision"] = "a" * 40
+    value["config"]["model"]["revision"] = exact_revision
     value["config_hash"] = canonical_hash(value["config"])
     assert validate_launch(value).task_kind == "experiment"
 
     value["config"]["run"]["command"] = ["python", "-m", "paid.judge"]
     value["config_hash"] = canonical_hash(value["config"])
-    with pytest.raises(PolicyError, match="allowlist"):
+    with pytest.raises(PolicyError, match="canonical prospective config"):
         validate_launch(value)
 
 
@@ -199,6 +186,12 @@ def test_replay_surface_scan_allows_standard_model_token_fields(field):
 def test_replay_surface_scan_rejects_oauth_id_token():
     assert replay_key_is_sensitive("id_token") is True
     assert forbidden_replay_surface_keys({"nested": {"id_token": "private"}})
+
+
+def test_replay_v2_canonical_hash_is_frozen():
+    assert REPLAY_CANONICAL_V2_CONFIG_HASH == (
+        "ee76ca0ecda72321f07cecd1c70fba5905779321e3169579e357bafdad4cd1da"
+    )
 
 
 def test_14b_requires_human_flag():
