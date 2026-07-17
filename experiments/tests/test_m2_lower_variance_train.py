@@ -149,6 +149,7 @@ def record(completion: str = "human completion") -> dict:
         "style": "clear",
         "detail_mode": "concise",
         "target_length": 80,
+        "target_length_unit": "tokens",
         "em_dashes_allowed": False,
         "outline": ["fact"],
         "completion": completion,
@@ -228,6 +229,16 @@ def test_supervised_batch_includes_one_eos_and_masks_prompt_and_post_eos():
     assert batch["labels"][0].tolist() == [-100, -100, 4, 9, -100]
     assert batch["labels"][1].tolist() == [-100, -100, 6, 7, 9]
     assert batch["completion_token_counts"].tolist() == [2, 3]
+
+
+def test_lower_variance_prompt_preserves_token_length_semantics():
+    rendered = train._render_lower_variance_prompt(record(), valid_config())
+    assert "Target length: about 80 tokens" in rendered
+    assert "80 words" not in rendered
+    wrong = record()
+    wrong["target_length_unit"] = "words"
+    with pytest.raises(LowerVarianceTrainError, match="must be tokens"):
+        train._render_lower_variance_prompt(wrong, valid_config())
 
 
 def test_three_objectives_have_expected_decomposition_and_finite_component_gradients():

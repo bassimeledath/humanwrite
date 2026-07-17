@@ -1,0 +1,97 @@
+artifact_schema: dftr.m2.lower_variance_three_arm.v1
+run:
+  comparison_id: M2-lower-variance-4b-partial128-smoke-v1
+  arm: SFT-vs-TOKEN_MOMENT-vs-MMD_WITNESS
+  budget_class: smoke
+  task_kind: experiment
+  command: [python, -m, experiments.runner]
+  seed: 11
+compute:
+  gpu: L40S
+  gpus: 1
+  timeout_min: 20
+model:
+  base: Qwen/Qwen3-4B
+  revision: 1cfa9a7208912126459214e8b04321603b3df60c
+  torch_dtype: bfloat16
+initial_adapter:
+  path: /checkpoints/runs/dftr-1784216516-91130dd3/seed-11
+  adapter_model_sha256: b7b590ca0d40b8b51951d44beb2e7928fccabbd6a2a7290f47e927da0fb81178
+  adapter_config_sha256: 9a72a9527c48cc2acf703f40047f1a6dec59e92fdc7021d59523ba5ed6fb965c
+  file_manifest_sha256: bd9843c196f6685c3e3c83f829726b09e3c87188d07ccbe66613616cd032d643
+data:
+  anchor_path: /checkpoints/data/m2-lower-variance-v1/smoke/anchors-128.jsonl
+  anchor_sha256: 5ac0a3a0bd263d021d9d7fb6b15a5acb650ddfb92314d49127b86b76e2340dc1
+  witness_generated_path: /checkpoints/data/m2-lower-variance-v1/smoke/witness-proxy-128.jsonl
+  witness_generated_sha256: a5c13322bcdf856bbfe66e3cd6286edf062eb813c2e70a2e2728de0a7a6b5241
+  witness_generation_contract_sha256: fe600ba3c6698947e3ded88e952bfc1811b56105af446e8d0e07186b7c2866e4
+  completion_field: completion
+  generated_text_field: generated_completion
+  prompt_format: "USER:\n{brief}\nASSISTANT:"
+  prompt_schema_version: dft.full-brief.tokens.v1
+  prompt_serializer_sha256: 1f92174518dfac375abbbbcf4ceba0659b726cabb215e0561a9fbffc4036b4a1
+representation:
+  model: Qwen/Qwen3-4B
+  revision: 1cfa9a7208912126459214e8b04321603b3df60c
+  layer: -1
+  pooling: attention_masked_mean
+  normalize: true
+  role: lower_variance_training_only_not_measurement_v3
+  batch_size: 4
+  max_tokens: 256
+objectives:
+  token_moments:
+    coefficient: 0.2
+    first_moment_weight: 1.0
+    second_moment_weight: 0.5
+    frequent_token_ids: [0, 1, 2]
+    vocabulary_source_sha256: 5ac0a3a0bd263d021d9d7fb6b15a5acb650ddfb92314d49127b86b76e2340dc1
+  mmd_witness:
+    bandwidths: [0.5, 1.0, 2.0]
+    temperature: 0.7
+    weighting: softmax_mean_one.v1
+    human_self_kernel: leave_one_out
+generation:
+  sampling_distribution: raw_policy_categorical.v1
+  temperature: 1.0
+  top_p: 1.0
+  top_k: 0
+  max_new_tokens: 64
+  stop_on_eos: true
+  post_eos_behavior: pad_and_mask
+  teacher_forced_eos: append_if_absent_after_truncation
+runtime:
+  torch_version: 2.13.0+cu130
+  transformers_version: 4.57.6
+  peft_version: 0.19.1
+  deterministic_algorithms: true
+  cublas_workspace_config: ":4096:8"
+training:
+  steps: 1
+  batch_size: 2
+  learning_rate: 0.00001
+  weight_decay: 0.01
+  gradient_clip_norm: 1.0
+  max_input_tokens: 1024
+  checkpoint_every: 1
+  schedule: python_random_sample_without_replacement.v1
+arms:
+  - id: SFT
+    sft_weighting: uniform
+    token_moment_coefficient: 0.0
+  - id: TOKEN_MOMENT
+    sft_weighting: uniform
+    token_moment_coefficient: 0.2
+  - id: MMD_WITNESS
+    sft_weighting: mmd_witness
+    token_moment_coefficient: 0.0
+resume:
+  SFT: null
+  TOKEN_MOMENT: null
+  MMD_WITNESS: null
+execution:
+  arm: SFT
+workflow:
+  protocol_version: dftr.m2.lower_variance_three_arm.v1
+  step: train_lower_variance
+  method_contract_sha256: e07553635a48c6d9de9aa5ef65fa7df63e4ac62568fd7eaf21a2b6fa22e24d22

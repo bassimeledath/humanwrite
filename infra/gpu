@@ -302,6 +302,13 @@ def _validate_submit(config: dict, budget_class: str) -> tuple[str, dict]:
             )
         except PolicyError as exc:
             _die(f"REJECTED: {exc}")
+    if workflow_step == "train_lower_variance":
+        try:
+            from experiments.m2.lower_variance_train import validate_lower_variance_config
+
+            validate_lower_variance_config(config)
+        except Exception as exc:
+            _die(f"REJECTED: lower-variance config invalid: {exc}")
     if workflow_step == "replay_equivalence":
         replay_workflow = config.get("workflow") or {}
         protocol_version = str(replay_workflow.get("protocol_version"))

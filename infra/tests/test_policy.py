@@ -283,6 +283,24 @@ def test_lower_variance_briefs_require_two_frozen_providers_and_exact_corpus():
         validate_launch(value)
 
 
+def test_lower_variance_training_smoke_uses_token_unit_wrapper_contract():
+    config_path = (
+        Path(__file__).resolve().parents[2]
+        / "configs/m2/m2_lower_variance_4b_sft_smoke_partial128_v1.yaml"
+    )
+    value = payload()
+    value["config"] = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    value["budget_class"] = "smoke"
+    value["preregistration"]["comparison"] = value["config"]["run"]["comparison_id"]
+    value["config_hash"] = canonical_hash(value["config"])
+    assert validate_launch(value).task_kind == "experiment"
+
+    value["config"]["data"]["prompt_schema_version"] = "dft.full-brief.v1"
+    value["config_hash"] = canonical_hash(value["config"])
+    with pytest.raises(PolicyError, match="frozen wrapper protocol"):
+        validate_launch(value)
+
+
 def test_brief_synthesis_rejects_unsafe_volume_uri():
     value = payload()
     value["config"]["run"]["task_kind"] = "brief_synthesis"

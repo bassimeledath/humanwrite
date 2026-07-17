@@ -17,6 +17,21 @@ MONTHLY_API_CAP_USD = 100.0
 LOWER_VARIANCE_BRIEF_PROTOCOL = "dftr.lower_variance_briefs.two_provider.v1"
 LOWER_VARIANCE_METADATA_MODEL = "qwen/qwen3-32b"
 LOWER_VARIANCE_OUTLINE_MODEL = "openai/gpt-5-mini"
+LOWER_VARIANCE_TRAIN_PROTOCOL = "dftr.m2.lower_variance_three_arm.v1"
+LOWER_VARIANCE_METHOD_KEYS = (
+    "artifact_schema",
+    "run",
+    "compute",
+    "model",
+    "initial_adapter",
+    "data",
+    "representation",
+    "objectives",
+    "generation",
+    "runtime",
+    "training",
+    "arms",
+)
 BUDGET_CLASSES = {
     "smoke": {"max_seconds": 20 * 60, "max_gpus": 1},
     "screen": {"max_seconds": 2 * 60 * 60, "max_gpus": 1},
@@ -549,7 +564,7 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
         raise PolicyError("14B scale-up lacks human approval")
     if workflow_step in {
         "train_sft", "sample_sweep", "merge_adapter", "replay_equivalence", "train_dft",
-        "prepare_dft", "generate_dft", "audit_estimator",
+        "prepare_dft", "generate_dft", "audit_estimator", "train_lower_variance",
     } and revision_is_unresolved(
         (config.get("model") or {}).get("revision")
     ):
@@ -708,6 +723,36 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
         )
         if payload.get("dft_a64_readiness") is not None:
             raise PolicyError("audit_estimator cannot consume an A64 readiness attestation")
+    if workflow_step == "train_lower_variance":
+        workflow = config.get("workflow") or {}
+        method_payload = {key: config.get(key) for key in LOWER_VARIANCE_METHOD_KEYS}
+        method_payload.update(
+            protocol_version=workflow.get("protocol_version"), step=workflow.get("step")
+        )
+        data = config.get("data") or {}
+        initial_adapter = config.get("initial_adapter") or {}
+        if (
+            config.get("artifact_schema") != LOWER_VARIANCE_TRAIN_PROTOCOL
+            or workflow.get("protocol_version") != LOWER_VARIANCE_TRAIN_PROTOCOL
+            or set(workflow) != {"protocol_version", "step", "method_contract_sha256"}
+            or canonical_hash(method_payload) != workflow.get("method_contract_sha256")
+            or task_kind != "experiment"
+            or budget_class not in {"smoke", "screen"}
+            or config.get("model")
+            != {
+                "base": "Qwen/Qwen3-4B",
+                "revision": "1cfa9a7208912126459214e8b04321603b3df60c",
+                "torch_dtype": "bfloat16",
+            }
+            or (config.get("execution") or {}).get("arm")
+            not in {"SFT", "TOKEN_MOMENT", "MMD_WITNESS"}
+            or data.get("prompt_schema_version") != "dft.full-brief.tokens.v1"
+            or not str(data.get("anchor_path") or "").startswith("/checkpoints/")
+            or not str(data.get("witness_generated_path") or "").startswith("/checkpoints/")
+            or not str(initial_adapter.get("path") or "").startswith("/checkpoints/")
+            or payload.get("dft_a64_readiness") is not None
+        ):
+            raise PolicyError("train_lower_variance requires the frozen wrapper protocol")
     if workflow_step == "replay_equivalence":
         replay_workflow = config.get("workflow") or {}
         protocol_version = str(replay_workflow.get("protocol_version"))

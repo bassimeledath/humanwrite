@@ -11,12 +11,9 @@ from typing import Any, Sequence
 
 from experiments.m1.contracts import build_run_paths, git_sha, write_json, write_jsonl
 from experiments.m2.dft import (
-    FULL_BRIEF_SCHEMA,
-    FULL_BRIEF_SERIALIZER_SHA256,
     _activate_adapter,
     _directory_file_map,
     _load_jsonl,
-    _render_prompt,
     _require_no_existing_files,
     _verify_file,
     deterministic_batches,
@@ -39,6 +36,34 @@ BASE_MODEL = "Qwen/Qwen3-4B"
 BASE_REVISION = "1cfa9a7208912126459214e8b04321603b3df60c"
 ARM_IDS = ("SFT", "TOKEN_MOMENT", "MMD_WITNESS")
 SAFE_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+FULL_BRIEF_SCHEMA = "dft.full-brief.tokens.v1"
+FULL_BRIEF_SERIALIZER_SHA256 = canonical_hash(
+    {
+        "schema": FULL_BRIEF_SCHEMA,
+        "required_fields": [
+            "user_prompt",
+            "use_case",
+            "style_kind",
+            "style",
+            "detail_mode",
+            "target_length",
+            "target_length_unit",
+            "em_dashes_allowed",
+            "outline",
+        ],
+        "target_length_unit": "tokens",
+        "brief_lines": [
+            "Writing request: {user_prompt}",
+            "Use case: {use_case}",
+            "Style category: {style_kind}",
+            "Style: {style}",
+            "Detail mode: {detail_mode}",
+            "Target length: about {target_length} tokens",
+            "Em dashes allowed: {yes_or_no}",
+            "Grounding outline (use only these supported facts when non-empty): {outline_json}",
+        ],
+    }
+)
 GENERATION_CONTRACT = {
     "sampling_distribution": "raw_policy_categorical.v1",
     "temperature": 1.0,
@@ -418,6 +443,55 @@ def eos_aware_completion_ids(
     return bounded[: max_new_tokens - 1] + [eos_token_id]
 
 
+def _render_lower_variance_prompt(record: dict[str, Any], config: dict[str, Any]) -> str:
+    required = (
+        "user_prompt",
+        "use_case",
+        "style_kind",
+        "style",
+        "detail_mode",
+        "target_length",
+        "target_length_unit",
+        "em_dashes_allowed",
+        "outline",
+    )
+    missing = [field for field in required if field not in record]
+    if missing:
+        raise LowerVarianceTrainError(
+            f"token-unit brief is missing fields: {', '.join(missing)}"
+        )
+    if record["target_length_unit"] != "tokens":
+        raise LowerVarianceTrainError("target_length_unit must be tokens")
+    target_length = record["target_length"]
+    if isinstance(target_length, bool) or not isinstance(target_length, int) or target_length <= 0:
+        raise LowerVarianceTrainError("target_length must be a positive token count")
+    outline = record["outline"]
+    if not isinstance(outline, list):
+        raise LowerVarianceTrainError("token-unit brief outline must be a list")
+    user_prompt = str(record["user_prompt"]).strip()
+    if not user_prompt:
+        raise LowerVarianceTrainError("token-unit brief user_prompt is empty")
+    brief = "\n".join(
+        (
+            f"Writing request: {user_prompt}",
+            f"Use case: {str(record['use_case']).strip()}",
+            f"Style category: {str(record['style_kind']).strip()}",
+            f"Style: {str(record['style']).strip()}",
+            f"Detail mode: {str(record['detail_mode']).strip()}",
+            f"Target length: about {target_length} tokens",
+            f"Em dashes allowed: {'yes' if bool(record['em_dashes_allowed']) else 'no'}",
+            "Grounding outline (use only these supported facts when non-empty): "
+            + json.dumps(
+                outline,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            ),
+        )
+    )
+    return str(config["data"]["prompt_format"]).format(brief=brief)
+
+
 def prepare_supervised_batch(
     tokenizer: Any, records: list[dict[str, Any]], config: dict[str, Any]
 ) -> dict[str, Any]:
@@ -428,7 +502,7 @@ def prepare_supervised_batch(
     eos_token_id = tokenizer.eos_token_id
     if type(eos_token_id) is not int or eos_token_id < 0:
         raise LowerVarianceTrainError("tokenizer.eos_token_id is required")
-    prompts = [_render_prompt(record, config) for record in records]
+    prompts = [_render_lower_variance_prompt(record, config) for record in records]
     completion_field = str(config["data"]["completion_field"])
     completions = [str(record.get(completion_field) or "").strip() for record in records]
     if any(not completion for completion in completions):
