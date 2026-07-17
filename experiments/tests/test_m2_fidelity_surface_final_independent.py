@@ -1,22 +1,25 @@
 """Independent edge cases for the repaired fidelity public-surface classifier."""
 from __future__ import annotations
 
+import json
 from pathlib import Path
 import runpy
 import subprocess
 
 import pytest
 
+from infra.backend.policy import replay_key_is_sensitive
+
 
 ROOT = Path(__file__).resolve().parents[2]
-TARGET = "a32ab25181766aff589619942b27526d9778654d"
+TARGET = "ec3f74ba1fa72c2cfeead5b2f25866b5065286f0"
 PRIOR = runpy.run_path(
     str(ROOT / "experiments" / "tests" / "test_m2_fidelity_replay_v2_final_independent.py")
 )
 load_config = PRIOR["load_config"]
 accepting_layers = PRIOR["accepting_layers"]
 CONFIG_V2 = PRIOR["CONFIG_V2"]
-ALL_LAYERS = {"workflow", "backend", "gpu_client"}
+fidelity = PRIOR["fidelity"]
 
 
 def with_field(field: str, value="public-value") -> dict:
@@ -73,8 +76,10 @@ def test_additional_camel_snake_acronym_private_aliases_reject(alias) -> None:
         "generationTokenCount",
     ],
 )
-def test_additional_public_tokenizer_and_generation_fields_pass(field) -> None:
-    assert accepting_layers(with_field(field)) == ALL_LAYERS
+def test_public_tokenizer_fields_classify_public_but_unknown_config_rejects(field) -> None:
+    assert fidelity._is_sensitive_replay_key(field) is False
+    assert replay_key_is_sensitive(field) is False
+    assert accepting_layers(with_field(field)) == set()
 
 
 @pytest.mark.parametrize(
@@ -91,20 +96,71 @@ def test_additional_public_tokenizer_and_generation_fields_pass(field) -> None:
         "vision_start_token_id",
     ],
 )
-@pytest.mark.xfail(
-    strict=True,
-    reason="standard public tokenizer options remain credential false positives",
-)
-def test_standard_public_tokenizer_options_are_not_false_positives(field) -> None:
-    assert accepting_layers(with_field(field)) == ALL_LAYERS
+def test_standard_public_tokenizer_options_classify_public_but_config_rejects(
+    field,
+) -> None:
+    assert fidelity._is_sensitive_replay_key(field) is False
+    assert replay_key_is_sensitive(field) is False
+    assert accepting_layers(with_field(field)) == set()
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="OAuth id_token is mistaken for public model token-id metadata",
-)
 def test_oauth_id_token_alias_is_rejected() -> None:
+    assert fidelity._is_sensitive_replay_key("id_token") is True
+    assert replay_key_is_sensitive("id_token") is True
     assert accepting_layers(with_field("id_token", "private-value")) == set()
+
+
+@pytest.mark.parametrize(
+    "alias",
+    [
+        "password",
+        "passphrase",
+        "clientAssertion",
+        "sessionCookie",
+        "oauthClientId",
+        "codeVerifier",
+    ],
+)
+def test_standard_authentication_aliases_are_rejected(alias) -> None:
+    assert accepting_layers(with_field(alias, "private-value")) == set()
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        lambda value: value["runtime"].update(
+            public_metadata={"innocuous_label": "public-value"}
+        ),
+        lambda value: value["workflow"].update(
+            extension={"name": "public-value"}
+        ),
+        lambda value: value.update(metadata={"note": "public-value"}),
+    ],
+)
+def test_unknown_replay_config_fields_fail_closed(mutation) -> None:
+    config = load_config(CONFIG_V2)
+    mutation(config)
+    assert accepting_layers(config) == set()
+
+
+def test_canonical_replay_configs_need_no_arbitrary_metadata() -> None:
+    for config_path in (PRIOR["CONFIG_V1"], CONFIG_V2):
+        config = load_config(config_path)
+        assert config["runtime"] == {"transformers_version": "4.57.6"}
+        assert "public_metadata" not in config
+        assert config["workflow"]["generation_contract"] == (
+            "configs/m2/canonical_full_brief_generation_v1.json"
+        )
+        assert config["workflow"]["generation_contract_sha256"] == (
+            "db7c970440c451ffd21e634b53df3fa3d556b139e87257dfff7521442fe8f219"
+        )
+    contract = json.loads(
+        (ROOT / "configs/m2/canonical_full_brief_generation_v1.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert contract["tokenization"]["return_attention_mask"] is True
+    assert contract["prospective_generation"]["max_new_tokens"] == 384
 
 
 def test_surface_tester_changes_no_implementation_file() -> None:

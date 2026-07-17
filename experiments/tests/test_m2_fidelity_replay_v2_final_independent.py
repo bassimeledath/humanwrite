@@ -17,7 +17,7 @@ from infra.backend.policy import PolicyError, canonical_hash, validate_launch
 
 
 ROOT = Path(__file__).resolve().parents[2]
-TARGET = "a32ab25181766aff589619942b27526d9778654d"
+TARGET = "ec3f74ba1fa72c2cfeead5b2f25866b5065286f0"
 CONFIG_V1 = ROOT / "configs" / "m2" / "m2_adapter_merge_fidelity_replay_v1.yaml"
 CONFIG_V2 = ROOT / "configs" / "m2" / "m2_adapter_merge_fidelity_replay_v2.yaml"
 V1_FILE_SHA256 = "8015afd23f7d21953e0e7f0f1045db824a87377ec38de4c7c478b7455570ef4c"
@@ -147,7 +147,7 @@ def test_generation_contract_substitution_fails_launch_and_worker_authority(
 ) -> None:
     config = load_config(CONFIG_V2)
     mutation(config)
-    assert accepting_layers(config) == {"workflow"}
+    assert accepting_layers(config) == set()
     with pytest.raises(M1ConfigError, match="canonical generation contract"):
         fidelity.load_generation_contract(config)
 
@@ -161,10 +161,6 @@ def test_generation_contract_substitution_fails_launch_and_worker_authority(
         "clientSecretValue",
         "gatewayAccessTokenValue",
     ],
-)
-@pytest.mark.xfail(
-    strict=True,
-    reason="wrapped credential aliases bypass every recursive public-only scanner",
 )
 def test_wrapped_credential_aliases_are_rejected_recursively(alias) -> None:
     config = load_config(CONFIG_V2)
@@ -180,10 +176,10 @@ def test_wrapped_credential_aliases_are_rejected_recursively(alias) -> None:
         ("weights_tokenizer_index_identity", "exact_serialization_bytes"),
     ],
 )
-def test_public_tokenizer_metadata_is_not_a_credential_false_positive(field, value) -> None:
+def test_unknown_public_tokenizer_metadata_is_rejected_by_exact_config(field, value) -> None:
     config = load_config(CONFIG_V2)
     config["runtime"]["public_metadata"] = {field: value}
-    assert accepting_layers(config) == {"workflow", "backend", "gpu_client"}
+    assert accepting_layers(config) == set()
 
 
 @pytest.mark.parametrize(
@@ -193,16 +189,12 @@ def test_public_tokenizer_metadata_is_not_a_credential_false_positive(field, val
         ("added_tokens", "added_tokens.json"),
     ],
 )
-@pytest.mark.xfail(
-    strict=True,
-    reason="public tokenizer metadata is misclassified as a credential surface",
-)
-def test_standard_public_token_fields_are_not_credential_false_positives(
+def test_standard_public_token_fields_are_rejected_as_unknown_config(
     field, value
 ) -> None:
     config = load_config(CONFIG_V2)
     config["runtime"]["public_metadata"] = {field: value}
-    assert accepting_layers(config) == {"workflow", "backend", "gpu_client"}
+    assert accepting_layers(config) == set()
 
 
 def test_tester_commit_does_not_modify_fidelity_implementation_surfaces() -> None:
