@@ -2028,3 +2028,37 @@ or overlaps the published training fingerprints.
 NEXT: Download the three source artifacts read-only, independently verify
 hashes/cardinality/non-overlap, then synthesize briefs for only the 64 frozen
 human-eval prompts before any A0 or A64 output is generated.
+
+## [2026-07-17] M2 / measurement-v2-visible-source-result
+HYPOTHESIS: The separately pinned shard will produce a usable public panel
+pool without overlap against existing training or Tier-1 human records.
+SETUP: Fixed-code CPU materialization run `dftr-1784273680-482885ef` using the
+preregistered 192-record config; downloaded artifacts were checked against the
+gateway and source-manifest hashes before inspection.
+RESULTS:
+| item | result | gate |
+| --- | ---: | --- |
+| Human records | 192 | exact |
+| Unique fingerprints / domains | 192 / 192 | exact |
+| Floor / eval records | 128 / 64 | exact |
+| Training fingerprint overlap | 0 | required |
+| Tier-1 fingerprint overlap | 0 | required |
+| Cross-panel fingerprint overlap | 0 | required |
+| Provider/GPU cost | $0 | bounded CPU route |
+DECISION: Accept the public source pool. Freeze it before candidate generation.
+NEXT: Synthesize and validate the 64 full briefs, then let the independent
+operator materialize bandwidth, power, calibration, selection, and signatures.
+
+## [2026-07-17] M2 / measurement-v2-prompt-briefs-preregistration
+HYPOTHESIS: The frozen brief-synthesis contract can turn the 64 human-eval
+documents into complete, prompt-matched briefs for the public v2 comparison
+within a $1 API cap, while preserving each original human completion as the
+reference and opening no candidate outputs.
+SETUP: Exact input SHA `942551d9...`, source manifest SHA `84c5a7e0...`, 64
+records, deterministic 25% empty-outline assignment, GPT-5-mini primary and
+the already allowlisted neutral fallback. This step cannot inspect A0/A64.
+RESULTS: Pending bounded synthesis and exact semantic validation.
+DECISION: Preregister the prompt panel. Reject partial or hash-inconsistent
+output and repair only through a separately recorded recovery config.
+NEXT: Download read-only, validate all 64 rows against their source records,
+then freeze the measurement protocol before model generation.
