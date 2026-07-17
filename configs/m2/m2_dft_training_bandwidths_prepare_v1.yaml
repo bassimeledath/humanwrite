@@ -40,7 +40,7 @@ derivation:
   degenerate_policy: fail
   distance_dtype: float64_cpu
 runtime:
-  torch_version: 2.13.0
+  torch_version: 2.13.0+cu130
   transformers_version: 4.57.6
   peft_version: 0.19.1
   deterministic_algorithms: true
@@ -51,4 +51,4 @@ output:
 workflow:
   protocol_version: dftr.m2.prepare_training_bandwidths.v1
   step: prepare_dft
-  preparation_contract_sha256: 8d23f22b7774edfba9ff1a7aaf280037f7a1156393533c6bf72eaa633f24fc0f
+  preparation_contract_sha256: f2e1a58e380d8547115b51e28d48d1e355426b5ae94cd46d0d11906504a4d5a5
