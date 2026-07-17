@@ -2309,3 +2309,26 @@ hash `67c5b0b96321bd0f27e2d78ed7edf3e34ce294d74edec52cd3f8905484f1f682`.
 An explicit tiny-model test proves single-sequence accumulation equals the
 full-group loss and parameter gradient. Commit, deploy, and relaunch as a new
 comparison identity.
+
+## [2026-07-17] M2 / frozen-estimator-audit-v2-result
+HYPOTHESIS: Length-matched K32 score-function semantic MMD will produce a
+stable enough whole-LoRA gradient to justify a direct training screen.
+SETUP: Run `dftr-1784303078-239a1732`; 16 nested replicates at K=`4,8,16,32`;
+full-human and 64-token-human supports; EOS-aware 64-token sampling; exact
+per-sequence gradient accumulation; fixed 256-dimensional CountSketch; no
+optimizer updates. Result SHA is `74a7ccd9`.
+RESULTS: The repaired run completed in 871.678 accelerator-seconds for
+`$0.566940`. K32 length-matched gradient-norm CV passed (`0.394 <= 1.0`), but
+split-half cosine failed (`-0.01385 < 0.50`). Full-human K32 cosine was also
+near zero (`0.04074`). Increasing K reduced advantage variance, gradient-norm
+CV, and mean gradient norm, but did not stabilize direction. Length matching
+shifted K32 mean absolute MMD2 from `+0.00694` to `-0.00174` without repairing
+coherence. All 512 unique rollouts used the full 64-token horizon. Independent
+recomputation verified all 128 result rows, artifact SHA, and reported cosines.
+DECISION: Fail the prospective gate. Do not run global-K32 score-function
+training. Larger rollout batches reduce scalar variability but do not provide
+a reproducible parameter direction in this reward representation.
+NEXT: Build the lower-variance matched 4B screen: ordinary SFT control,
+teacher-forced token-distribution moments, and one-round shared-rollout
+MMD-witness-weighted SFT. Use cleaned data and a fresh unpaired two-embedder
+instrument. Keep 14B, sealed evaluation, and Tier 3 gated on a real 4B effect.

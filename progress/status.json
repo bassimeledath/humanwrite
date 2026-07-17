@@ -1,12 +1,12 @@
 {
-  "updated_at": "2026-07-17T15:42:56Z",
+  "updated_at": "2026-07-17T16:11:09Z",
   "phase": "M2 — fresh-instrument and estimator rebuild",
-  "headline": "Audit launch OOM diagnosed; exact per-sequence gradient accumulation repair ready",
-  "summary": "The first frozen estimator-audit launch failed before producing evidence because it retained a differentiable K-way 4B graph. It cost $0.034 and generated no result. The repaired v2 path accumulates the mathematically identical score gradient one sequence at a time, has a direct equivalence test, and preserves the nested K=4/8/16/32 design, EOS/length repairs, and pass rule. Commit, deploy, and relaunch are active.",
+  "headline": "K32 score-function gradient audit failed direction stability; lower-variance branch selected",
+  "summary": "The repaired frozen-policy audit completed successfully for $0.567. K32 reduced gradient-norm variability enough to pass that sub-gate, but its length-matched split-half gradient cosine was -0.014 versus the preregistered 0.50 requirement; full-human support was also near zero at 0.041. Length matching changed absolute MMD substantially without stabilizing direction. Global-K32 REINFORCE training is closed; the next 4B cycle uses differentiable token moments and MMD-witness-weighted SFT on cleaned data with a fresh unpaired evaluator.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
-    "modal_committed_usd": 5.494501,
+    "modal_committed_usd": 4.890506,
     "openrouter_cap_usd": 100,
     "openrouter_spend_usd": 1.061925
   },
@@ -25,6 +25,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "09:11",
+      "title": "Estimator audit completed: K32 direction gate failed",
+      "detail": "Run dftr-1784303078-239a1732 completed 16 nested K=4/8/16/32 replicates for $0.566940. Length-matched K32 gradient-norm CV passed at 0.394, but split-half cosine was -0.01385 versus the required 0.50; full-human K32 cosine was 0.04074. Independent recomputation verified the 128-row artifact. Global-K32 score-function training is retired in favor of lower-variance distribution objectives.",
+      "tone": "complete"
+    },
     {
       "at": "08:42",
       "title": "First audit launch failed safely; microbatch repair verified",
