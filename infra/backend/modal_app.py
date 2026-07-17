@@ -292,7 +292,6 @@ def training_worker(run_id: str, payload: dict) -> dict:
                     cache_dir="/checkpoints/hf-cache",
                     allow_patterns=["*.json", "*.model", "*.safetensors", "*.txt"],
                 )
-            checkpoint_volume.commit()
 
         config_path = worktree / ".dftr-run-config.json"
         config_path.write_text(json.dumps(config, sort_keys=True), encoding="utf-8")
@@ -378,7 +377,6 @@ def training_worker(run_id: str, payload: dict) -> dict:
             "actual_cost_usd": round(actual, 6),
             "artifact_dir": str(artifact_dir.resolve()),
         }
-        checkpoint_volume.commit()
     return result_payload
 
 
@@ -771,7 +769,7 @@ def gateway():
         except PolicyError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         run_id = str(payload.get("run_id", ""))
-        if not run_id.startswith("dftr-"):
+        if not re.fullmatch(r"dftr-[0-9]+-[0-9a-f]{8}", run_id):
             raise HTTPException(status_code=400, detail="invalid run_id")
         events = _events()
         if run_snapshot(events, run_id):
