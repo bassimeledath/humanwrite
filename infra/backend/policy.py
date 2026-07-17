@@ -72,11 +72,13 @@ REPLAY_SENSITIVE_KEY_WORDS = {
 }
 REPLAY_TOKEN_KEY_WORDS = {"token", "tokens"}
 REPLAY_PUBLIC_TOKEN_METADATA_WORDS = {
-    "add", "added", "additional", "begin", "bos", "cls", "count", "counts",
+    "add", "added", "additional", "all", "begin", "between", "bos", "cls",
+    "count", "counts",
     "decoder", "eos", "exact", "forced", "generation", "greedy", "id", "ids",
-    "input", "map", "mask", "max", "min", "new", "output", "pad", "parity",
-    "policy", "sep", "skip", "special", "start", "suppress", "teacher", "token",
-    "tokens", "type", "types", "unk",
+    "image", "input", "map", "mask", "max", "min", "new", "output", "pad",
+    "parity", "policy", "sep", "skip", "special", "split", "spaces", "start",
+    "suppress", "teacher", "token", "tokens", "type", "types", "unk", "video",
+    "vision", "extended", "extra", "healing",
 }
 REPLAY_PUBLIC_TOKEN_METADATA_MODIFIERS = (
     REPLAY_PUBLIC_TOKEN_METADATA_WORDS - REPLAY_TOKEN_KEY_WORDS
@@ -126,6 +128,10 @@ def replay_key_is_sensitive(key: Any) -> bool:
     words = replay_key_words(key)
     word_set = set(words)
     if word_set & REPLAY_SENSITIVE_KEY_WORDS:
+        return True
+    # OAuth/OIDC uses ``id_token``; model metadata uses the inverse
+    # ``*_token_id`` order (for example ``eos_token_id``).
+    if words == ("id", "token"):
         return True
     if not word_set & REPLAY_TOKEN_KEY_WORDS:
         return False

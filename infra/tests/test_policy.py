@@ -22,6 +22,7 @@ from backend.policy import (
     canonical_hash,
     forbidden_replay_surface_keys,
     has_capacity,
+    replay_key_is_sensitive,
     run_snapshot,
     validate_launch,
 )
@@ -179,6 +180,25 @@ def test_recursive_replay_surface_alias_scan(config):
 )
 def test_recursive_replay_surface_scan_rejects_neutral_credential_aliases(alias):
     assert forbidden_replay_surface_keys({"nested": {alias: "private-value"}})
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "split_special_tokens", "extra_special_tokens", "all_special_tokens",
+        "all_special_tokens_extended", "spaces_between_special_tokens",
+        "token_healing", "image_token_id", "video_token_id",
+        "vision_start_token_id",
+    ],
+)
+def test_replay_surface_scan_allows_standard_model_token_fields(field):
+    assert replay_key_is_sensitive(field) is False
+    assert forbidden_replay_surface_keys({"public_metadata": {field: "value"}}) == []
+
+
+def test_replay_surface_scan_rejects_oauth_id_token():
+    assert replay_key_is_sensitive("id_token") is True
+    assert forbidden_replay_surface_keys({"nested": {"id_token": "private"}})
 
 
 def test_14b_requires_human_flag():

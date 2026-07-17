@@ -309,3 +309,38 @@ tests; keeping that strict-xfail file in a normal run intentionally reports
 strict XPASS until the independent tester updates its verdict artifact. No
 preregistration, deployment, launch, remote artifact access, or spend was
 performed by this repair.
+
+## Expanded model-token vocabulary correction
+
+Tester commit `ecb37a4` broadened the classifier matrix beyond the first five
+examples. It confirmed the private-alias boundary across OAuth, bearer, JWT,
+provider, service-account, and API-key forms, then identified nine legitimate
+Transformers tokenizer/generation fields that the bounded public vocabulary
+still rejected. It also showed that OAuth/OIDC `id_token` was ambiguous with
+model token-ID metadata.
+
+The classifier now admits the audited public concepts `split`, `extra`, `all`,
+`extended`, `spaces`, `between`, `healing`, `image`, `video`, and `vision` only
+inside the existing bounded model-token vocabulary. It explicitly rejects the
+ordered key `id_token`; model metadata uses the inverse `*_token_id` order.
+This preserves rejection of every private alias in the broadened matrix while
+allowing all standard public model-token fields tested by the reviewer.
+
+Verification after the correction:
+
+```text
+# Broadened independent semantic matrix, excluding only its old-target scope check
+44 passed, 1 deselected
+
+# All fidelity independent packs plus policy tests
+120 passed, 2 deselected
+
+# Implementation fidelity/policy tests
+67 passed
+
+# Full repository with all strict-xfail bodies forced, excluding two old-target scope checks
+282 passed, 2 deselected
+```
+
+No protocol, artifact, manifest, generation-contract, or historical-v1 bytes
+changed. No preregistration, deployment, launch, or spend occurred.

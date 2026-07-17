@@ -73,11 +73,13 @@ SENSITIVE_REPLAY_KEY_WORDS = {
 }
 TOKEN_KEY_WORDS = {"token", "tokens"}
 PUBLIC_TOKEN_METADATA_WORDS = {
-    "add", "added", "additional", "begin", "bos", "cls", "count", "counts",
+    "add", "added", "additional", "all", "begin", "between", "bos", "cls",
+    "count", "counts",
     "decoder", "eos", "exact", "forced", "generation", "greedy", "id", "ids",
-    "input", "map", "mask", "max", "min", "new", "output", "pad", "parity",
-    "policy", "sep", "skip", "special", "start", "suppress", "teacher", "token",
-    "tokens", "type", "types", "unk",
+    "image", "input", "map", "mask", "max", "min", "new", "output", "pad",
+    "parity", "policy", "sep", "skip", "special", "split", "spaces", "start",
+    "suppress", "teacher", "token", "tokens", "type", "types", "unk", "video",
+    "vision", "extended", "extra", "healing",
 }
 PUBLIC_TOKEN_METADATA_MODIFIERS = PUBLIC_TOKEN_METADATA_WORDS - TOKEN_KEY_WORDS
 KEY_WORD_RE = re.compile(r"[A-Z]+(?=[A-Z][a-z]|[0-9]|$)|[A-Z]?[a-z]+|[0-9]+")
@@ -157,6 +159,10 @@ def _is_sensitive_replay_key(key: Any) -> bool:
     words = _key_words(key)
     word_set = set(words)
     if word_set & SENSITIVE_REPLAY_KEY_WORDS:
+        return True
+    # OAuth/OIDC uses ``id_token``; model metadata uses the inverse
+    # ``*_token_id`` order (for example ``eos_token_id``).
+    if words == ("id", "token"):
         return True
     if not word_set & TOKEN_KEY_WORDS:
         return False

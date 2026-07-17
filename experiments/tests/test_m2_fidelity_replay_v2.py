@@ -9,7 +9,12 @@ import yaml
 
 from experiments.m1 import fidelity
 from experiments.m1.contracts import M1ConfigError, file_sha256
-from infra.backend.policy import PolicyError, canonical_hash, validate_launch
+from infra.backend.policy import (
+    PolicyError,
+    canonical_hash,
+    replay_key_is_sensitive,
+    validate_launch,
+)
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -209,3 +214,27 @@ def test_workflow_backend_and_client_reject_all_v2_launch_bypasses(mutation) -> 
     }
     with pytest.raises(SystemExit):
         validate_submit(config, "screen")
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "split_special_tokens",
+        "extra_special_tokens",
+        "all_special_tokens",
+        "all_special_tokens_extended",
+        "spaces_between_special_tokens",
+        "token_healing",
+        "image_token_id",
+        "video_token_id",
+        "vision_start_token_id",
+    ],
+)
+def test_standard_public_model_token_fields_are_not_sensitive(field: str) -> None:
+    assert fidelity._is_sensitive_replay_key(field) is False
+    assert replay_key_is_sensitive(field) is False
+
+
+def test_oauth_id_token_is_sensitive_in_worker_and_launch_policy() -> None:
+    assert fidelity._is_sensitive_replay_key("id_token") is True
+    assert replay_key_is_sensitive("id_token") is True
