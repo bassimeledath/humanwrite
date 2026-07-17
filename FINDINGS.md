@@ -2093,3 +2093,26 @@ DECISION: Do not freeze the defective prompt panel. Preregister and run the
 same prompt-only repair mechanism that restored M1 adherence.
 NEXT: Require 64 unique natural requests and exact non-prompt equality, then
 use only the repaired SHA in the signed measurement protocol.
+
+## [2026-07-17] M2 / measurement-v2-power-and-decision-freeze
+HYPOTHESIS: The frozen n=64 public panels can resolve a scientifically material
+A64-versus-A0 effect without using candidate output to choose thresholds.
+SETUP: Before A0/A64 generation, embedded the 192 frozen humans with immutable
+`BAAI/bge-small-en-v1.5` revision `5c38ec7c...`. Two thousand no-replacement
+64v64 permutations of the 128 floor embeddings gave MMD standard deviation
+`0.0006077874` and absolute 95th percentile `0.00116319`; the fixed floor MMD
+was `-0.00011304`. The 64-document eval panel had 12 repeated-start events
+(`0.1875`). Balanced n=64 AUC null SE was conservatively frozen at `0.052`.
+RESULTS: The prospective 1,000-trial simulation with MIEs MMD `0.0018`, AUC
+separability improvement `0.15`, and repetition-boundary distance `0.20`
+produced type-I `0.045`, MMD power `0.897`, AUC power `0.904`, repetition power
+`0.899`, and coverage `0.946`; every target passes. Decision thresholds are
+candidate-minus-control MMD <= `-0.0018` with paired p <= `0.05`, authorship
+separability improvement >= `0.15`, repetition margin `0.15`, and prompt-linked
+quality win rate >= `0.45`, plus all four exact hard gates.
+DECISION: Freeze these inputs before any model output. Do not weaken them after
+seeing A0 or A64. If the signed v2 pipeline later disagrees with this preview,
+fail closed and investigate implementation identity rather than substituting
+new assumptions.
+NEXT: Complete prompt repair, generate the exact one-seed A0 matched control,
+and freeze/sign the protocol before A64 generation.

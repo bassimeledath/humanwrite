@@ -1,0 +1,21 @@
+{
+  "artifact_schema": "dftr.measurement.decision_contract.v2",
+  "status": "frozen",
+  "evidence_class": "prospective_screen",
+  "permutation_draws": 10000,
+  "authorship_uncertainty_refits": 100,
+  "authorship_fold_seeds": [701, 702, 703, 704, 705],
+  "seeds": {
+    "permutation": 41,
+    "bootstrap": 42,
+    "authorship_split": 43
+  },
+  "thresholds": {
+    "candidate_minus_control_mmd_max": -0.0018,
+    "paired_mmd_p_max": 0.05,
+    "repetition_noninferiority_margin": 0.15,
+    "authorship_separability_improvement_min": 0.15,
+    "quality_win_rate_min": 0.45
+  },
+  "notes": "Frozen before A0/A64 generation. Distribution and authorship thresholds equal the prospective minimally important effects. Quality is a non-inferiority screen against prompt-matched humans; all four exact hard gates remain separately required for promotion."
+}

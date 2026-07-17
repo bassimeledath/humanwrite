@@ -1,0 +1,19 @@
+{
+  "artifact_schema": "dftr.measurement.power_assumptions.v2",
+  "trials": 1000,
+  "seed": 4101,
+  "minimally_important_effects": {
+    "mmd": 0.0018,
+    "auc": 0.15,
+    "repetition": 0.20,
+    "coverage": 0.95
+  },
+  "pilot_scales": {
+    "mmd_standard_error": 0.000608,
+    "auc_standard_error": 0.052,
+    "human_repetition_rate": 0.1875,
+    "repetition_margin": 0.15
+  },
+  "multiplicity": "holm",
+  "notes": "Frozen before A0/A64 outputs. MMD SE is the SD of 2,000 no-replacement 64v64 permutations of the 128 public human-floor embeddings (observed 0.0006077874). AUC SE 0.052 is the conservative balanced n=64 per-class null approximation. Human repetition is 12/64 on the frozen human-eval panel. Repetition effect is the preregistered distance from the non-inferiority boundary used by the prospective simulation, not a claim that human repetition should be minimized."
+}
