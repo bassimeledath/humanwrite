@@ -1,14 +1,14 @@
 {
-  "updated_at": "2026-07-17T08:02:00Z",
+  "updated_at": "2026-07-17T08:07:00Z",
   "phase": "M2 — first genuine adapter-native DFT comparison",
-  "headline": "All 64 briefs validate; prompt-only conditioning repair is running",
-  "summary": "The 192-document public pool, independent BGE-small embeddings, and all 64 source/outline/quotation-bound briefs are materialized. A standalone-prompt gate correctly rejected synthesis-instruction echoes in all 64 user prompts before any model output opened, so the proven prompt-only repair is running with every other field frozen. The measurement operator pipeline is complete. Independent audit of the first DFT implementation found an off-policy sampling defect and memory/resume gaps; those are being repaired before any GPU launch.",
+  "headline": "Measurement inputs and power gates frozen; A0 awaits DFT re-audit",
+  "summary": "The 192-document public pool, BGE-small embeddings, and 64 repaired prompt-matched briefs are complete. Prompt repair changed only user_prompt, yielded 64 unique natural requests, and passed every standalone guard for $0.023. Prospective n=64 power and decision thresholds are frozen before model output. The initial DFT code remains launch-blocked while its author repairs an independently found off-policy sampling defect plus memory and resume gaps.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
     "modal_committed_usd": 3.92086,
     "openrouter_cap_usd": 100,
-    "openrouter_spend_usd": 1.038529
+    "openrouter_spend_usd": 1.061925
   },
   "services": [
     {"name": "GPU gateway", "detail": "Constrained launch API", "status": "online"},
@@ -25,6 +25,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "01:07",
+      "title": "All 64 repaired measurement prompts passed",
+      "detail": "Prompt-only repair completed 64 of 64 for 0.023396 dollars. All requests are unique and natural, only user_prompt changed, and the final repaired brief SHA is b5c8b665. Prospective n64 power and decision gates are now frozen before A0/A64 output.",
+      "tone": "complete"
+    },
     {
       "at": "01:02",
       "title": "Prompt-conditioning defect caught before protocol freeze",

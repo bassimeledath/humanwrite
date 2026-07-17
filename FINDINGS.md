@@ -2116,3 +2116,18 @@ fail closed and investigate implementation identity rather than substituting
 new assumptions.
 NEXT: Complete prompt repair, generate the exact one-seed A0 matched control,
 and freeze/sign the protocol before A64 generation.
+
+## [2026-07-17] M2 / measurement-v2-prompt-repair-result
+HYPOTHESIS: Prompt-only repair will produce 64 natural standalone requests
+without mutating any scientific reference or brief field.
+SETUP: Run `dftr-1784275019-436dd5cf`, exact preregistered 64-row input SHA
+`888c2618...`, GPT-5-mini, new output URI, and $1 cap.
+RESULTS: Completed 64/64 with zero failures for `$0.023396`. The repaired
+artifact SHA is `b5c8b665...`; all 64 prompts are unique, every standalone-
+prompt semantic guard passes, and validation proves only `user_prompt`
+changed. Prompt lengths are 331-852 characters. All completions, fingerprints,
+outlines, quotations, styles, and provenance remain exact.
+DECISION: Accept and freeze only the repaired brief artifact for measurement
+v2. The un-repaired SHA remains a documented negative data artifact.
+NEXT: Bind repaired SHA `b5c8b665...` into the A0 generation config, then
+freeze/sign the real protocol before generating A64.
