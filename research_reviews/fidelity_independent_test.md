@@ -162,3 +162,64 @@ git diff --name-only a4cae58 HEAD -- configs/m1 \
 
 No GPU, deploy, provider, judge, sealed/private repository, or hidden-data
 access was performed during this re-test.
+
+## Final re-test addendum: commit `3f9834d`
+
+Final verdict: **PASS for the CPU-verifiable replay implementation and launch
+guards.** This is not a result of the GPU adapter/merged equivalence replay.
+
+The final repair was independently tested at
+`3f9834dd78273d0a8271b7be3b78799d572769f7`. Both remaining launch blockers are
+closed end to end:
+
+1. **Exact Transformers pin:** The worker image installs
+   `transformers==4.57.6`; the canonical generation contract and replay config
+   require the same exact version; client and backend policy reject config
+   substitutions; and the workflow rejects an installed version other than the
+   exact string `4.57.6`. Independent tests also rejected `4.57.5` at policy and
+   `4.57.6+local` at runtime.
+2. **Immutable historical anchoring:** Canonical generation-contract and
+   historical-config paths and SHA-256 values are code constants in both launch
+   policy and the workflow. The local client, backend, and workflow all reject a
+   caller-supplied substitute path/hash, including the previously successful
+   self-consistent reversed-fingerprint historical file.
+
+All earlier adversarial cases also pass: exact 16-row order and three seeds,
+recursive forbidden aliases, scoped RNG restoration and order/regrouping
+invariance with Transformers, deterministic diagnostics before stochastic
+comparison, accurate serialization-only identity labels, and historical
+artifact immutability.
+
+Final commands and outcomes:
+
+```bash
+PYTHONPATH=infra python -m pytest -q -vv \
+  experiments/tests/test_m2_fidelity_replay_independent.py
+# 9 passed
+
+PYTHONPATH=infra python -m pytest -q \
+  experiments/tests/test_m2_fidelity_replay.py \
+  experiments/tests/test_m2_fidelity_replay_independent.py \
+  infra/tests/test_policy.py experiments/tests/test_m1_sampler_loader.py
+# 48 passed
+
+PYTHONPATH=infra python -m pytest -q
+# 154 passed
+
+python -m py_compile experiments/m1/fidelity.py experiments/m1/workflow.py \
+  experiments/tests/test_m2_fidelity_replay_independent.py \
+  infra/backend/policy.py infra/gpu
+git diff --check
+# both passed
+
+git diff --name-only befabaf HEAD -- configs/m1 \
+  ':(glob)configs/m2/m2_sealed*' harness experiments/m1/tier1
+# no output; historical artifacts remain unchanged
+```
+
+The replay may now proceed through the separately authorized bounded launch
+process. Its scientific verdict still requires the real hash-bound artifacts,
+archive reproduction, deterministic diagnostics, and all 48 stochastic pairs
+to pass on the pinned worker. No GPU, deployment, provider, judge,
+sealed/private repository, or hidden-data access was performed in this final
+re-test.

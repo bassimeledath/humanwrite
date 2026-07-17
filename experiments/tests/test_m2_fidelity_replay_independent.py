@@ -4,6 +4,7 @@ import hashlib
 import inspect
 from pathlib import Path
 import re
+import runpy
 
 import pytest
 import yaml
@@ -193,3 +194,52 @@ def test_weight_identity_fields_make_serialization_claims_only() -> None:
     assert '"tensor_identity_sha256"' not in source
     assert '"weight_serialization_file_map_identity_sha256"' in source
     assert '"weight_shard_serialization_file_map_identity_sha256"' in source
+
+
+def test_exact_runtime_and_canonical_bindings_are_enforced_end_to_end(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import transformers
+
+    config = _config()
+    contract, _, _ = fidelity.load_generation_contract(config)
+    assert fidelity.verify_runtime_version(config, contract) == "4.57.6"
+
+    payload = {
+        "run_id": "dftr-test",
+        "config": config,
+        "config_hash": canonical_hash(config),
+        "git_sha": "a" * 40,
+        "budget_class": "screen",
+        "preregistration": {
+            "kind": "prereg",
+            "comparison": config["run"]["comparison_id"],
+            "status": "open",
+        },
+        "human_scaleup_approved": False,
+    }
+    assert validate_launch(payload).task_kind == "experiment"
+
+    wrong_runtime = _config()
+    wrong_runtime["runtime"]["transformers_version"] = "4.57.5"
+    payload["config"] = wrong_runtime
+    payload["config_hash"] = canonical_hash(wrong_runtime)
+    with pytest.raises(PolicyError, match="Transformers version"):
+        validate_launch(payload)
+
+    substitute_binding = _config()
+    substitute_binding["workflow"]["historical_sampling_config"] = "/tmp/substitute.yaml"
+    payload["config"] = substitute_binding
+    payload["config_hash"] = canonical_hash(substitute_binding)
+    with pytest.raises(PolicyError, match="canonical frozen contract bindings"):
+        validate_launch(payload)
+
+    client = runpy.run_path(str(ROOT / "infra" / "gpu"))
+    with pytest.raises(SystemExit):
+        client["_validate_submit"](wrong_runtime, "screen")
+    with pytest.raises(SystemExit):
+        client["_validate_submit"](substitute_binding, "screen")
+
+    monkeypatch.setattr(transformers, "__version__", "4.57.6+local")
+    with pytest.raises(M1ConfigError, match="installed Transformers version mismatch"):
+        fidelity.verify_runtime_version(_config(), contract)
