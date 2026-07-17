@@ -1,0 +1,52 @@
+{
+  "artifact_schema": "dftr.adapter_merge_replay_summary.v3",
+  "run_id": "dftr-1784272938-82d56296",
+  "comparison_id": "M2-adapter-merge-fidelity-replay-v3",
+  "config_hash": "82ef89e5f78f205083392ad2a74f3a4795debc5856cd7ce5f7fe906f728fd6b9",
+  "git_sha": "26cd11b4f6fd24a31eca8667f55503c93a710633",
+  "status": "completed",
+  "verdict": "fail",
+  "interpretation_allowed": false,
+  "prompt_tokenization_attestation": "exact",
+  "deterministic_gate": {
+    "passed": false,
+    "greedy_exact_count": 13,
+    "greedy_total": 16,
+    "mismatched_fingerprints": [
+      "290fdcd5ceb3c32b10db4de356a733987ae998118c2a64edcb3b3390252b752c",
+      "e3bfa60c1004153eb8c527e8b031d7fcec9009ed2102e7711a68508ff0b46557",
+      "5f4cf7b67fd1f7f0a8d3738f73fadec24fc9326ea63a88548f40e20c347da056"
+    ],
+    "teacher_forced": {
+      "reference_token_count": 1024,
+      "logit_element_count": 155582464,
+      "top1_agreement": 0.9990234375,
+      "mean_absolute_logit_difference": 0.04251855044376981,
+      "maximum_absolute_logit_difference": 1.1015625
+    }
+  },
+  "archive_reproduction": {
+    "attempted": false,
+    "reason": "deterministic_gate_failed"
+  },
+  "prospective_pairs": {
+    "attempted": false,
+    "reason": "deterministic_gate_failed"
+  },
+  "remote_artifacts": {
+    "run_manifest": "modal-volume://humanwrite-checkpoints/runs/dftr-1784272938-82d56296/run_manifest.json",
+    "deterministic_diagnostics": "modal-volume://humanwrite-checkpoints/runs/dftr-1784272938-82d56296/deterministic_diagnostics.json",
+    "prompt_attestations": "modal-volume://humanwrite-checkpoints/runs/dftr-1784272938-82d56296/prompt_attestations.jsonl"
+  },
+  "artifact_sha256": {
+    "run_manifest": "069625508831d227d0a668ebd13de6618318310e7e53b79a2bfecef3108ed3f5",
+    "deterministic_diagnostics": "3b8d62ba3ca96b7ef68f993f9acb0bdcd1e0e5e3a046228da4f9bdc243b1eb6d"
+  },
+  "accounting": {
+    "accelerator": "L40S",
+    "accelerator_seconds": 91.387,
+    "actual_cost_usd": 0.059438,
+    "generated_tokens": 0
+  },
+  "interpretation": "The original bf16 merged checkpoint is not exactly behaviorally equivalent to the visible seed-29 adapter under the frozen interface. This result does not evaluate DFT and does not authorize interpretation of the prior sealed merged-checkpoint score as an exact adapter score."
+}
