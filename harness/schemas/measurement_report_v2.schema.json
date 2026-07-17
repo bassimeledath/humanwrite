@@ -31,7 +31,37 @@
     "repetition": {"type": "object", "required": ["status"]},
     "authorship": {"type": "object", "required": ["status", "effective_clusters", "fit_count"]},
     "promotion": {"type": "object", "required": ["eligible"], "properties": {"eligible": {"type": "boolean"}}},
-    "hard_gates": {"type": "object"},
+    "hard_gates": {
+      "type": "object",
+      "required": ["factuality", "brief_adherence", "validity", "collapse"],
+      "additionalProperties": false,
+      "properties": {
+        "factuality": {
+          "allOf": [
+            {"$ref": "#/$defs/hard_gate_report_entry"},
+            {"properties": {"version": {"const": "dftr.gate.factuality.v1"}}}
+          ]
+        },
+        "brief_adherence": {
+          "allOf": [
+            {"$ref": "#/$defs/hard_gate_report_entry"},
+            {"properties": {"version": {"const": "dftr.gate.brief_adherence.v1"}}}
+          ]
+        },
+        "validity": {
+          "allOf": [
+            {"$ref": "#/$defs/hard_gate_report_entry"},
+            {"properties": {"version": {"const": "dftr.gate.validity.v1"}}}
+          ]
+        },
+        "collapse": {
+          "allOf": [
+            {"$ref": "#/$defs/hard_gate_report_entry"},
+            {"properties": {"version": {"const": "dftr.gate.collapse.v1"}}}
+          ]
+        }
+      }
+    },
     "candidate_output_binding": {
       "type": "object",
       "required": ["path", "sha256"],
@@ -53,6 +83,24 @@
   }],
   "$defs": {
     "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "hard_gate_report_entry": {
+      "type": "object",
+      "required": ["version", "decision", "evidence_path", "evidence_sha256"],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "enum": [
+            "dftr.gate.factuality.v1",
+            "dftr.gate.brief_adherence.v1",
+            "dftr.gate.validity.v1",
+            "dftr.gate.collapse.v1"
+          ]
+        },
+        "decision": {"const": "pass"},
+        "evidence_path": {"type": "string", "minLength": 1},
+        "evidence_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
     "signature": {
       "type": "object",
       "required": ["algorithm", "key_id", "signed_payload_sha256", "signature_base64"],

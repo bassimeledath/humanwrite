@@ -29,8 +29,14 @@
     "selection_policy": {"type": "object"},
     "required_hard_gates": {
       "type": "object",
-      "minProperties": 1,
-      "additionalProperties": {"type": "string", "minLength": 1}
+      "required": ["factuality", "brief_adherence", "validity", "collapse"],
+      "additionalProperties": false,
+      "properties": {
+        "factuality": {"const": "dftr.gate.factuality.v1"},
+        "brief_adherence": {"const": "dftr.gate.brief_adherence.v1"},
+        "validity": {"const": "dftr.gate.validity.v1"},
+        "collapse": {"const": "dftr.gate.collapse.v1"}
+      }
     },
     "matched_design": {"type": "object"},
     "artifact_bindings": {

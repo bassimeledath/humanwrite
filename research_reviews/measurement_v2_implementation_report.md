@@ -73,7 +73,34 @@ The checked-in protocol candidate remains deliberately unmaterialized and now
 advertises these fields as null/empty prerequisites rather than satisfying
 them with placeholders.
 
-Post-implementation verification result: all six sets `pass`. The quarantine permits exact historical reproduction and preserves the original sealed rejection, but forbids using v1 artifacts as prospective v2 floors, calibrations, selection endpoints, uncertainty estimates, or promotion evidence.
+## Third-round hard-gate evidence repair
+
+Independent tester commit `faa2e8e` demonstrated that the signed report could
+reuse one plaintext `pass` file as all four hard-gate artifacts. This repair
+leaves both tester-owned files untouched and closes that bypass:
+
+- the protocol freezes exactly the factuality, brief-adherence, validity, and
+  collapse gate schemas at their required v1 versions;
+- every report gate entry has an exact four-field shape and every evidence file
+  must parse as an exact three-field JSON object containing the expected
+  `artifact_schema`, gate `name`, and `pass` decision;
+- resolved evidence paths and byte identities must be distinct across gates, so
+  path aliases, copied evidence, shared plaintext, and same-content files fail;
+- the validated evidence byte identity is covered by the trusted report
+  signature whose payload also contains the independently verified frozen
+  protocol hash and candidate-output byte hash, producing an explicit unique
+  evaluated identity for each gate; and
+- the report and protocol schemas now freeze the same contracts, with a
+  dedicated hard-gate evidence schema checked in alongside them.
+
+Implementation tests cover the exact positive shape, wrong/missing/extra
+fields, wrong gate/version/decision, non-object and plaintext evidence, outer
+entry extras, resolved-path reuse, and copied-byte identity reuse. The
+independent valid synthetic promotion remains accepted, while the shared
+plaintext placeholder and post-signature candidate-output byte swap fail
+closed. The real protocol candidate remains unmaterialized and non-promoting.
+
+Post-implementation verification result: all six sets `pass`. The quarantine permits exact historical reproduction and preserves the original sealed rejection, but forbids using v1 artifacts as prospective v2 floors, calibrations, selection endpoints, uncertainty estimates, hard-gate evidence, or promotion evidence.
 
 ## Public invariant coverage
 
@@ -96,16 +123,22 @@ Public tests exercise:
 Validation runs:
 
 ```text
-uv run --extra test pytest -q tests
-75 passed, 8 warnings in 5.21s
+uv run --project harness --extra test pytest -q harness/tests --runxfail
+86 passed, 8 warnings in 4.81s
 
-uv run --extra test pytest -q tests ../research_reviews/test_measurement_v2_independent_adversarial.py --runxfail
-88 passed, 8 warnings in 4.93s
+uv run --project harness --extra test pytest -q \
+  harness/tests/test_measurement_v2_hard_gate_evidence.py \
+  harness/tests/test_measurement_v2_bindings.py \
+  research_reviews/test_measurement_v2_semantic_repair_independent.py --runxfail
+22 passed in 0.65s
 
 PYTHONPATH=<repo>:<repo>/harness/src:<repo>/infra harness/.venv/bin/pytest -q \
   data/tests experiments/tests harness/tests infra/tests ledger/tests \
-  research_reviews/test_measurement_v2_independent_adversarial.py --runxfail
-164 passed, 8 warnings in 5.20s
+  research_reviews/test_measurement_v2_independent_adversarial.py \
+  research_reviews/test_measurement_v2_retest_adversarial.py \
+  research_reviews/test_measurement_v2_semantic_repair_independent.py --runxfail
+190 passed, 8 warnings in 5.19s
+```
 
 Second-round tester pack, executed as ordinary requirements:
 
@@ -113,7 +146,6 @@ Second-round tester pack, executed as ordinary requirements:
 uv run --project harness --extra test pytest -q --runxfail \
   research_reviews/test_measurement_v2_retest_adversarial.py
 6 passed
-```
 ```
 
 `--runxfail` executes the tester-owned strict-xfail bodies as ordinary tests. The markers were deliberately preserved; without that flag, repaired strict xfails correctly appear as strict XPASS until the independent tester updates its verdict artifact.

@@ -49,6 +49,17 @@ ARTIFACT_BINDINGS = {
     "selection_policy": ("selection_policy_sha256", "dftr.measurement.selection_policy.v2"),
 }
 
+REQUIRED_HARD_GATE_SCHEMAS = {
+    "factuality": "dftr.gate.factuality.v1",
+    "brief_adherence": "dftr.gate.brief_adherence.v1",
+    "validity": "dftr.gate.validity.v1",
+    "collapse": "dftr.gate.collapse.v1",
+}
+HARD_GATE_EVIDENCE_FIELDS = frozenset({"artifact_schema", "name", "decision"})
+HARD_GATE_REPORT_FIELDS = frozenset(
+    {"version", "decision", "evidence_path", "evidence_sha256"}
+)
+
 
 def _load(path: str | Path) -> dict[str, Any]:
     value = json.loads(Path(path).read_text(encoding="utf-8"))
@@ -118,6 +129,125 @@ def _canonical_sha256(value: Any) -> str:
 def _canonical_bytes_without(value: dict[str, Any], field: str) -> bytes:
     payload = {key: item for key, item in value.items() if key != field}
     return json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+
+
+def _json_object_without_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    value: dict[str, Any] = {}
+    for key, item in pairs:
+        if key in value:
+            raise ValueError(f"duplicate JSON key: {key}")
+        value[key] = item
+    return value
+
+
+def _validate_hard_gate_evidence_set(
+    *,
+    required_gates: Any,
+    hard_gates: Any,
+    artifact_root: str | Path | None,
+    protocol_sha256: str,
+    candidate_output_sha256: str,
+    signed_report_payload_sha256: str,
+) -> dict[str, str]:
+    """Validate exact gate artifacts and bind them to signed promotion subjects.
+
+    The evidence JSON is deliberately small and frozen. Its byte identity and
+    outer path/version/decision are covered by the report signature; that same
+    signed payload contains the verified protocol and candidate-output hashes.
+    The returned identities make that complete binding explicit and unique per
+    gate without introducing a self-referential report hash into the artifact.
+    """
+    if required_gates != REQUIRED_HARD_GATE_SCHEMAS:
+        raise MeasurementV2Error("frozen required hard gate schemas are invalid")
+    if not isinstance(hard_gates, dict) or set(hard_gates) != set(required_gates):
+        raise MeasurementV2Error(
+            "promotion hard gate set does not equal frozen intersection"
+        )
+    if artifact_root is None:
+        raise MeasurementV2Error("hard gate evidence requires an artifact root")
+    root = Path(artifact_root).resolve()
+    protocol_sha = _require_sha(protocol_sha256, "hard gate protocol identity")
+    candidate_sha = _require_sha(
+        candidate_output_sha256, "hard gate candidate output identity"
+    )
+    report_sha = _require_sha(
+        signed_report_payload_sha256, "hard gate signed report identity"
+    )
+    seen_paths: set[Path] = set()
+    seen_evidence_identities: set[str] = set()
+    bindings: dict[str, str] = {}
+    for name, version in required_gates.items():
+        gate = hard_gates.get(name)
+        if not isinstance(gate, dict) or set(gate) != HARD_GATE_REPORT_FIELDS:
+            raise MeasurementV2Error(f"hard gate report entry schema mismatch: {name}")
+        if (
+            gate.get("version") != version
+            or gate.get("decision") != "pass"
+            or not isinstance(gate.get("evidence_path"), str)
+            or not gate["evidence_path"]
+        ):
+            raise MeasurementV2Error(
+                f"hard gate version or decision mismatch: {name}"
+            )
+        evidence_sha = _require_sha(
+            gate.get("evidence_sha256"), f"hard gate evidence identity: {name}"
+        )
+        evidence_path = _resolve_bound_path(
+            root, gate.get("evidence_path"), f"hard_gate:{name}"
+        )
+        if evidence_path in seen_paths:
+            raise MeasurementV2Error("hard gate evidence path is reused across gates")
+        if evidence_sha in seen_evidence_identities:
+            raise MeasurementV2Error(
+                "hard gate evidence identity is reused across gates"
+            )
+        seen_paths.add(evidence_path)
+        seen_evidence_identities.add(evidence_sha)
+        try:
+            evidence_bytes = evidence_path.read_bytes()
+        except OSError as error:
+            raise MeasurementV2Error(
+                f"hard gate evidence cannot be read: {name}"
+            ) from error
+        if hashlib.sha256(evidence_bytes).hexdigest() != evidence_sha:
+            raise MeasurementV2Error(
+                f"hard gate evidence byte hash mismatch: {name}"
+            )
+        try:
+            evidence = json.loads(
+                evidence_bytes.decode("utf-8"),
+                object_pairs_hook=_json_object_without_duplicate_keys,
+            )
+        except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
+            raise MeasurementV2Error(
+                f"hard gate evidence is not valid JSON: {name}"
+            ) from error
+        if not isinstance(evidence, dict) or set(evidence) != HARD_GATE_EVIDENCE_FIELDS:
+            raise MeasurementV2Error(
+                f"hard gate evidence schema mismatch: {name}"
+            )
+        if (
+            evidence.get("artifact_schema") != version
+            or evidence.get("name") != name
+            or evidence.get("decision") != "pass"
+        ):
+            raise MeasurementV2Error(
+                f"hard gate evidence semantic binding mismatch: {name}"
+            )
+        bindings[name] = _canonical_sha256(
+            {
+                "gate_name": name,
+                "gate_version": version,
+                "gate_decision": "pass",
+                "evidence_sha256": evidence_sha,
+                "protocol_sha256": protocol_sha,
+                "candidate_output_sha256": candidate_sha,
+                "signed_report_payload_sha256": report_sha,
+            }
+        )
+    if len(set(bindings.values())) != len(bindings):
+        raise MeasurementV2Error("hard gate evaluated identity is reused across gates")
+    return bindings
 
 
 def _decode_public_key(value: str) -> bytes:
@@ -693,14 +823,7 @@ def protocol_readiness(
         if power.get(field) != "pass":
             reasons.append(f"power_not_passed:{field}")
     required_gates = protocol.get("required_hard_gates")
-    if (
-        not isinstance(required_gates, dict)
-        or not required_gates
-        or any(
-            not str(name).strip() or not str(version).strip()
-            for name, version in required_gates.items()
-        )
-    ):
+    if required_gates != REQUIRED_HARD_GATE_SCHEMAS:
         reasons.append("required_hard_gates_not_frozen")
     seeds = protocol.get("seeds") or {}
     for field in ("permutation", "bootstrap", "authorship_split"):
@@ -899,39 +1022,7 @@ def validate_report_v2(
         promotion_binding_errors: list[str] = []
         required_gates = protocol.get("required_hard_gates")
         hard_gates = report.get("hard_gates")
-        if not isinstance(required_gates, dict) or not required_gates:
-            promotion_binding_errors.append("frozen required hard gate set is absent")
-        elif not isinstance(hard_gates, dict) or set(hard_gates) != set(required_gates):
-            promotion_binding_errors.append(
-                "promotion hard gate set does not equal frozen intersection"
-            )
-        else:
-            for name, version in required_gates.items():
-                gate = hard_gates.get(name)
-                if (
-                    not isinstance(gate, dict)
-                    or gate.get("version") != version
-                    or gate.get("decision") != "pass"
-                ):
-                    promotion_binding_errors.append(
-                        "promotion hard gate version or decision mismatch"
-                    )
-                    break
-                try:
-                    evidence_sha = _require_sha(
-                        gate.get("evidence_sha256"), f"hard gate evidence: {name}"
-                    )
-                    if artifact_root is None:
-                        raise MeasurementV2Error("hard gate evidence requires an artifact root")
-                    evidence_path = _resolve_bound_path(
-                        Path(artifact_root).resolve(), gate.get("evidence_path"),
-                        f"hard_gate:{name}",
-                    )
-                    if _sha256(evidence_path) != evidence_sha:
-                        raise MeasurementV2Error("hard gate evidence byte hash mismatch")
-                except MeasurementV2Error as error:
-                    promotion_binding_errors.append(str(error))
-                    break
+        candidate_output_sha: str | None = None
         try:
             candidate_output_sha = _require_sha(
                 hashes.get("candidate_output_manifest_sha256"),
@@ -951,14 +1042,37 @@ def validate_report_v2(
                 raise MeasurementV2Error("candidate output binding byte hash mismatch")
         except MeasurementV2Error as error:
             promotion_binding_errors.append(str(error))
+        signature_result: dict[str, str] | None = None
         try:
-            verify_signed_document(
+            signature_result = verify_signed_document(
                 report,
                 signature_field="operator_signature",
                 trusted_public_keys=trusted_public_keys,
             )
         except MeasurementV2Error as error:
             promotion_binding_errors.append(f"promotion report signature invalid: {error}")
+        try:
+            protocol_sha = _require_sha(
+                hashes.get("protocol_sha256"), "hard gate protocol identity"
+            )
+            if protocol_sha != _canonical_sha256(protocol):
+                raise MeasurementV2Error("hard gate protocol identity mismatch")
+            if candidate_output_sha is None or signature_result is None:
+                raise MeasurementV2Error(
+                    "hard gate evaluated identities are not verified"
+                )
+            _validate_hard_gate_evidence_set(
+                required_gates=required_gates,
+                hard_gates=hard_gates,
+                artifact_root=artifact_root,
+                protocol_sha256=protocol_sha,
+                candidate_output_sha256=candidate_output_sha,
+                signed_report_payload_sha256=signature_result[
+                    "signed_payload_sha256"
+                ],
+            )
+        except MeasurementV2Error as error:
+            promotion_binding_errors.append(str(error))
         if promotion_binding_errors:
             raise MeasurementV2Error("; ".join(promotion_binding_errors))
     validate_protocol(

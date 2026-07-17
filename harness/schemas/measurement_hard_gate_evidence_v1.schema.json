@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dftr.measurement.hard_gate_evidence.v1",
+  "title": "Frozen measurement hard-gate evidence artifact",
+  "description": "The report signature binds the exact evidence bytes and metadata to its verified protocol and candidate-output identities.",
+  "type": "object",
+  "required": ["artifact_schema", "name", "decision"],
+  "additionalProperties": false,
+  "properties": {
+    "artifact_schema": {
+      "enum": [
+        "dftr.gate.factuality.v1",
+        "dftr.gate.brief_adherence.v1",
+        "dftr.gate.validity.v1",
+        "dftr.gate.collapse.v1"
+      ]
+    },
+    "name": {
+      "enum": ["factuality", "brief_adherence", "validity", "collapse"]
+    },
+    "decision": {"const": "pass"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"name": {"const": "factuality"}}},
+      "then": {"properties": {"artifact_schema": {"const": "dftr.gate.factuality.v1"}}}
+    },
+    {
+      "if": {"properties": {"name": {"const": "brief_adherence"}}},
+      "then": {"properties": {"artifact_schema": {"const": "dftr.gate.brief_adherence.v1"}}}
+    },
+    {
+      "if": {"properties": {"name": {"const": "validity"}}},
+      "then": {"properties": {"artifact_schema": {"const": "dftr.gate.validity.v1"}}}
+    },
+    {
+      "if": {"properties": {"name": {"const": "collapse"}}},
+      "then": {"properties": {"artifact_schema": {"const": "dftr.gate.collapse.v1"}}}
+    }
+  ]
+}

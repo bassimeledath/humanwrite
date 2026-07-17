@@ -310,7 +310,9 @@ def test_signed_content_addressed_protocol_report_and_attestation(tmp_path):
     promotion_report["hard_gates"] = {}
     for name, version in protocol["required_hard_gates"].items():
         evidence_path = tmp_path / f"gate-{name}.json"
-        evidence_path.write_text(json.dumps({"name": name, "decision": "pass"}) + "\n")
+        evidence_path.write_text(json.dumps({
+            "artifact_schema": version, "name": name, "decision": "pass",
+        }) + "\n")
         promotion_report["hard_gates"][name] = {
             "version": version, "decision": "pass",
             "evidence_path": evidence_path.name,
