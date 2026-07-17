@@ -1,12 +1,12 @@
 {
-  "updated_at": "2026-07-17T00:11:33Z",
+  "updated_at": "2026-07-17T00:53:54Z",
   "phase": "Next cycle — instrument and fidelity audit",
-  "headline": "Native implementation of the repaired evidence boundary is active",
-  "summary": "Three independent audits confirmed that the sealed rejection applies to the exact seed-29 4B SFT artifact, not DFT generally. They also confirmed a replacement-biased visible human MMD floor, missing post-merge replay, and an unfrozen deployment contract. Isolated native worktrees are implementing public adapter/merge parity, prospective measurement v2, and a score-blind sealed public-canary attestation before new training spend.",
+  "headline": "Strict fidelity replay and measurement-v2 repair are active",
+  "summary": "The score-blind public-canary implementation passed independent private tests. The first public adapter/merge replay stopped before generation on a metadata identity mismatch: the original merged weights and tokenizer match the later sealed snapshot, but two provenance/config files differ. A v2 replay now binds both identities explicitly. Independent adversarial testing also rejected six remaining measurement-v2 semantic shortcuts; those are being repaired before any evaluator promotion or new training spend.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
-    "modal_committed_usd": 5.37355,
+    "modal_committed_usd": 3.839238,
     "openrouter_cap_usd": 100,
     "openrouter_spend_usd": 0.945997
   },
@@ -25,6 +25,24 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "17:53",
+      "title": "Fidelity replay failed safely before generation",
+      "detail": "Run dftr-1784249018-cfc946a2 stopped on a strict directory-hash mismatch after 91.857 L40S-seconds and 0.059744 dollars. Weight shards, tokenizer files, and index match; only generation_config.json and train_config.json metadata differ between the original merge directory and later sealed snapshot. A new preregistered replay will bind both identities instead of weakening the check.",
+      "tone": "active"
+    },
+    {
+      "at": "17:50",
+      "title": "Measurement-v2 adversarial retest rejected six shortcuts",
+      "detail": "All 11 original defects are closed, but deeper tests found fail-open cardinality, per-item fingerprint, power-evidence, inventory-attestation, placeholder-gate, and report-signature paths. The candidate remains unqualified and a separate native implementer is repairing the exact counterexamples.",
+      "tone": "blocked"
+    },
+    {
+      "at": "17:43",
+      "title": "Score-blind public canary passed independent tests",
+      "detail": "The isolated private canary implementation passed 34 tests including a real local end-to-end model path. It remains undeployed until public manifests, exact image/library pins, separate auth/state resources, and a real-checkpoint operator replay are ready.",
+      "tone": "complete"
+    },
     {
       "at": "17:11",
       "title": "Prospective evidence-boundary repair started",
