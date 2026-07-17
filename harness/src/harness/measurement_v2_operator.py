@@ -47,6 +47,7 @@ EMBEDDING_SCHEMA = "dftr.measurement.embedding_bundle.v2"
 POWER_ASSUMPTIONS_SCHEMA = "dftr.measurement.power_assumptions.v2"
 DECISION_SCHEMA = "dftr.measurement.decision_contract.v2"
 KEY_SCHEMA = "dftr.measurement.operator_private_key.v1"
+WRAPPER_RECEIPT_PUBLIC_KEY_BASE64 = "Gi5VBeV8wETwaDtonwGQ5XdwOHUKKo9o/kLCXnpzGbk="
 
 
 def _canonical_bytes(value: Any) -> bytes:
@@ -583,12 +584,13 @@ def _validate_generation_run_manifest(
     outputs_path: str | Path,
     generation_config: str | Path,
     generation_ledger: str | Path,
+    wrapper_receipt: str | Path,
     *,
     arm: str,
     checkpoint_sha256: str,
     generation_contract_sha256: str,
     decoding_policy_sha256: str,
-) -> str:
+) -> tuple[str, str]:
     manifest_file, output_file = Path(manifest_path), Path(outputs_path)
     if (
         not manifest_file.is_file()
@@ -639,7 +641,72 @@ def _validate_generation_run_manifest(
         raise MeasurementV2Error(
             "generation run manifest does not authenticate the supplied output bytes"
         )
-    return _sha(manifest_file)
+    receipt_sha = _validate_wrapper_generation_receipt(
+        wrapper_receipt,
+        manifest_file,
+        output_file,
+        expected_run_id=run_id,
+        expected_config_sha256=config_sha,
+        expected_git_sha=str(manifest["git_sha"]),
+        expected_comparison=str(manifest["comparison_id"]),
+    )
+    return _sha(manifest_file), receipt_sha
+
+
+def _validate_wrapper_generation_receipt(
+    receipt_path: str | Path,
+    manifest_path: str | Path,
+    outputs_path: str | Path,
+    *,
+    expected_run_id: str,
+    expected_config_sha256: str,
+    expected_git_sha: str,
+    expected_comparison: str,
+) -> str:
+    from cryptography.exceptions import InvalidSignature
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+
+    receipt_file = Path(receipt_path)
+    if not receipt_file.is_file() or receipt_file.is_symlink():
+        raise MeasurementV2Error("wrapper generation receipt must be a regular file")
+    receipt = _load_json(receipt_file)
+    signature = receipt.pop("signature", None)
+    exact_keys = {
+        "artifact_schema", "status", "key_id", "run_id", "comparison_id",
+        "config_sha256", "git_sha", "manifest_path", "manifest_sha256",
+        "output_path", "output_sha256",
+    }
+    canonical = _canonical_bytes(receipt)
+    try:
+        signature_bytes = base64.b64decode(
+            str((signature or {}).get("signature_base64") or ""), validate=True
+        )
+        public_key = Ed25519PublicKey.from_public_bytes(
+            base64.b64decode(WRAPPER_RECEIPT_PUBLIC_KEY_BASE64, validate=True)
+        )
+        public_key.verify(signature_bytes, canonical)
+    except (InvalidSignature, ValueError, TypeError) as error:
+        raise MeasurementV2Error("wrapper generation receipt signature is invalid") from error
+    if (
+        set(receipt) != exact_keys
+        or not isinstance(signature, dict)
+        or set(signature) != {"algorithm", "signed_payload_sha256", "signature_base64"}
+        or signature.get("algorithm") != "ed25519"
+        or signature.get("signed_payload_sha256") != hashlib.sha256(canonical).hexdigest()
+        or receipt.get("artifact_schema") != "dftr.wrapper.generation_receipt.v1"
+        or receipt.get("status") != "completed"
+        or receipt.get("key_id") != "humanwrite-modal-wrapper-receipt-v1"
+        or receipt.get("run_id") != expected_run_id
+        or receipt.get("config_sha256") != expected_config_sha256
+        or receipt.get("git_sha") != expected_git_sha
+        or receipt.get("comparison_id") != expected_comparison
+        or receipt.get("manifest_path") != f"/checkpoints/runs/{expected_run_id}/run_manifest.json"
+        or receipt.get("output_path") != f"/checkpoints/runs/{expected_run_id}/outputs.jsonl"
+        or receipt.get("manifest_sha256") != _sha(Path(manifest_path))
+        or receipt.get("output_sha256") != _sha(Path(outputs_path))
+    ):
+        raise MeasurementV2Error("wrapper generation receipt identity or byte binding failed")
+    return _sha(receipt_file)
 
 
 def _simulate_power(
@@ -865,6 +932,7 @@ def freeze_operator_bundle(
     control_generation_manifest: str | Path,
     control_generation_config: str | Path,
     generation_ledger: str | Path,
+    control_wrapper_receipt: str | Path,
     human_embeddings: str | Path,
     power_assumptions: str | Path,
     decision_contract: str | Path,
@@ -911,11 +979,12 @@ def freeze_operator_bundle(
         generation_contract_sha256=generation_contract_sha256,
         decoding_policy_sha256=decoding_policy_sha256,
     )
-    control_generation_manifest_sha = _validate_generation_run_manifest(
+    control_generation_manifest_sha, control_wrapper_receipt_sha = _validate_generation_run_manifest(
         control_generation_manifest,
         control_outputs,
         control_generation_config,
         generation_ledger,
+        control_wrapper_receipt,
         arm="A0",
         checkpoint_sha256=control_checkpoint_sha256,
         generation_contract_sha256=generation_contract_sha256,
@@ -1060,6 +1129,7 @@ def freeze_operator_bundle(
         "decoding_policy_sha256": decoding_policy_sha256,
         "generation_contract_sha256": generation_contract_sha256,
         "source_generation_manifest_sha256": control_generation_manifest_sha,
+        "source_wrapper_receipt_sha256": control_wrapper_receipt_sha,
     }
     baseline_path = root / "matched_baseline.json"
     baseline_sha = _write_json(baseline_path, baseline)
@@ -1356,6 +1426,7 @@ def score_candidate_bundle(
     candidate_generation_manifest: str | Path,
     candidate_generation_config: str | Path,
     generation_ledger: str | Path,
+    candidate_wrapper_receipt: str | Path,
     score_embeddings: str | Path,
     candidate_checkpoint_sha256: str,
     private_key: str | Path,
@@ -1382,6 +1453,7 @@ def score_candidate_bundle(
         candidate_outputs,
         candidate_generation_config,
         generation_ledger,
+        candidate_wrapper_receipt,
         arm="A64",
         checkpoint_sha256=candidate_checkpoint_sha256,
         generation_contract_sha256=matched["generation_contract_sha256"],
@@ -1692,6 +1764,7 @@ def _parser() -> argparse.ArgumentParser:
         "control-generation-manifest",
         "control-generation-config",
         "generation-ledger",
+        "control-wrapper-receipt",
         "human-embeddings",
         "power-assumptions",
         "decision-contract",
@@ -1716,6 +1789,7 @@ def _parser() -> argparse.ArgumentParser:
         "candidate-generation-manifest",
         "candidate-generation-config",
         "generation-ledger",
+        "candidate-wrapper-receipt",
         "score-embeddings",
         "candidate-checkpoint-sha256",
         "private-key",
@@ -1762,6 +1836,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 control_generation_manifest=args.control_generation_manifest,
                 control_generation_config=args.control_generation_config,
                 generation_ledger=args.generation_ledger,
+                control_wrapper_receipt=args.control_wrapper_receipt,
                 human_embeddings=args.human_embeddings,
                 power_assumptions=args.power_assumptions,
                 decision_contract=args.decision_contract,
@@ -1785,6 +1860,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 candidate_generation_manifest=args.candidate_generation_manifest,
                 candidate_generation_config=args.candidate_generation_config,
                 generation_ledger=args.generation_ledger,
+                candidate_wrapper_receipt=args.candidate_wrapper_receipt,
                 score_embeddings=args.score_embeddings,
                 candidate_checkpoint_sha256=args.candidate_checkpoint_sha256,
                 private_key=args.private_key,

@@ -5,6 +5,7 @@ Deploy with: modal deploy -m infra.backend.modal_app
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import base64
 import json
 import os
 from pathlib import Path
@@ -52,6 +53,7 @@ state_volume = modal.Volume.from_name("humanwrite-gateway-state", create_if_miss
 checkpoint_volume = modal.Volume.from_name("humanwrite-checkpoints", create_if_missing=True)
 gateway_secret = modal.Secret.from_name("humanwrite-gateway-auth")
 provider_secret = modal.Secret.from_name("the-other-ones")
+receipt_signing_secret = modal.Secret.from_name("humanwrite-wrapper-receipt-signing")
 
 source_root = Path(__file__).resolve().parent
 base_image = (
@@ -147,9 +149,48 @@ def _file_sha256(path: Path) -> str:
     return hasher.hexdigest()
 
 
+def _write_generation_receipt(run_id: str, payload: dict, config: dict) -> Path:
+    """Sign immutable generation bytes outside the experiment subprocess."""
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+    artifact_dir = _artifact_dir(run_id)
+    manifest_path, output_path = artifact_dir / "run_manifest.json", artifact_dir / "outputs.jsonl"
+    if not manifest_path.is_file() or not output_path.is_file():
+        raise ValueError("completed generation lacks manifest or output bytes")
+    receipt = {
+        "artifact_schema": "dftr.wrapper.generation_receipt.v1",
+        "status": "completed",
+        "key_id": "humanwrite-modal-wrapper-receipt-v1",
+        "run_id": run_id,
+        "comparison_id": str((config.get("run") or {}).get("comparison_id") or ""),
+        "config_sha256": str(payload["config_hash"]),
+        "git_sha": str(payload["git_sha"]),
+        "manifest_path": str(manifest_path),
+        "manifest_sha256": _file_sha256(manifest_path),
+        "output_path": str(output_path),
+        "output_sha256": _file_sha256(output_path),
+    }
+    canonical = json.dumps(receipt, sort_keys=True, separators=(",", ":")).encode()
+    try:
+        private_raw = base64.b64decode(
+            os.environ["DFTR_RECEIPT_SIGNING_KEY_BASE64"], validate=True
+        )
+        private_key = Ed25519PrivateKey.from_private_bytes(private_raw)
+    except (KeyError, ValueError) as error:
+        raise ValueError("wrapper receipt signing key is unavailable") from error
+    receipt["signature"] = {
+        "algorithm": "ed25519",
+        "signed_payload_sha256": __import__("hashlib").sha256(canonical).hexdigest(),
+        "signature_base64": base64.b64encode(private_key.sign(canonical)).decode("ascii"),
+    }
+    path = artifact_dir / "wrapper_generation_receipt.json"
+    path.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return path
+
+
 @app.function(
     image=worker_image,
-    secrets=[provider_secret],
+    secrets=[provider_secret, receipt_signing_secret],
     volumes={"/state": state_volume, CHECKPOINT_PATH: checkpoint_volume},
     timeout=8 * 60 * 60,
     retries=0,
@@ -286,6 +327,8 @@ def training_worker(run_id: str, payload: dict) -> dict:
             )
         return_code = result.returncode
         status = "completed" if return_code == 0 else "failed"
+        if status == "completed" and workflow_step == "generate_dft":
+            _write_generation_receipt(run_id, payload, config)
     except subprocess.TimeoutExpired:
         status = "reaped"
         with log_path.open("a", encoding="utf-8") as logs:

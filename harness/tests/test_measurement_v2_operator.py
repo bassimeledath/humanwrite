@@ -3,9 +3,14 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
+import base64
 
 import numpy as np
 import pytest
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+import harness.measurement_v2_operator as operator_module
 
 from harness.measurement_v2 import REQUIRED_HARD_GATE_SCHEMAS, protocol_readiness
 from harness.measurement_v2_operator import (
@@ -19,6 +24,14 @@ from harness.measurement_v2_operator import (
     generate_operator_key,
     score_candidate_bundle,
 )
+
+
+TEST_RECEIPT_PRIVATE = Ed25519PrivateKey.from_private_bytes(bytes(range(32)))
+operator_module.WRAPPER_RECEIPT_PUBLIC_KEY_BASE64 = base64.b64encode(
+    TEST_RECEIPT_PRIVATE.public_key().public_bytes(
+        serialization.Encoding.Raw, serialization.PublicFormat.Raw
+    )
+).decode("ascii")
 
 
 def sha(value: str) -> str:
@@ -41,7 +54,7 @@ def write_generation_manifest(
     *,
     arm: str,
     checkpoint: str,
-) -> None:
+) -> Path:
     config_value = json.loads(config.read_text())
     config_sha = hashlib.sha256(
         json.dumps(config_value, sort_keys=True, separators=(",", ":")).encode()
@@ -84,6 +97,28 @@ def write_generation_manifest(
             "token_accounting": {"total_tokens": 4096},
         },
     )
+    receipt = {
+        "artifact_schema": "dftr.wrapper.generation_receipt.v1",
+        "status": "completed",
+        "key_id": "humanwrite-modal-wrapper-receipt-v1",
+        "run_id": run_id,
+        "comparison_id": comparison,
+        "config_sha256": config_sha,
+        "git_sha": git_sha,
+        "manifest_path": f"/checkpoints/runs/{run_id}/run_manifest.json",
+        "manifest_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        "output_path": f"/checkpoints/runs/{run_id}/outputs.jsonl",
+        "output_sha256": hashlib.sha256(outputs.read_bytes()).hexdigest(),
+    }
+    canonical = json.dumps(receipt, sort_keys=True, separators=(",", ":")).encode()
+    receipt["signature"] = {
+        "algorithm": "ed25519",
+        "signed_payload_sha256": hashlib.sha256(canonical).hexdigest(),
+        "signature_base64": base64.b64encode(TEST_RECEIPT_PRIVATE.sign(canonical)).decode(),
+    }
+    receipt_path = path.with_name(path.stem + "-wrapper-receipt.json")
+    write_json(receipt_path, receipt)
+    return receipt_path
 
 
 def source_inputs(tmp_path: Path):
@@ -135,7 +170,7 @@ def source_inputs(tmp_path: Path):
     control_config = source_root / "control-config.json"
     write_json(control_config, {"arm": "A0", "frozen": True})
     control_manifest = source_root / "control-run-manifest.json"
-    write_generation_manifest(
+    control_receipt = write_generation_manifest(
         control_manifest,
         control_path,
         control_config,
@@ -248,6 +283,7 @@ def source_inputs(tmp_path: Path):
         "control": control_path,
         "control_manifest": control_manifest,
         "control_config": control_config,
+        "control_receipt": control_receipt,
         "ledger": ledger_path,
         "embeddings": embedding_path,
         "power": assumption_path,
@@ -272,6 +308,7 @@ def freeze(tmp_path: Path):
         control_generation_manifest=inputs["control_manifest"],
         control_generation_config=inputs["control_config"],
         generation_ledger=inputs["ledger"],
+        control_wrapper_receipt=inputs["control_receipt"],
         human_embeddings=inputs["embeddings"],
         power_assumptions=inputs["power"],
         decision_contract=inputs["decision"],
@@ -327,6 +364,7 @@ def test_missing_humans_and_incomplete_control_grid_fail_closed(tmp_path):
             control_generation_manifest=inputs["control_manifest"],
             control_generation_config=inputs["control_config"],
             generation_ledger=inputs["ledger"],
+            control_wrapper_receipt=inputs["control_receipt"],
             human_embeddings=inputs["embeddings"],
             power_assumptions=inputs["power"],
             decision_contract=inputs["decision"],
@@ -357,6 +395,7 @@ def test_missing_humans_and_incomplete_control_grid_fail_closed(tmp_path):
             control_generation_manifest=inputs["control_manifest"],
             control_generation_config=inputs["control_config"],
             generation_ledger=inputs["ledger"],
+            control_wrapper_receipt=inputs["control_receipt"],
             human_embeddings=inputs["embeddings"],
             power_assumptions=inputs["power"],
             decision_contract=inputs["decision"],
@@ -389,6 +428,7 @@ def test_underpowered_assumptions_write_fail_closed_status(tmp_path):
             control_generation_manifest=inputs["control_manifest"],
             control_generation_config=inputs["control_config"],
             generation_ledger=inputs["ledger"],
+            control_wrapper_receipt=inputs["control_receipt"],
             human_embeddings=inputs["embeddings"],
             power_assumptions=inputs["power"],
             decision_contract=inputs["decision"],
@@ -439,6 +479,7 @@ def test_freeze_rejects_relabelled_control_text_not_bound_by_run_manifest(tmp_pa
             control_generation_manifest=inputs["control_manifest"],
             control_generation_config=inputs["control_config"],
             generation_ledger=inputs["ledger"],
+            control_wrapper_receipt=inputs["control_receipt"],
             human_embeddings=inputs["embeddings"],
             power_assumptions=inputs["power"],
             decision_contract=inputs["decision"],
@@ -468,7 +509,7 @@ def test_score_rejects_candidate_grid_before_any_metric_work(tmp_path):
     candidate_manifest = tmp_path / "candidate-run-manifest.json"
     candidate_config = tmp_path / "candidate-config.json"
     write_json(candidate_config, {"arm": "A64", "frozen": True})
-    write_generation_manifest(
+    candidate_receipt = write_generation_manifest(
         candidate_manifest,
         candidate,
         candidate_config,
@@ -485,6 +526,7 @@ def test_score_rejects_candidate_grid_before_any_metric_work(tmp_path):
             candidate_generation_manifest=candidate_manifest,
             candidate_generation_config=candidate_config,
             generation_ledger=inputs["ledger"],
+            candidate_wrapper_receipt=candidate_receipt,
             score_embeddings=score_embeddings,
             candidate_checkpoint_sha256=sha("candidate-checkpoint"),
             private_key=inputs["private"],
@@ -526,7 +568,7 @@ def test_complete_candidate_grid_emits_valid_nonpromoting_report(tmp_path, monke
     candidate_manifest = tmp_path / "candidate-run-manifest.json"
     candidate_config = tmp_path / "candidate-config.json"
     write_json(candidate_config, {"arm": "A64", "frozen": True})
-    write_generation_manifest(
+    candidate_receipt = write_generation_manifest(
         candidate_manifest,
         candidate,
         candidate_config,
@@ -594,6 +636,7 @@ def test_complete_candidate_grid_emits_valid_nonpromoting_report(tmp_path, monke
         candidate_generation_manifest=candidate_manifest,
         candidate_generation_config=candidate_config,
         generation_ledger=inputs["ledger"],
+        candidate_wrapper_receipt=candidate_receipt,
         score_embeddings=score_embeddings,
         candidate_checkpoint_sha256=sha("candidate-checkpoint"),
         private_key=inputs["private"],
