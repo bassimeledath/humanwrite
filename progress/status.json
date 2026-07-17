@@ -1,9 +1,9 @@
 {
-  "updated_at": "2026-07-16T18:41:28Z",
-  "phase": "M2 — fail-closed evidence boundary",
-  "headline": "Independent sealed evaluator rejected the winning 4B checkpoint",
-  "summary": "The 4B model retained visible factual control but failed both hidden human-likeness gates: semantic MMD was 0.059529 and authorship AUC was 0.726914 with a 95% CI of 0.626166 to 0.828487. Per preregistration, 14B and GPTZero are not authorized for this recipe.",
-  "run_state": "blocked",
+  "updated_at": "2026-07-17T00:11:33Z",
+  "phase": "Next cycle — instrument and fidelity audit",
+  "headline": "Native implementation of the repaired evidence boundary is active",
+  "summary": "Three independent audits confirmed that the sealed rejection applies to the exact seed-29 4B SFT artifact, not DFT generally. They also confirmed a replacement-biased visible human MMD floor, missing post-merge replay, and an unfrozen deployment contract. Isolated native worktrees are implementing public adapter/merge parity, prospective measurement v2, and a score-blind sealed public-canary attestation before new training spend.",
+  "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
     "modal_committed_usd": 5.37355,
@@ -20,11 +20,17 @@
     {"id": "setup", "label": "Setup", "detail": "Harness, sources, storage, and guardrails", "status": "complete"},
     {"id": "M0", "label": "M0", "detail": "Data pipeline and GPU contract smoke test", "status": "complete"},
     {"id": "M1", "label": "M1", "detail": "4B three-seed directional confirmation passed", "status": "complete"},
-    {"id": "M2", "label": "M2", "detail": "Sealed 4B promotion check rejected both independent gates", "status": "blocked"},
+    {"id": "M2", "label": "M2", "detail": "Sealed SFT checkpoint rejected; prospective fidelity and evaluator repair active", "status": "active"},
     {"id": "M3", "label": "M3", "detail": "Length curriculum and LoRA staging", "status": "queued"},
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "17:11",
+      "title": "Prospective evidence-boundary repair started",
+      "detail": "Independent postmortems and a native red-team confirmed the visible human-floor bias and missing merge/interface proof. Public replay, operator-owned measurement v2, and private score-blind public-canary attestation are being implemented in isolated native worktrees with no paid compute or hidden-data exposure.",
+      "tone": "active"
+    },
     {
       "at": "11:41",
       "title": "Sealed evaluator rejected the 4B checkpoint",
@@ -102,5 +108,5 @@
     {"at": "17:46", "title": "Storage created", "detail": "Gateway state, checkpoints, sealed state, and sealed artifacts volumes are online.", "tone": "complete"},
     {"at": "17:40", "title": "Engineering checks passed", "detail": "Harness, infrastructure, and private evaluator suites are green.", "tone": "complete"}
   ],
-  "next_action": "Start a new preregistered 4B research cycle targeting semantic distribution and authorship indistinguishability. Do not launch 14B or Tier 3 until a future sealed comparison confirms."
+  "next_action": "Complete and independently test the fidelity and measurement repairs, then run the bounded adapter-versus-merged public replay before materializing a prospective shadow evaluator or launching new 4B training."
 }
