@@ -2011,3 +2011,20 @@ and authorship indistinguishability at 4B before scale. Candidate directions
 are broader and longer human data, a genuinely independent training reward,
 or staged adversarial/distribution objectives; none may reuse the sealed
 embedder or hidden split.
+## [2026-07-17] M2 / measurement-v2-visible-source-preregistration
+HYPOTHESIS: A separately pinned FineWeb shard can provide 192 unique,
+distinct-domain, public human documents for three disjoint measurement-v2
+panels without exposing candidate outputs or reusing the DFT training corpus.
+SETUP: Frozen CC-MAIN-2024-10 revision
+`9bb295ddab0e05d785b879661af7260fed5140fc`, shard
+`000_00001.parquet`, deterministic selection/split seeds, 80-220-word English
+eligibility, 1,600-record candidate pool, 50,000-row scan limit, and a 128/64
+floor/eval split. The earlier SFT corpus used shard `000_00000.parquet`.
+RESULTS: Pending privileged fixed-code materialization. No model output,
+measurement endpoint, or hidden data has been opened.
+DECISION: Preregister and launch only the bounded public-source job. Reject the
+bundle if it does not reproduce exactly, lacks 192 unique documents/domains,
+or overlaps the published training fingerprints.
+NEXT: Download the three source artifacts read-only, independently verify
+hashes/cardinality/non-overlap, then synthesize briefs for only the 64 frozen
+human-eval prompts before any A0 or A64 output is generated.

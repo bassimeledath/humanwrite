@@ -1,0 +1,38 @@
+run:
+  comparison_id: M2-measurement-v2-visible-source-v1
+  arm: operator-visible-source
+  budget_class: smoke
+  task_kind: source_materialization
+compute:
+  gpus: 1
+  timeout_min: 20
+source:
+  dataset_id: HuggingFaceFW/fineweb
+  dataset_config: CC-MAIN-2024-10
+  revision: 9bb295ddab0e05d785b879661af7260fed5140fc
+  split: train
+  files:
+    - data/CC-MAIN-2024-10/000_00001.parquet
+selection:
+  corpus_size: 192
+  dev_count: 64
+  eligible_pool_size: 1600
+  max_non_latin_letter_ratio: 0.02
+  max_word_count: 220
+  min_word_count: 80
+  selection_seed: dftr-m2-measurement-v2-visible-selection-v1
+  split_seed: dftr-m2-measurement-v2-visible-panels-v1
+  stream_scan_limit: 50000
+exclusions:
+  fingerprints: []
+  domains: []
+data:
+  train_output_uri: modal-volume://humanwrite-checkpoints/data/m2-measurement-v2-visible-v1/human-floor-source.jsonl
+  dev_output_uri: modal-volume://humanwrite-checkpoints/data/m2-measurement-v2-visible-v1/human-eval-source.jsonl
+  manifest_output_uri: modal-volume://humanwrite-checkpoints/data/m2-measurement-v2-visible-v1/source-manifest.json
+policy:
+  agent_visible_train_dev: true
+  hidden_test_materialized: false
+  purpose: Prospective public measurement-v2 panels only; never DFT training data
+  training_corpus_shard_excluded: true
+  candidate_outputs_opened: false
