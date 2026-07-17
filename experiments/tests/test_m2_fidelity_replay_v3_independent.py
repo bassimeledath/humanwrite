@@ -18,7 +18,7 @@ from infra.backend.policy import PolicyError, canonical_hash, validate_launch
 
 
 ROOT = Path(__file__).resolve().parents[2]
-TARGET = "3c082b6"
+TARGET = "8e718dd301cb878f07ccbbf9f73ba9bf17111027"
 CONFIGS = {
     "dftr.adapter_merge_replay.v1": ROOT / "configs/m2/m2_adapter_merge_fidelity_replay_v1.yaml",
     "dftr.adapter_merge_replay.v2": ROOT / "configs/m2/m2_adapter_merge_fidelity_replay_v2.yaml",
@@ -354,6 +354,86 @@ def test_actual_adapter_and_merge_tokenizer_file_maps_reject_unmatched_files(
     adapter_map = fidelity._tokenizer_file_map(adapter)
     merged_map = fidelity._tokenizer_file_map(merged)
     assert adapter_map != merged_map
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "tokenizer.model",
+        "spiece.model",
+        "sentencepiece.bpe.model",
+        "tokenizer.extra",
+        "tokenizer.extra.json",
+        "tokenizer_custom",
+        "tokenizer_custom.json",
+        "TOKENIZER.MODEL",
+        "Tokenizer_Custom.BIN",
+    ],
+)
+def test_complete_tokenizer_filename_surface_is_discovered(
+    tmp_path: Path, name: str
+) -> None:
+    artifact = tmp_path / "artifact"
+    artifact.mkdir()
+    path = artifact / name
+    path.write_bytes(f"bytes:{name}".encode("utf-8"))
+    assert fidelity._tokenizer_file_map(artifact) == {
+        name: hashlib.sha256(path.read_bytes()).hexdigest()
+    }
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "tokenizer.model",
+        "spiece.model",
+        "sentencepiece.bpe.model",
+        "tokenizer.extra",
+        "tokenizer_custom.json",
+    ],
+)
+@pytest.mark.parametrize("kind", ["symlink", "directory"])
+def test_recognized_undeclared_tokenizer_nonregular_entries_reject(
+    tmp_path: Path, name: str, kind: str
+) -> None:
+    artifact = tmp_path / "artifact"
+    artifact.mkdir()
+    path = artifact / name
+    if kind == "symlink":
+        target = tmp_path / "target"
+        target.write_text("target\n", encoding="utf-8")
+        path.symlink_to(target)
+    else:
+        path.mkdir()
+    with pytest.raises(M1ConfigError, match="not a regular file"):
+        fidelity._tokenizer_file_map(artifact)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "tokenizer.model",
+        "spiece.model",
+        "sentencepiece.bpe.model",
+        "tokenizer.extra",
+        "tokenizer_extra",
+    ],
+)
+def test_undeclared_regular_tokenizer_files_expand_the_exact_manifest_map(
+    tmp_path: Path, name: str
+) -> None:
+    artifact = tmp_path / "artifact"
+    artifact.mkdir()
+    for declared_name in set(EXPECTED_SHARED) | {"tokenizer_config.json"}:
+        (artifact / declared_name).write_text(
+            f"declared:{declared_name}\n", encoding="utf-8"
+        )
+    declared_map = fidelity._tokenizer_file_map(artifact)
+    extra = artifact / name
+    extra.write_text("undeclared tokenizer bytes\n", encoding="utf-8")
+    observed_map = fidelity._tokenizer_file_map(artifact)
+    assert set(observed_map) == set(declared_map) | {name}
+    assert observed_map != declared_map
 
 
 def test_independent_tester_does_not_modify_v3_implementation() -> None:
