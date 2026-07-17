@@ -1,0 +1,82 @@
+from __future__ import annotations
+
+from infra.autonomy.coordinator import should_wake, terminal_signature, within_wake_budget
+
+
+def control(**overrides):
+    value = {
+        "enabled": True,
+        "generation": 3,
+        "max_codex_wakes_per_24h": 4,
+        "monitored_runs": [{"run_id": "run-a"}, {"run_id": "run-b"}],
+    }
+    value.update(overrides)
+    return value
+
+
+def test_running_poll_never_wakes_codex():
+    wake, signature, reason = should_wake(
+        control=control(),
+        runtime={},
+        statuses={"run-a": {"status": "running"}, "run-b": {"status": "running"}},
+        now=1000.0,
+    )
+    assert wake is False
+    assert signature is None
+    assert reason == "waiting_for_terminal_transition"
+
+
+def test_terminal_transition_wakes_once():
+    statuses = {"run-a": {"status": "completed"}, "run-b": {"status": "running"}}
+    signature = terminal_signature(3, statuses)
+    wake, observed, reason = should_wake(
+        control=control(), runtime={}, statuses=statuses, now=1000.0
+    )
+    assert wake is True
+    assert observed == signature
+    assert reason == "new_terminal_transition"
+
+    wake, _, reason = should_wake(
+        control=control(),
+        runtime={"handled_signatures": [signature]},
+        statuses=statuses,
+        now=1010.0,
+    )
+    assert wake is False
+    assert reason == "terminal_transition_already_handled"
+
+
+def test_generation_change_rearms_same_run_state():
+    statuses = {"run-a": {"status": "failed"}, "run-b": {"status": "running"}}
+    old = terminal_signature(3, statuses)
+    new = terminal_signature(4, statuses)
+    assert old != new
+
+
+def test_daily_budget_is_rolling_and_fail_closed():
+    now = 100_000.0
+    assert within_wake_budget([now - 90_000, now - 10], now, 1) is False
+    assert within_wake_budget([now - 90_000], now, 1) is True
+    wake, _, reason = should_wake(
+        control=control(max_codex_wakes_per_24h=1),
+        runtime={"codex_wake_times": [now - 10]},
+        statuses={"run-a": {"status": "completed"}},
+        now=now,
+    )
+    assert wake is False
+    assert reason == "daily_codex_wake_budget_exhausted"
+
+
+def test_disabled_or_empty_control_never_wakes():
+    assert should_wake(
+        control=control(enabled=False),
+        runtime={},
+        statuses={"run-a": {"status": "completed"}},
+        now=0.0,
+    )[2] == "disabled"
+    assert should_wake(
+        control=control(monitored_runs=[]),
+        runtime={},
+        statuses={},
+        now=0.0,
+    )[2] == "no_monitored_runs"

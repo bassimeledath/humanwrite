@@ -333,7 +333,26 @@
       try {
         const response = await fetch(`status.json?t=${Date.now()}`, {cache: "no-store"});
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        render(await response.json());
+        const data = await response.json();
+        try {
+          const autonomyResponse = await fetch(`../.operator/autonomy/live.json?t=${Date.now()}`, {cache: "no-store"});
+          if (autonomyResponse.ok) {
+            const autonomy = await autonomyResponse.json();
+            const states = Object.values(autonomy.statuses || {}).map((item) => item.status);
+            const running = states.filter((value) => value === "running").length;
+            data.services = [
+              ...(data.services || []),
+              {
+                name: "Autonomous coordinator",
+                detail: `${autonomy.decision}; ${running} monitored job${running === 1 ? "" : "s"} running; polling uses zero model tokens`,
+                status: autonomy.enabled ? "online" : "offline"
+              }
+            ];
+          }
+        } catch (_) {
+          // The tracked status feed remains useful before the first coordinator tick.
+        }
+        render(data);
       } catch (error) {
         $("error").style.display = "block";
       }
