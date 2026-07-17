@@ -32,6 +32,7 @@ from experiments.m2.dft import (
     FULL_BRIEF_SERIALIZER_SHA256,
     M2ConfigError,
     _render_prompt,
+    _materialize_sampled_token_ids,
     _sample_raw_policy,
     _save_training_checkpoint,
     _sequence_log_probs,
@@ -890,6 +891,9 @@ def test_raw_policy_sampler_ignores_eos_stopping_and_uses_no_generation_warpers(
     mask = torch.tensor([[0, 1]])
     sampled = _sample_raw_policy(Model(), prompt, mask, new_tokens=4)
     assert sampled.tolist() == [[0, 4, 2, 2, 2, 2]]
+    assert sampled.is_inference()
+    materialized = _materialize_sampled_token_ids(sampled)
+    assert not materialized.is_inference()
 
 
 def test_optimizer_and_rng_state_resume_reproduces_uninterrupted_updates(tmp_path):

@@ -908,6 +908,11 @@ def _sample_raw_policy(
     return sequences
 
 
+def _materialize_sampled_token_ids(sequences: Any) -> Any:
+    """Convert inference-mode rollout IDs into ordinary tensors for autograd."""
+    return sequences.clone()
+
+
 def _sequence_log_probs(
     model: Any, sequences: Any, prompt_attention_mask: Any, prompt_width: int
 ) -> Any:
@@ -1063,6 +1068,10 @@ def _run_arm(
                 policy, encoded["input_ids"], encoded["attention_mask"], GENERATED_TOKENS
             )
             policy.train()
+        # Rollouts are sampled under inference_mode, whose tensors cannot be
+        # saved by the later teacher-forced autograd pass.  Clone after leaving
+        # inference_mode to preserve the sampled IDs as ordinary tensors.
+        sequences = _materialize_sampled_token_ids(sequences)
         prompt_width = int(encoded["input_ids"].shape[1])
         if int(sequences.shape[1]) - prompt_width != GENERATED_TOKENS:
             raise M2ConfigError("rollout did not produce exactly 64 tokens")
