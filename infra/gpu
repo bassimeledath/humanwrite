@@ -49,6 +49,7 @@ BUDGET = {
     "promo": {"max_min": 480, "max_gpus": 1},
 }
 UNRESOLVED_REVISION_PREFIX = "__M1_RESOLVE_"
+DFT_PROTOCOL = "dftr.m2.score_function_mmd.v1"
 
 
 def _die(message: str, code: int = 2) -> "None":
@@ -140,6 +141,14 @@ def _config_hash(config: dict) -> str:
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
+def _file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def _git_sha() -> str:
     try:
         return subprocess.check_output(
@@ -188,10 +197,32 @@ def _validate_submit(config: dict, budget_class: str) -> tuple[str, dict]:
     if "14B" in base_model.upper() and os.environ.get("DFTR_ALLOW_SCALEUP") != "1":
         _die("REJECTED: 14B/scale-up requires human DFTR_ALLOW_SCALEUP=1")
     revision = str((config.get("model") or {}).get("revision", "")).strip()
-    if workflow_step in {"train_sft", "sample_sweep", "merge_adapter", "replay_equivalence"} and (
+    if workflow_step in {
+        "train_sft", "sample_sweep", "merge_adapter", "replay_equivalence", "train_dft",
+    } and (
         not revision or revision.startswith(UNRESOLVED_REVISION_PREFIX)
     ):
-        _die("REJECTED: M1 evidentiary experiment jobs require a resolved immutable model.revision")
+        _die("REJECTED: evidentiary experiment jobs require a resolved immutable model.revision")
+    if workflow_step == "train_dft":
+        workflow = config.get("workflow") or {}
+        execution_arm = str((config.get("execution") or {}).get("arm") or "")
+        if workflow.get("protocol_version") != DFT_PROTOCOL or execution_arm not in {"A0", "A64"}:
+            _die("REJECTED: train_dft requires the frozen protocol and A0/A64 selector")
+        if execution_arm == "A64":
+            readiness_path = os.environ.get("DFTR_M2_A64_READINESS_MANIFEST", "")
+            readiness_sha = os.environ.get("DFTR_M2_A64_READINESS_SHA256", "")
+            path = Path(readiness_path)
+            if (
+                not path.is_absolute()
+                or len(readiness_sha) != 64
+                or any(character not in "0123456789abcdef" for character in readiness_sha)
+            ):
+                _die("REJECTED: A64 requires wrapper-bound readiness path and SHA-256")
+            if _use_local_backend():
+                if not path.is_file() or path.is_symlink() or _file_sha256(path) != readiness_sha:
+                    _die("REJECTED: local A64 readiness file does not match its SHA-256")
+            elif not readiness_path.startswith("/checkpoints/"):
+                _die("REJECTED: Modal A64 readiness must use the checkpoint volume")
     if workflow_step == "replay_equivalence":
         replay_workflow = config.get("workflow") or {}
         protocol_version = str(replay_workflow.get("protocol_version"))
@@ -286,7 +317,7 @@ def submit(args: argparse.Namespace) -> None:
     run_id = f"dftr-{int(time.time())}-{uuid.uuid4().hex[:8]}"
     _ledger_add(run_id, comparison, config_hash, git_sha, args.budget_class, config)
     try:
-        result = _api("POST", "/submit", {
+        payload = {
             "run_id": run_id,
             "config": config,
             "config_hash": config_hash,
@@ -294,7 +325,22 @@ def submit(args: argparse.Namespace) -> None:
             "budget_class": args.budget_class,
             "preregistration": prereg,
             "human_scaleup_approved": os.environ.get("DFTR_ALLOW_SCALEUP") == "1",
-        })
+        }
+        if (
+            str((config.get("workflow") or {}).get("step", "")).casefold() == "train_dft"
+            and str((config.get("execution") or {}).get("arm")) == "A64"
+        ):
+            payload["dft_a64_readiness"] = {
+                "kind": "dft_a64_readiness",
+                "status": "ready",
+                "comparison": comparison,
+                "method_contract_sha256": str(
+                    (config.get("workflow") or {}).get("method_contract_sha256") or ""
+                ),
+                "manifest_path": os.environ["DFTR_M2_A64_READINESS_MANIFEST"],
+                "manifest_sha256": os.environ["DFTR_M2_A64_READINESS_SHA256"],
+            }
+        result = _api("POST", "/submit", payload)
     except SystemExit:
         _ledger_failure(run_id)
         raise

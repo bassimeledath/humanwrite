@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import ast
+import base64
 import copy
+import importlib.util
 import itertools
 import json
 from pathlib import Path
@@ -11,8 +13,15 @@ from types import SimpleNamespace
 
 import pytest
 import torch
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+HARNESS_SRC = Path(__file__).resolve().parents[2] / "harness" / "src"
+if str(HARNESS_SRC) not in sys.path:
+    sys.path.insert(0, str(HARNESS_SRC))
 
 from experiments import runner
+from experiments.m2 import dft as dft_module
 from experiments.m2.dft import (
     BASE_MODEL,
     BASE_REVISION,
@@ -25,16 +34,19 @@ from experiments.m2.dft import (
     _sample_raw_policy,
     _save_training_checkpoint,
     _sequence_log_probs,
+    _verify_a64_readiness,
     _verify_resume_artifact,
     _verify_inputs,
     canonical_hash,
     deterministic_batches,
     deterministic_schedule,
     method_contract_payload,
+    matched_exposure_payload,
     mmd_leave_one_out_baselines,
     mmd_score_rewards,
     per_sample_score_loss,
     repeated_ngram_fraction,
+    run_dft,
     score_function_loss,
     training_factual_adherence_sentinels,
     validate_dft_config,
@@ -42,9 +54,19 @@ from experiments.m2.dft import (
 from experiments.m1.contracts import file_sha256
 from experiments.m1.workflow import _render_prompt as render_m1_prompt
 from infra.backend.policy import PolicyError, canonical_hash as policy_hash, validate_launch
+from harness.measurement_v2 import REQUIRED_BLIND_GROUPS
 
 
 SHA = "a" * 64
+
+
+def _measurement_fixture_module():
+    path = Path(__file__).resolve().parents[2] / "harness" / "tests" / "test_measurement_v2_bindings.py"
+    spec = importlib.util.spec_from_file_location("dft_measurement_fixture", path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def valid_config() -> dict:
@@ -126,7 +148,14 @@ def valid_config() -> dict:
             "max_unsupported_claim_rate": 1.0,
             "max_mean_abs_target_error": 1000.0,
         },
+        "readiness_trust": {
+            "trusted_public_keys_path": "/checkpoints/measurement/trusted-keys.json",
+            "trusted_public_keys_sha256": SHA,
+            "protocol_signer_key_id": "operator-key",
+            "blind_signer_key_id": "blind-key",
+        },
         "resume": {"A0": None, "A64": None},
+        "execution": {"arm": "A0"},
         "workflow": {
             "protocol_version": DFT_SCHEMA,
             "step": DFT_STEP,
@@ -149,6 +178,21 @@ def test_strict_prospective_config_accepts_only_matched_a0_a64_contract():
     )
     with pytest.raises(M2ConfigError, match="A0=0"):
         validate_dft_config(config)
+
+
+def test_a0_and_a64_configs_differ_only_in_selector_and_share_method_contract():
+    a0 = valid_config()
+    a64 = copy.deepcopy(a0)
+    a64["execution"]["arm"] = "A64"
+    assert validate_dft_config(a0) is a0
+    assert validate_dft_config(a64) is a64
+    differing_top_level = {key for key in a0 if a0[key] != a64[key]}
+    assert differing_top_level == {"execution"}
+    assert method_contract_payload(a0) == method_contract_payload(a64)
+    assert a0["workflow"]["method_contract_sha256"] == a64["workflow"][
+        "method_contract_sha256"
+    ]
+    assert matched_exposure_payload(a0) == matched_exposure_payload(a64)
 
 
 def test_method_contract_hash_and_training_only_paths_fail_closed():
@@ -279,6 +323,342 @@ def test_source_adapter_data_and_human_only_bandwidth_hashes_fail_closed(
     )
     with pytest.raises(M2ConfigError, match="training-only"):
         validate_dft_config(config)
+
+
+def _write_json(path: Path, value: dict) -> str:
+    path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return file_sha256(path)
+
+
+def _materialize_real_a64_readiness(
+    tmp_path: Path, config: dict
+) -> tuple[Path, dict, Ed25519PrivateKey]:
+    fixture = _measurement_fixture_module()
+    measurement_root = tmp_path / "measurement"
+    measurement_root.mkdir()
+    protocol, operator_key, trusted = fixture.synthetic_evidence(measurement_root)
+    blind_key = Ed25519PrivateKey.generate()
+    blind_public = blind_key.public_key().public_bytes(
+        encoding=serialization.Encoding.Raw,
+        format=serialization.PublicFormat.Raw,
+    )
+    trusted["blind-key"] = base64.b64encode(blind_public).decode("ascii")
+    trust_path = tmp_path / "trusted-keys.json"
+    trust_sha = _write_json(trust_path, trusted)
+    config["readiness_trust"].update(
+        trusted_public_keys_path=str(trust_path),
+        trusted_public_keys_sha256=trust_sha,
+    )
+    config["workflow"]["method_contract_sha256"] = canonical_hash(
+        method_contract_payload(config)
+    )
+
+    checkpoint_dir = tmp_path / "a0-checkpoint"
+    checkpoint_dir.mkdir()
+    (checkpoint_dir / "adapter_model.safetensors").write_bytes(b"real A0 adapter bytes")
+    (checkpoint_dir / "adapter_config.json").write_text("{}\n", encoding="utf-8")
+    adapter_sha = file_sha256(checkpoint_dir / "adapter_model.safetensors")
+    file_map = {
+        item.relative_to(checkpoint_dir).as_posix(): file_sha256(item)
+        for item in sorted(checkpoint_dir.rglob("*"))
+        if item.is_file()
+    }
+    checkpoint = {
+        "artifact_schema": "dftr.m2.adapter_native_checkpoint.v1",
+        "arm": "A0",
+        "status": "completed",
+        "adapter_native": True,
+        "base_model": BASE_MODEL,
+        "base_revision": BASE_REVISION,
+        "source_adapter_manifest_sha256": config["initial_adapter"]["file_manifest_sha256"],
+        "source_adapter_model_sha256": config["initial_adapter"]["adapter_model_sha256"],
+        "source_adapter_config_sha256": config["initial_adapter"]["adapter_config_sha256"],
+        "git_sha": "b" * 40,
+        "checkpoint_dir": str(checkpoint_dir),
+        "file_sha256": file_map,
+        "file_map_excludes": ["checkpoint_manifest.json"],
+        "generated_tokens": config["training"]["steps"]
+        * config["training"]["rollout_batch_size"] * 64,
+        "steps": config["training"]["steps"],
+        "resumed_from_step": 0,
+        "trainable_parameter_count": 1,
+        "mmd_coefficient": 0.0,
+        "method_contract_sha256": config["workflow"]["method_contract_sha256"],
+    }
+    checkpoint_path = checkpoint_dir / "checkpoint_manifest.json"
+    checkpoint_sha = _write_json(checkpoint_path, checkpoint)
+
+    output_path = measurement_root / "control-outputs.jsonl"
+    output_rows = [
+        json.loads(line) for line in output_path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    for row in output_rows:
+        row["checkpoint_sha256"] = adapter_sha
+    output_path.write_text(
+        "".join(json.dumps(row, sort_keys=True) + "\n" for row in output_rows),
+        encoding="utf-8",
+    )
+    output_sha = file_sha256(output_path)
+    baseline_path = measurement_root / "baseline.json"
+    baseline = json.loads(baseline_path.read_text(encoding="utf-8"))
+    baseline["checkpoint_sha256"] = adapter_sha
+    baseline["output_manifest_sha256"] = output_sha
+    baseline_sha = _write_json(baseline_path, baseline)
+    calibration_path = measurement_root / "calibration.json"
+    calibration = json.loads(calibration_path.read_text(encoding="utf-8"))
+    calibration["matched_baseline_sha256"] = baseline_sha
+    calibration_sha = _write_json(calibration_path, calibration)
+    power_path = measurement_root / "power.json"
+    power = json.loads(power_path.read_text(encoding="utf-8"))
+    power["matched_baseline_sha256"] = baseline_sha
+    power["calibration_sha256"] = calibration_sha
+    power_sha = _write_json(power_path, power)
+    protocol["hashes"].update(
+        matched_baseline_sha256=baseline_sha,
+        matched_baseline_outputs_sha256=output_sha,
+        calibration_sha256=calibration_sha,
+        power_plan_sha256=power_sha,
+    )
+    protocol["artifact_bindings"]["matched_baseline"]["sha256"] = baseline_sha
+    protocol["artifact_bindings"]["matched_baseline_outputs"]["sha256"] = output_sha
+    protocol["artifact_bindings"]["calibration"]["sha256"] = calibration_sha
+    protocol["artifact_bindings"]["power_plan"]["sha256"] = power_sha
+    protocol["matched_design"]["control_checkpoint_sha256"] = adapter_sha
+    protocol["matched_design"]["control_output_manifest_sha256"] = output_sha
+    protocol.pop("operator_signature")
+    fixture.sign(protocol, operator_key)
+    protocol_path = measurement_root / "measurement_protocol.json"
+    protocol_sha = _write_json(protocol_path, protocol)
+
+    blind = {
+        "artifact_schema": "dftr.measurement.blind_test_manifest.v2",
+        "status": "qualified",
+        "protocol_sha256": canonical_hash(protocol),
+        "tests": [{"name": name, "status": "pass"} for name in sorted(REQUIRED_BLIND_GROUPS)],
+        "evaluator_commit": protocol["hashes"]["metric_code_sha256"],
+        "dependency_lock_sha256": protocol["hashes"]["dependency_lock_sha256"],
+        "fixture_pack_sha256": "placeholder",
+        "no_sealed_imitation": True,
+        "signer_identity": "independent-blind-tester",
+        "tested_at": "2026-07-17T00:00:00Z",
+        "runtime_versions": {"python": "synthetic-real-contract"},
+    }
+    fixture_path = tmp_path / "blind-fixtures.tar"
+    fixture_path.write_bytes(b"independent blind fixture pack")
+    blind["fixture_pack_sha256"] = file_sha256(fixture_path)
+    fixture.sign(blind, blind_key, key_id="blind-key")
+    blind_path = tmp_path / "blind-qualified.json"
+    blind_sha = _write_json(blind_path, blind)
+    readiness = {
+        "artifact_schema": "dftr.m2.a64_readiness.v1",
+        "status": "ready",
+        "comparison_id": config["run"]["comparison_id"],
+        "method_contract_sha256": config["workflow"]["method_contract_sha256"],
+        "a0_checkpoint_manifest": {
+            "path": str(checkpoint_path), "sha256": checkpoint_sha,
+            "adapter_model_sha256": adapter_sha,
+        },
+        "a0_generation_manifest": {
+            "path": str(baseline_path), "sha256": baseline_sha,
+            "output_path": str(output_path), "output_sha256": output_sha,
+        },
+        "measurement_protocol": {
+            "path": str(protocol_path), "sha256": protocol_sha,
+            "artifact_root": str(measurement_root),
+        },
+        "blind_qualification": {
+            "path": str(blind_path), "sha256": blind_sha,
+            "operator": "independent-blind-tester",
+            "fixture_pack_path": str(fixture_path),
+            "fixture_pack_sha256": file_sha256(fixture_path),
+        },
+        "trusted_public_keys": {"path": str(trust_path), "sha256": trust_sha},
+    }
+    readiness_path = tmp_path / "readiness.json"
+    _write_json(readiness_path, readiness)
+    return readiness_path, readiness, blind_key
+
+
+def test_a64_readiness_accepts_real_signed_protocol_and_qualified_blind_evidence(
+    monkeypatch, tmp_path
+):
+    config = valid_config()
+    config["execution"]["arm"] = "A64"
+    readiness_path, readiness, _ = _materialize_real_a64_readiness(tmp_path, config)
+    readiness_sha = file_sha256(readiness_path)
+    monkeypatch.setenv("DFTR_M2_A64_READINESS_MANIFEST", str(readiness_path))
+    monkeypatch.setenv("DFTR_M2_A64_READINESS_SHA256", readiness_sha)
+    assert _verify_a64_readiness(config) == readiness_sha
+
+    readiness["comparison_id"] = "substitute"
+    readiness_path.write_text(json.dumps(readiness), encoding="utf-8")
+    monkeypatch.setenv("DFTR_M2_A64_READINESS_SHA256", file_sha256(readiness_path))
+    with pytest.raises(M2ConfigError, match="frozen comparison"):
+        _verify_a64_readiness(config)
+
+
+@pytest.mark.parametrize("forgery", ["adapter_bytes", "output_bytes", "blind_claim"])
+def test_a64_readiness_rejects_forged_underlying_evidence(monkeypatch, tmp_path, forgery):
+    config = valid_config()
+    config["execution"]["arm"] = "A64"
+    readiness_path, readiness, _ = _materialize_real_a64_readiness(tmp_path, config)
+    if forgery == "adapter_bytes":
+        Path(readiness["a0_checkpoint_manifest"]["path"]).parent.joinpath(
+            "adapter_model.safetensors"
+        ).write_bytes(b"forged adapter")
+    elif forgery == "output_bytes":
+        Path(readiness["a0_generation_manifest"]["output_path"]).write_text(
+            '{"forged":true}\n', encoding="utf-8"
+        )
+    else:
+        blind_path = Path(readiness["blind_qualification"]["path"])
+        blind = json.loads(blind_path.read_text(encoding="utf-8"))
+        blind["no_sealed_imitation"] = False
+        _write_json(blind_path, blind)
+        readiness["blind_qualification"]["sha256"] = file_sha256(blind_path)
+        _write_json(readiness_path, readiness)
+    monkeypatch.setenv("DFTR_M2_A64_READINESS_MANIFEST", str(readiness_path))
+    monkeypatch.setenv("DFTR_M2_A64_READINESS_SHA256", file_sha256(readiness_path))
+    with pytest.raises(M2ConfigError, match="byte|file map|hash mismatch|signature|qualification"):
+        _verify_a64_readiness(config)
+
+
+def test_a64_readiness_rejects_self_declared_minimal_json(monkeypatch, tmp_path):
+    config = valid_config()
+    config["execution"]["arm"] = "A64"
+    fake = {
+        "artifact_schema": "dftr.m2.a64_readiness.v1",
+        "status": "ready",
+        "comparison_id": config["run"]["comparison_id"],
+        "method_contract_sha256": config["workflow"]["method_contract_sha256"],
+        "a0_checkpoint_manifest": {},
+        "a0_generation_manifest": {},
+        "measurement_protocol": {},
+        "blind_qualification": {
+            "artifact_schema": "dftr.measurement.blind_test_manifest.v2",
+            "status": "pass",
+        },
+    }
+    path = tmp_path / "self-declared.json"
+    _write_json(path, fake)
+    monkeypatch.setenv("DFTR_M2_A64_READINESS_MANIFEST", str(path))
+    monkeypatch.setenv("DFTR_M2_A64_READINESS_SHA256", file_sha256(path))
+    with pytest.raises(M2ConfigError, match="schema mismatch"):
+        _verify_a64_readiness(config)
+
+
+def test_a64_readiness_rejects_submitter_supplied_trust_store(monkeypatch, tmp_path):
+    config = valid_config()
+    config["execution"]["arm"] = "A64"
+    readiness_path, readiness, _ = _materialize_real_a64_readiness(tmp_path, config)
+    attacker_trust = tmp_path / "attacker-trust.json"
+    _write_json(attacker_trust, {"attacker-one": "A" * 44, "attacker-two": "B" * 44})
+    readiness["trusted_public_keys"] = {
+        "path": str(attacker_trust), "sha256": file_sha256(attacker_trust)
+    }
+    _write_json(readiness_path, readiness)
+    monkeypatch.setenv("DFTR_M2_A64_READINESS_MANIFEST", str(readiness_path))
+    monkeypatch.setenv("DFTR_M2_A64_READINESS_SHA256", file_sha256(readiness_path))
+    with pytest.raises(M2ConfigError, match="frozen method contract"):
+        _verify_a64_readiness(config)
+
+
+def test_a64_readiness_rejects_same_public_key_under_two_ids(monkeypatch, tmp_path):
+    config = valid_config()
+    config["execution"]["arm"] = "A64"
+    readiness_path, readiness, _ = _materialize_real_a64_readiness(tmp_path, config)
+    trust_path = Path(readiness["trusted_public_keys"]["path"])
+    trusted = json.loads(trust_path.read_text(encoding="utf-8"))
+    trusted["blind-key"] = base64.b64decode(trusted["operator-key"]).hex()
+    trust_sha = _write_json(trust_path, trusted)
+    config["readiness_trust"]["trusted_public_keys_sha256"] = trust_sha
+    method_sha = canonical_hash(method_contract_payload(config))
+    config["workflow"]["method_contract_sha256"] = method_sha
+    checkpoint_path = Path(readiness["a0_checkpoint_manifest"]["path"])
+    checkpoint = json.loads(checkpoint_path.read_text(encoding="utf-8"))
+    checkpoint["method_contract_sha256"] = method_sha
+    readiness["a0_checkpoint_manifest"]["sha256"] = _write_json(
+        checkpoint_path, checkpoint
+    )
+    readiness["method_contract_sha256"] = method_sha
+    readiness["trusted_public_keys"]["sha256"] = trust_sha
+    _write_json(readiness_path, readiness)
+    monkeypatch.setenv("DFTR_M2_A64_READINESS_MANIFEST", str(readiness_path))
+    monkeypatch.setenv("DFTR_M2_A64_READINESS_SHA256", file_sha256(readiness_path))
+    with pytest.raises(M2ConfigError, match="trust identities"):
+        _verify_a64_readiness(config)
+
+
+@pytest.mark.parametrize("group_mutation", ["extra", "failed"])
+def test_a64_readiness_rejects_nonexact_signed_blind_groups(
+    monkeypatch, tmp_path, group_mutation
+):
+    config = valid_config()
+    config["execution"]["arm"] = "A64"
+    readiness_path, readiness, blind_key = _materialize_real_a64_readiness(tmp_path, config)
+    blind_path = Path(readiness["blind_qualification"]["path"])
+    blind = json.loads(blind_path.read_text(encoding="utf-8"))
+    blind.pop("operator_signature")
+    if group_mutation == "extra":
+        blind["tests"].append({"name": "attacker-extra", "status": "pass"})
+    else:
+        blind["tests"][0]["status"] = "fail"
+    _measurement_fixture_module().sign(blind, blind_key, key_id="blind-key")
+    _write_json(blind_path, blind)
+    readiness["blind_qualification"]["sha256"] = file_sha256(blind_path)
+    _write_json(readiness_path, readiness)
+    monkeypatch.setenv("DFTR_M2_A64_READINESS_MANIFEST", str(readiness_path))
+    monkeypatch.setenv("DFTR_M2_A64_READINESS_SHA256", file_sha256(readiness_path))
+    with pytest.raises(M2ConfigError, match="exact passing group|frozen group set"):
+        _verify_a64_readiness(config)
+
+
+def test_separate_jobs_account_only_executed_arm_and_preserve_matched_exposure(
+    monkeypatch, tmp_path
+):
+    monkeypatch.setattr(
+        dft_module,
+        "_verify_inputs",
+        lambda _config: ([{}] * 4, [{}] * 2, [{}, {}], [1.0]),
+    )
+    monkeypatch.setattr(
+        dft_module,
+        "_verify_a64_readiness",
+        lambda value: "3" * 64 if value["execution"]["arm"] == "A64" else None,
+    )
+    monkeypatch.setattr(
+        dft_module,
+        "build_run_paths",
+        lambda _config, run_id: (
+            tmp_path / run_id / "output",
+            tmp_path / run_id / "checkpoint",
+        ),
+    )
+
+    def fake_run_arm(config, arm, *_args):
+        expected = config["training"]["steps"] * config["training"]["rollout_batch_size"] * 64
+        return {"arm": arm["id"], "generated_tokens": expected}
+
+    monkeypatch.setattr(dft_module, "_run_arm", fake_run_arm)
+    results = {}
+    for arm_id in ("A0", "A64"):
+        config = valid_config()
+        config["execution"]["arm"] = arm_id
+        results[arm_id] = run_dft(config, f"run-{arm_id}")
+        assert results[arm_id]["executed_arm"] == arm_id
+        assert results[arm_id]["arm"]["arm"] == arm_id
+        assert results[arm_id]["token_accounting"] == {
+            "executed_arm": arm_id,
+            "generated_tokens": 2048,
+            "total_tokens": 2048,
+        }
+    assert results["A0"]["method_contract_sha256"] == results["A64"][
+        "method_contract_sha256"
+    ]
+    assert results["A0"]["matched_exposure_contract_sha256"] == results["A64"][
+        "matched_exposure_contract_sha256"
+    ]
 
 
 def _kernel(left: torch.Tensor, right: torch.Tensor, bandwidth: float) -> torch.Tensor:
@@ -568,6 +948,54 @@ def test_gateway_rejects_dft_protocol_substitution_before_reservation():
     config["workflow"]["protocol_version"] = "dftr.m2.substitute.v1"
     payload["config_hash"] = policy_hash(config)
     with pytest.raises(PolicyError, match="frozen M2 DFT"):
+        validate_launch(payload)
+
+
+def test_gateway_requires_wrapper_readiness_only_for_later_a64_job(monkeypatch, tmp_path):
+    config = valid_config()
+    config["execution"]["arm"] = "A64"
+    payload = {
+        "run_id": "dftr-a64-test",
+        "config": config,
+        "config_hash": policy_hash(config),
+        "git_sha": "b" * 40,
+        "budget_class": "screen",
+        "preregistration": {
+            "kind": "prereg",
+            "comparison": config["run"]["comparison_id"],
+            "status": "open",
+        },
+    }
+    with pytest.raises(PolicyError, match="wrapper readiness"):
+        validate_launch(payload)
+    payload["dft_a64_readiness"] = {
+        "kind": "dft_a64_readiness",
+        "status": "ready",
+        "comparison": config["run"]["comparison_id"],
+        "method_contract_sha256": config["workflow"]["method_contract_sha256"],
+        "manifest_path": "/checkpoints/readiness/a64.json",
+        "manifest_sha256": "c" * 64,
+    }
+    monkeypatch.setenv("DFTR_M2_TRUSTED_KEYS_SHA256", SHA)
+    assert validate_launch(payload).task_kind == "experiment"
+
+    local_readiness = tmp_path / "readiness.json"
+    local_readiness.write_text("{}\n", encoding="utf-8")
+    payload["dft_a64_readiness"]["manifest_path"] = str(local_readiness)
+    with pytest.raises(PolicyError, match="checkpoint volume"):
+        validate_launch(payload)
+    assert validate_launch(payload, backend="local").task_kind == "experiment"
+    payload["dft_a64_readiness"]["manifest_path"] = "/checkpoints/readiness/a64.json"
+
+    config["arms"][1]["mmd_coefficient"] = 0.2
+    payload["config_hash"] = policy_hash(config)
+    with pytest.raises(PolicyError, match="method contract hash mismatch"):
+        validate_launch(payload)
+
+    a0 = valid_config()
+    payload["config"] = a0
+    payload["config_hash"] = policy_hash(a0)
+    with pytest.raises(PolicyError, match="A0 cannot consume"):
         validate_launch(payload)
 
 

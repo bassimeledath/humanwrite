@@ -72,6 +72,8 @@ worker_image = (
         "accelerate>=1.8,<2",
         "peft>=0.16,<1",
         "requests>=2.32,<3",
+        "cryptography>=42,<47",
+        "scikit-learn>=1.4,<2",
     )
     .add_local_dir(source_root, remote_path="/root/infra_backend", copy=True)
 )
@@ -240,6 +242,38 @@ def training_worker(run_id: str, payload: dict) -> dict:
         }
         if resolved_manifest_path.is_file():
             clean_env["DFTR_RESOLVED_MODEL_MANIFEST"] = str(resolved_manifest_path)
+        readiness = payload.get("dft_a64_readiness")
+        if readiness is not None:
+            readiness_path = Path(str(readiness["manifest_path"]))
+            try:
+                readiness_path.resolve().relative_to(Path(CHECKPOINT_PATH).resolve())
+            except (OSError, ValueError) as exc:
+                raise ValueError("A64 readiness manifest is outside the checkpoint volume") from exc
+            if (
+                not readiness_path.is_file()
+                or readiness_path.is_symlink()
+                or _file_sha256(readiness_path) != readiness["manifest_sha256"]
+            ):
+                raise ValueError("A64 readiness manifest wrapper verification failed")
+            readiness_manifest = json.loads(readiness_path.read_text(encoding="utf-8"))
+            scoped_paths = [
+                readiness_path,
+                Path(str((readiness_manifest.get("a0_checkpoint_manifest") or {}).get("path") or "")),
+                Path(str((readiness_manifest.get("a0_generation_manifest") or {}).get("path") or "")),
+                Path(str((readiness_manifest.get("a0_generation_manifest") or {}).get("output_path") or "")),
+                Path(str((readiness_manifest.get("measurement_protocol") or {}).get("path") or "")),
+                Path(str((readiness_manifest.get("measurement_protocol") or {}).get("artifact_root") or "")),
+                Path(str((readiness_manifest.get("blind_qualification") or {}).get("path") or "")),
+                Path(str((readiness_manifest.get("blind_qualification") or {}).get("fixture_pack_path") or "")),
+                Path(str((readiness_manifest.get("trusted_public_keys") or {}).get("path") or "")),
+            ]
+            try:
+                for scoped_path in scoped_paths:
+                    scoped_path.resolve().relative_to(Path(CHECKPOINT_PATH).resolve())
+            except (OSError, ValueError) as exc:
+                raise ValueError("A64 readiness evidence escapes the checkpoint volume") from exc
+            clean_env["DFTR_M2_A64_READINESS_MANIFEST"] = str(readiness_path)
+            clean_env["DFTR_M2_A64_READINESS_SHA256"] = str(readiness["manifest_sha256"])
         with log_path.open("w", encoding="utf-8") as logs:
             result = subprocess.run(
                 command,
@@ -664,7 +698,7 @@ def gateway():
     def submit(payload: dict, authorization: str | None = Header(default=None)):
         require_auth(authorization)
         try:
-            policy = validate_launch(payload)
+            policy = validate_launch(payload, backend="modal")
         except PolicyError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         run_id = str(payload.get("run_id", ""))

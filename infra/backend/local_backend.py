@@ -88,7 +88,7 @@ def _count_generated_tokens(state_dir: Path, run_id: str) -> int:
 
 def submit_local(payload: dict[str, Any], state_dir: str | Path | None = None) -> dict[str, Any]:
     state = _state_dir(state_dir)
-    policy = validate_launch(payload)
+    policy = validate_launch(payload, backend="local")
     run_id = str(payload["run_id"])
     events = _events(state)
     if run_snapshot(events, run_id):

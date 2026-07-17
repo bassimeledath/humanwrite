@@ -260,6 +260,11 @@ def _decode_public_key(value: str) -> bytes:
     return raw
 
 
+def decode_trusted_public_key(value: str) -> bytes:
+    """Return canonical Ed25519 bytes for a hex- or base64-encoded trust entry."""
+    return _decode_public_key(value)
+
+
 def verify_signed_document(
     document: dict[str, Any],
     *,
@@ -1133,29 +1138,36 @@ def validate_report_v2(
     return {"status": "pass", "artifact_schema": "dftr.measurement.report_check.v2"}
 
 
-def build_attestation(
+def validate_blind_qualification(
     *,
     protocol: dict[str, Any],
-    inventory_check: dict[str, Any],
     blind_test_manifest: dict[str, Any],
     operator: str,
-    attested_at: str,
     artifact_root: str | Path | None = None,
-    repo_root: str | Path | None = None,
     trusted_public_keys: dict[str, str] | None = None,
+    require_distinct_signer: bool = True,
 ) -> dict[str, Any]:
-    # Authenticate caller-supplied qualification evidence before using any of
-    # its claims or diagnosing downstream inventory/protocol bindings.
-    signature_result = verify_signed_document(
+    """Verify the independently signed, protocol-bound 13-group qualification."""
+    blind_signature = verify_signed_document(
         blind_test_manifest,
         signature_field="operator_signature",
         trusted_public_keys=trusted_public_keys,
     )
-    inventory_signature = _verify_historical_inventory_check(
-        inventory_check,
-        repo_root=repo_root if repo_root is not None else artifact_root,
+    protocol_signature = verify_signed_document(
+        protocol,
+        signature_field="operator_signature",
         trusted_public_keys=trusted_public_keys,
     )
+    if require_distinct_signer:
+        trusted = trusted_public_keys or {}
+        if (
+            blind_signature["key_id"] == protocol_signature["key_id"]
+            or decode_trusted_public_key(trusted[blind_signature["key_id"]])
+            == decode_trusted_public_key(trusted[protocol_signature["key_id"]])
+        ):
+            raise MeasurementV2Error(
+                "blind qualification signer must be distinct from protocol operator"
+            )
     validate_protocol(
         protocol, artifact_root=artifact_root, trusted_public_keys=trusted_public_keys
     )
@@ -1166,21 +1178,32 @@ def build_attestation(
         or not str(blind_test_manifest.get("tested_at") or "").strip()
         or not isinstance(blind_test_manifest.get("runtime_versions"), dict)
         or not blind_test_manifest.get("runtime_versions")
+        or any(
+            not str(key).strip() or not str(value).strip()
+            for key, value in (blind_test_manifest.get("runtime_versions") or {}).items()
+        )
     ):
         raise MeasurementV2Error("signed blind manifest metadata is incomplete")
-    observed = [str(row.get("name")) for row in tests if row.get("status") == "pass"]
-    if len(observed) != len(set(observed)):
-        raise MeasurementV2Error("signed blind manifest contains duplicate test groups")
-    observed_set = set(observed)
-    missing = sorted(REQUIRED_BLIND_GROUPS - observed_set)
-    if missing:
-        raise MeasurementV2Error("blind qualification is incomplete: " + ", ".join(missing))
+    if (
+        not isinstance(tests, list)
+        or len(tests) != len(REQUIRED_BLIND_GROUPS)
+        or any(
+            not isinstance(row, dict)
+            or set(row) != {"name", "status"}
+            or row.get("status") != "pass"
+            for row in tests
+        )
+    ):
+        raise MeasurementV2Error("blind qualification requires the exact passing group rows")
+    observed = [str(row["name"]) for row in tests]
+    if len(observed) != len(set(observed)) or set(observed) != REQUIRED_BLIND_GROUPS:
+        raise MeasurementV2Error("blind qualification does not equal the frozen group set")
     for field in ("evaluator_commit", "dependency_lock_sha256", "fixture_pack_sha256"):
         _require_sha(blind_test_manifest.get(field), f"blind_test_manifest.{field}")
     if blind_test_manifest.get("no_sealed_imitation") is not True:
         raise MeasurementV2Error("no-sealed-imitation attestation is absent")
-    if not str(operator).strip() or not str(attested_at).strip():
-        raise MeasurementV2Error("operator and attested_at are required")
+    if not str(operator).strip():
+        raise MeasurementV2Error("operator is required")
     if blind_test_manifest.get("dependency_lock_sha256") != protocol["hashes"].get(
         "dependency_lock_sha256"
     ):
@@ -1194,6 +1217,43 @@ def build_attestation(
     if str(blind_test_manifest.get("signer_identity") or "").strip() != str(operator).strip():
         raise MeasurementV2Error("signed blind manifest operator identity mismatch")
     return {
+        "status": "qualified",
+        "signature_verification": blind_signature,
+        "protocol_signature_verification": protocol_signature,
+        "blind_test_groups": sorted(REQUIRED_BLIND_GROUPS),
+        "no_sealed_imitation": True,
+    }
+
+
+def build_attestation(
+    *,
+    protocol: dict[str, Any],
+    inventory_check: dict[str, Any],
+    blind_test_manifest: dict[str, Any],
+    operator: str,
+    attested_at: str,
+    artifact_root: str | Path | None = None,
+    repo_root: str | Path | None = None,
+    trusted_public_keys: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    # Authenticate caller-supplied qualification evidence before using any of
+    # its claims or diagnosing downstream inventory/protocol bindings.
+    qualification = validate_blind_qualification(
+        protocol=protocol,
+        blind_test_manifest=blind_test_manifest,
+        operator=operator,
+        artifact_root=artifact_root,
+        trusted_public_keys=trusted_public_keys,
+        require_distinct_signer=False,
+    )
+    inventory_signature = _verify_historical_inventory_check(
+        inventory_check,
+        repo_root=repo_root if repo_root is not None else artifact_root,
+        trusted_public_keys=trusted_public_keys,
+    )
+    if not str(operator).strip() or not str(attested_at).strip():
+        raise MeasurementV2Error("operator and attested_at are required")
+    return {
         "artifact_schema": "dftr.measurement.operator_attestation.v2",
         "status": "qualified",
         "protocol_sha256": _canonical_sha256(protocol),
@@ -1203,7 +1263,7 @@ def build_attestation(
         "dependency_lock_sha256": blind_test_manifest["dependency_lock_sha256"],
         "fixture_pack_sha256": blind_test_manifest["fixture_pack_sha256"],
         "blind_test_manifest_sha256": _canonical_sha256(blind_test_manifest),
-        "signature_verification": signature_result,
+        "signature_verification": qualification["signature_verification"],
         "operator_signature": blind_test_manifest["operator_signature"],
         "historical_inventory_verified": True,
         "historical_inventory_sha256": _canonical_sha256(inventory_check),

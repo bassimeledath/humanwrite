@@ -52,6 +52,10 @@ REPLAY_PROTOCOLS = {
     "dftr.adapter_merge_replay.v3",
 }
 DFT_PROTOCOL = "dftr.m2.score_function_mmd.v1"
+DFT_METHOD_KEYS = (
+    "artifact_schema", "run", "compute", "model", "initial_adapter", "data",
+    "representation", "kernel", "runtime", "training", "arms", "stop", "readiness_trust",
+)
 REPLAY_PROTOCOL_V1 = "dftr.adapter_merge_replay.v1"
 REPLAY_PROTOCOL_V2 = "dftr.adapter_merge_replay.v2"
 REPLAY_PROTOCOL_V3 = "dftr.adapter_merge_replay.v3"
@@ -254,7 +258,7 @@ def validate_replay_launch_contract(config: dict[str, Any]) -> None:
         )
 
 
-def validate_launch(payload: dict[str, Any]) -> LaunchPolicy:
+def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> LaunchPolicy:
     config = payload.get("config")
     if not isinstance(config, dict):
         raise PolicyError("config must be an object")
@@ -307,6 +311,53 @@ def validate_launch(payload: dict[str, Any]) -> LaunchPolicy:
         or task_kind != "experiment"
     ):
         raise PolicyError("train_dft requires the frozen M2 DFT experiment protocol")
+    if workflow_step == "train_dft":
+        workflow = config.get("workflow") or {}
+        method_payload = {key: config.get(key) for key in DFT_METHOD_KEYS}
+        method_payload.update(
+            protocol_version=workflow.get("protocol_version"), step=workflow.get("step")
+        )
+        if canonical_hash(method_payload) != workflow.get("method_contract_sha256"):
+            raise PolicyError("train_dft method contract hash mismatch")
+        execution_arm = str((config.get("execution") or {}).get("arm") or "")
+        readiness = payload.get("dft_a64_readiness")
+        if execution_arm == "A0":
+            if readiness is not None:
+                raise PolicyError("A0 cannot consume an A64 readiness attestation")
+        elif execution_arm == "A64":
+            expected_keys = {
+                "kind", "status", "comparison", "method_contract_sha256",
+                "manifest_path", "manifest_sha256",
+            }
+            if not isinstance(readiness, dict) or set(readiness) != expected_keys:
+                raise PolicyError("A64 requires an exact wrapper readiness attestation")
+            readiness_sha = str(readiness.get("manifest_sha256") or "")
+            if (
+                readiness.get("kind") != "dft_a64_readiness"
+                or readiness.get("status") != "ready"
+                or readiness.get("comparison") != comparison_id
+                or readiness.get("method_contract_sha256")
+                != (config.get("workflow") or {}).get("method_contract_sha256")
+                or len(readiness_sha) != 64
+                or any(character not in "0123456789abcdef" for character in readiness_sha)
+            ):
+                raise PolicyError("A64 wrapper readiness attestation mismatch")
+            readiness_path = Path(str(readiness.get("manifest_path") or ""))
+            if not readiness_path.is_absolute():
+                raise PolicyError("A64 readiness manifest path must be absolute")
+            if backend == "modal" and not str(readiness_path).startswith("/checkpoints/"):
+                raise PolicyError("Modal A64 readiness must use the checkpoint volume")
+            if backend not in {"modal", "local"}:
+                raise PolicyError("unsupported readiness transport backend")
+            configured_trust_sha = os.environ.get("DFTR_M2_TRUSTED_KEYS_SHA256", "")
+            if (
+                not re.fullmatch(r"[0-9a-f]{64}", configured_trust_sha)
+                or (config.get("readiness_trust") or {}).get("trusted_public_keys_sha256")
+                != configured_trust_sha
+            ):
+                raise PolicyError("A64 trust store is not independently configured by the gateway")
+        else:
+            raise PolicyError("train_dft execution arm must be A0 or A64")
     if workflow_step == "replay_equivalence":
         replay_workflow = config.get("workflow") or {}
         protocol_version = str(replay_workflow.get("protocol_version"))

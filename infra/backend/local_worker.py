@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -12,6 +13,14 @@ from .local_backend import _artifact_dir, _count_generated_tokens, _log_path, _p
 
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def _sha256(path: Path) -> str:
+    hasher = hashlib.sha256()
+    with path.open("rb") as source:
+        for chunk in iter(lambda: source.read(1 << 20), b""):
+            hasher.update(chunk)
+    return hasher.hexdigest()
 
 
 def run_worker(payload_path: Path) -> dict[str, object]:
@@ -36,6 +45,17 @@ def run_worker(payload_path: Path) -> dict[str, object]:
             "DFTR_RUN_ID": run_id,
             "DFTR_CHECKPOINT_DIR": str(state / "artifacts" / run_id),
         }
+        readiness = payload.get("dft_a64_readiness")
+        if readiness is not None:
+            readiness_path = Path(str(readiness["manifest_path"]))
+            if (
+                not readiness_path.is_file()
+                or readiness_path.is_symlink()
+                or _sha256(readiness_path) != readiness["manifest_sha256"]
+            ):
+                raise ValueError("A64 readiness manifest wrapper verification failed")
+            env["DFTR_M2_A64_READINESS_MANIFEST"] = str(readiness_path)
+            env["DFTR_M2_A64_READINESS_SHA256"] = str(readiness["manifest_sha256"])
         with log_path.open("w", encoding="utf-8") as handle:
             handle.write("[dftr] local backend worker start\n")
             handle.flush()

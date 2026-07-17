@@ -17,6 +17,7 @@ from experiments.m1.contracts import (
     write_json,
     write_jsonl,
 )
+from experiments.m2.readiness import ReadinessError, verify_a64_readiness
 from experiments.tier0.metrics import length_stats, outline_fact_recall, unsupported_claim_rate
 
 
@@ -27,6 +28,8 @@ BASE_REVISION = "1cfa9a7208912126459214e8b04321603b3df60c"
 ARM_IDS = ["A0", "A64"]
 GENERATED_TOKENS = 64
 FULL_BRIEF_SCHEMA = "dft.full-brief.v1"
+A64_READINESS_ENV = "DFTR_M2_A64_READINESS_MANIFEST"
+A64_READINESS_SHA_ENV = "DFTR_M2_A64_READINESS_SHA256"
 SAFE_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 ALLOWED_TOP_LEVEL = {
     "artifact_schema",
@@ -41,7 +44,9 @@ ALLOWED_TOP_LEVEL = {
     "training",
     "arms",
     "stop",
+    "readiness_trust",
     "resume",
+    "execution",
     "workflow",
 }
 
@@ -114,6 +119,7 @@ def method_contract_payload(config: dict[str, Any]) -> dict[str, Any]:
             "training",
             "arms",
             "stop",
+            "readiness_trust",
         )
     } | {
         "protocol_version": (config.get("workflow") or {}).get("protocol_version"),
@@ -319,6 +325,24 @@ def validate_dft_config(config: dict[str, Any]) -> dict[str, Any]:
     _require_positive(stop.get("max_mean_abs_target_error"), "stop.max_mean_abs_target_error")
     if recall > 1 or unsupported > 1:
         raise M2ConfigError("factuality stop rates cannot exceed 1")
+    readiness_trust = _require_exact_keys(
+        config.get("readiness_trust"),
+        {
+            "trusted_public_keys_path", "trusted_public_keys_sha256",
+            "protocol_signer_key_id", "blind_signer_key_id",
+        },
+        "readiness_trust",
+    )
+    if not Path(str(readiness_trust.get("trusted_public_keys_path") or "")).is_absolute():
+        raise M2ConfigError("readiness trust store path must be absolute")
+    _require_sha(
+        readiness_trust.get("trusted_public_keys_sha256"),
+        "readiness_trust.trusted_public_keys_sha256",
+    )
+    protocol_key = str(readiness_trust.get("protocol_signer_key_id") or "")
+    blind_key = str(readiness_trust.get("blind_signer_key_id") or "")
+    if not protocol_key or not blind_key or protocol_key == blind_key:
+        raise M2ConfigError("readiness trust requires distinct protocol and blind signer keys")
     resume = _require_exact_keys(config.get("resume"), set(ARM_IDS), "resume")
     for arm_id in ARM_IDS:
         descriptor = resume[arm_id]
@@ -339,6 +363,9 @@ def validate_dft_config(config: dict[str, Any]) -> dict[str, Any]:
             "file_manifest_sha256",
         ):
             _require_sha(descriptor.get(field), f"resume.{arm_id}.{field}")
+    execution = _require_exact_keys(config.get("execution"), {"arm"}, "execution")
+    if execution.get("arm") not in ARM_IDS:
+        raise M2ConfigError("execution.arm must select exactly A0 or A64")
     workflow = _require_exact_keys(
         config.get("workflow"), {"protocol_version", "step", "method_contract_sha256"}, "workflow"
     )
@@ -511,6 +538,26 @@ def _load_jsonl(path: Path, label: str) -> list[dict[str, Any]]:
 def _verify_file(path: Path, expected: str, label: str) -> None:
     if not path.is_file() or path.is_symlink() or file_sha256(path) != expected:
         raise M2ConfigError(f"{label} artifact SHA-256 mismatch")
+
+
+def _verify_a64_readiness(config: dict[str, Any]) -> str | None:
+    if config["execution"]["arm"] != "A64":
+        return None
+    manifest_path = Path(os.environ.get(A64_READINESS_ENV, ""))
+    expected_sha = _require_sha(
+        os.environ.get(A64_READINESS_SHA_ENV), A64_READINESS_SHA_ENV
+    )
+    try:
+        return verify_a64_readiness(
+            config=config,
+            readiness_path=manifest_path,
+            readiness_sha256=expected_sha,
+            base_model=BASE_MODEL,
+            base_revision=BASE_REVISION,
+            generated_tokens_per_rollout=GENERATED_TOKENS,
+        )
+    except ReadinessError as error:
+        raise M2ConfigError(str(error)) from error
 
 
 def _directory_file_map(root: Path, label: str) -> dict[str, str]:
@@ -1122,12 +1169,47 @@ def _run_arm(
     return manifest
 
 
+def selected_arm(config: dict[str, Any]) -> dict[str, Any]:
+    arm_id = str((config.get("execution") or {}).get("arm") or "")
+    matches = [arm for arm in config.get("arms") or [] if arm.get("id") == arm_id]
+    if len(matches) != 1:
+        raise M2ConfigError("execution selector does not identify one frozen comparison arm")
+    return matches[0]
+
+
+def matched_exposure_payload(config: dict[str, Any]) -> dict[str, Any]:
+    training = config["training"]
+    expected_tokens = int(training["steps"]) * int(training["rollout_batch_size"]) * GENERATED_TOKENS
+    return {
+        "artifact_schema": "dftr.m2.matched_exposure_contract.v1",
+        "comparison_id": config["run"]["comparison_id"],
+        "method_contract_sha256": config["workflow"]["method_contract_sha256"],
+        "arms": {
+            arm["id"]: {"mmd_coefficient": float(arm["mmd_coefficient"])}
+            for arm in config["arms"]
+        },
+        "seed": int(config["run"]["seed"]),
+        "rollout_sha256": config["data"]["rollout_sha256"],
+        "sft_anchor_sha256": config["data"]["sft_anchor_sha256"],
+        "steps": int(training["steps"]),
+        "rollout_batch_size": int(training["rollout_batch_size"]),
+        "sft_batch_size": int(training["sft_batch_size"]),
+        "generated_tokens_per_rollout": GENERATED_TOKENS,
+        "generated_tokens_per_arm": expected_tokens,
+        "sampling_distribution": training["sampling_distribution"],
+        "rollout_schedule": "python_random_sample_without_replacement.v1",
+        "rollout_seed": int(config["run"]["seed"]),
+        "anchor_seed": int(config["run"]["seed"]) + 1,
+    }
+
+
 def run_dft(config: dict[str, Any], run_id: str) -> dict[str, Any]:
-    """Train matched A0/A64 PEFT adapters without merging or measurement imports."""
+    """Train one selected arm under a selector-neutral matched comparison contract."""
     validate_dft_config(config)
     if not SAFE_ID_RE.fullmatch(str(run_id)):
         raise M2ConfigError("run_id is not a safe artifact identifier")
     os.environ["CUBLAS_WORKSPACE_CONFIG"] = config["runtime"]["cublas_workspace_config"]
+    readiness_sha256 = _verify_a64_readiness(config)
     rollout, anchors, humans, bandwidths = _verify_inputs(config)
     if len(rollout) < int(config["training"]["rollout_batch_size"]):
         raise M2ConfigError("rollout panel is smaller than one without-replacement batch")
@@ -1146,31 +1228,34 @@ def run_dft(config: dict[str, Any], run_id: str) -> dict[str, Any]:
         if existing_output_files:
             raise M2ConfigError("run output directory already contains artifacts")
     write_json(checkpoint_dir / "config.json", config)
-    manifests = []
-    for arm in config["arms"]:
-        manifest = _run_arm(
-            config, arm, checkpoint_dir, rollout, anchors, humans, bandwidths,
-            config["resume"][arm["id"]],
-        )
-        manifests.append(manifest)
+    arm = selected_arm(config)
+    manifest = _run_arm(
+        config, arm, checkpoint_dir, rollout, anchors, humans, bandwidths,
+        config["resume"][arm["id"]],
+    )
     expected_tokens = int(config["training"]["steps"]) * int(
         config["training"]["rollout_batch_size"]
     ) * GENERATED_TOKENS
-    if any(manifest["generated_tokens"] != expected_tokens for manifest in manifests):
-        raise M2ConfigError("A0/A64 rollout exposure accounting mismatch")
+    if manifest["generated_tokens"] != expected_tokens:
+        raise M2ConfigError("executed arm rollout exposure accounting mismatch")
+    exposure_contract = matched_exposure_payload(config)
     result = {
         "artifact_schema": "dftr.m2.score_function_mmd_result.v1",
         "run_id": run_id,
         "comparison_id": config["run"]["comparison_id"],
         "status": "completed",
+        "executed_arm": arm["id"],
         "git_sha": git_sha(),
         "config_sha256": canonical_hash(config),
         "method_contract_sha256": config["workflow"]["method_contract_sha256"],
-        "arms": manifests,
-        "exposure_matched_generated_tokens_per_arm": expected_tokens,
+        "arm": manifest,
+        "matched_exposure_contract": exposure_contract,
+        "matched_exposure_contract_sha256": canonical_hash(exposure_contract),
+        "a64_readiness_manifest_sha256": readiness_sha256,
         "token_accounting": {
-            "generated_tokens_per_arm": {arm_id: expected_tokens for arm_id in ARM_IDS},
-            "total_tokens": expected_tokens * len(ARM_IDS),
+            "executed_arm": arm["id"],
+            "generated_tokens": expected_tokens,
+            "total_tokens": expected_tokens,
         },
         "scientific_interpretation": "requires prospective adapter-native measurement-v2 comparison",
     }
