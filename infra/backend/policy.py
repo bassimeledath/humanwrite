@@ -51,6 +51,7 @@ REPLAY_PROTOCOLS = {
     "dftr.adapter_merge_replay.v2",
     "dftr.adapter_merge_replay.v3",
 }
+DFT_PROTOCOL = "dftr.m2.score_function_mmd.v1"
 REPLAY_PROTOCOL_V1 = "dftr.adapter_merge_replay.v1"
 REPLAY_PROTOCOL_V2 = "dftr.adapter_merge_replay.v2"
 REPLAY_PROTOCOL_V3 = "dftr.adapter_merge_replay.v3"
@@ -293,12 +294,19 @@ def validate_launch(payload: dict[str, Any]) -> LaunchPolicy:
     workflow_step = str((config.get("workflow") or {}).get("step", "")).casefold()
     if "14B" in base_model.upper() and not payload.get("human_scaleup_approved"):
         raise PolicyError("14B scale-up lacks human approval")
-    if workflow_step in {"train_sft", "sample_sweep", "merge_adapter", "replay_equivalence"} and revision_is_unresolved(
+    if workflow_step in {
+        "train_sft", "sample_sweep", "merge_adapter", "replay_equivalence", "train_dft",
+    } and revision_is_unresolved(
         (config.get("model") or {}).get("revision")
     ):
         raise PolicyError(
-            "M1 evidentiary experiment jobs require model.revision to be a resolved immutable revision"
+            "evidentiary experiment jobs require model.revision to be a resolved immutable revision"
         )
+    if workflow_step == "train_dft" and (
+        str((config.get("workflow") or {}).get("protocol_version")) != DFT_PROTOCOL
+        or task_kind != "experiment"
+    ):
+        raise PolicyError("train_dft requires the frozen M2 DFT experiment protocol")
     if workflow_step == "replay_equivalence":
         replay_workflow = config.get("workflow") or {}
         protocol_version = str(replay_workflow.get("protocol_version"))

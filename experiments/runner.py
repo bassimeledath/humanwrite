@@ -10,6 +10,7 @@ from typing import Any
 
 from data.pipeline import DEFAULT_OUTPUT as DEFAULT_DATA_OUTPUT
 from experiments.m1.workflow import run_m1
+from experiments.m2.dft import DFT_SCHEMA, DFT_STEP, run_dft
 from experiments.tier0.metrics import batch_diagnostics
 
 
@@ -145,7 +146,11 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     config = _load_config(Path(args.config).resolve())
     workflow = config.get("workflow") or {}
-    if (
+    if workflow.get("step") == DFT_STEP and workflow.get("protocol_version") != DFT_SCHEMA:
+        raise ValueError("train_dft requires the frozen M2 score-function MMD protocol")
+    if workflow.get("protocol_version") == DFT_SCHEMA:
+        manifest = run_dft(config, args.run_id)
+    elif (
         str(workflow.get("protocol_version", "")).casefold().startswith("m1")
         or str(workflow.get("step", "")).casefold() == "replay_equivalence"
     ):
