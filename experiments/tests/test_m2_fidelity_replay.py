@@ -91,6 +91,53 @@ def test_per_record_rng_is_order_and_batch_invariant() -> None:
     assert all(0 <= value < 2**63 for value in forward.values())
 
 
+def test_scoped_generation_rng_is_order_and_grouping_invariant() -> None:
+    torch = pytest.importorskip("torch")
+
+    class Model(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.anchor = torch.nn.Parameter(torch.zeros(1))
+
+        def generate(self, input_ids, attention_mask, max_new_tokens, **kwargs):
+            sampled = torch.randint(
+                3, 16, (input_ids.shape[0], max_new_tokens), device=input_ids.device
+            )
+            return torch.cat((input_ids, sampled), dim=1)
+
+    class Tokenizer:
+        pad_token_id = 0
+
+        @staticmethod
+        def decode(token_ids, skip_special_tokens=True):
+            return ",".join(str(token_id) for token_id in token_ids)
+
+    fingerprints = _config()["sampling"]["dev_subset_fingerprints"][:4]
+    model = Model().eval()
+    encoded = {"input_ids": [1, 2], "attention_mask": [1, 1]}
+    generation = {"max_new_tokens": 3, "do_sample": True}
+
+    def generate(grouped_order):
+        result = {}
+        for group in grouped_order:
+            for fingerprint in group:
+                seed = fidelity.derive_record_seed(101, fingerprint)
+                ids, _ = fidelity._generate_one(
+                    model,
+                    Tokenizer(),
+                    encoded,
+                    generation=generation,
+                    generator=torch.Generator(device="cpu").manual_seed(seed),
+                )
+                result[fingerprint] = ids
+        return result
+
+    forward = generate([fingerprints])
+    reversed_singletons = generate([[value] for value in reversed(fingerprints)])
+    regrouped = generate([fingerprints[:1], fingerprints[1:3], fingerprints[3:]])
+    assert forward == reversed_singletons == regrouped
+
+
 def test_token_and_mask_hashes_preserve_order_and_values() -> None:
     assert fidelity.hash_token_ids([1, 2, 3]) == fidelity.hash_token_ids([1, 2, 3])
     assert fidelity.hash_token_ids([1, 2, 3]) != fidelity.hash_token_ids([3, 2, 1])

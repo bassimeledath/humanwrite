@@ -21,18 +21,18 @@ generation behavior.
 
 The new replay config binds:
 
-- the seed-29 adapter directory, adapter tensor SHA-256, checkpoint-manifest
+- the seed-29 adapter directory, serialized adapter-weight file SHA-256, checkpoint-manifest
   SHA-256, and the manifest's complete per-file identity map;
-- the merged directory's public 16-hex content hash plus all three tensor-shard
-  SHA-256 values and the tensor-index SHA-256;
+- the merged directory's public 16-hex content hash plus all three serialized
+  weight-shard SHA-256 values and the shard-index SHA-256;
 - tokenizer files through the adapter checkpoint manifest, with byte equality
   required against the merged directory and a runtime chat-template digest;
 - base model `Qwen/Qwen3-4B` at immutable revision
   `1cfa9a7208912126459214e8b04321603b3df60c`;
 - the fixed-input manifest, exact dev JSONL SHA-256, historical sampling-config
   SHA-256, archived Tier-1 index SHA-256, and each archived sample-file SHA-256;
-- exactly 16 preregistered fingerprints, their subset hash, and sampling seeds
-  `[101, 202, 303]`;
+- exactly 16 preregistered fingerprints in the order bound by the hash-verified
+  historical config, their subset hash, and sampling seeds `[101, 202, 303]`;
 - the generation-contract SHA-256 and canonical serializer source SHA-256.
 
 ## Execution order and evidence
@@ -56,7 +56,8 @@ The comparison is ordered as follows:
    sequential global-RNG behavior and exact byte comparison to all 48 archived
    outputs;
 4. only after archive reproduction passes, prospective adapter-versus-merged
-   sampling with a fresh generator per record and seed derived as
+   sampling inside a scoped PyTorch RNG context per record, with the global RNG
+   restored afterward and the record seed derived as
    `SHA256(u64be(global_seed) || NUL || fingerprint) mod 2^63`;
 5. exact output-token and UTF-8 byte parity for all 48 prospective pairs.
 
@@ -74,10 +75,33 @@ or hidden surfaces. Both the local GPU client and backend policy now:
 - treat `replay_equivalence` as an evidentiary workflow requiring an immutable
   model revision;
 - require protocol `dftr.adapter_merge_replay.v1`;
-- reject top-level API, provider, judge, sealed, or hidden surfaces.
+- recursively reject API, provider, judge, sealed, or hidden surfaces, including
+  aliases such as `judge_url`, `apiKey`, and `sealedEvaluator`.
 
 The replay implementation imports no harness judge, sealed client, provider
 SDK, or network client.
+
+The reported weight identities are explicitly serialization-byte identities:
+the adapter weight-file map and merged weight-shard file map. They are not
+described as canonical tensor-value identities independent of sharding. That
+stronger identity remains the responsibility of a future remote artifact
+attestation.
+
+## Independent-test correction
+
+Independent CPU verification at commit `a4cae58` identified four launch
+blockers in the first implementation (`97bc504`): Transformers 4.57.6 rejected
+`generate(generator=...)`; fingerprint order was not bound; nested/aliased paid
+surfaces bypassed policy; and file-map hashes were mislabeled as tensor
+identities.
+
+This correction addresses all four findings. The independent tests are kept as
+ordinary strict regression tests and now pass. In particular, stochastic
+generation no longer forwards `generator` into Transformers. It extracts the
+per-record seed, enters `torch.random.fork_rng`, seeds the scoped CPU/CUDA RNG,
+runs `generate`, and restores prior RNG state. A stochastic fake-model test
+also verifies identical per-record outputs across forward, reverse, singleton,
+and regrouped execution orders.
 
 ## Verification
 
@@ -85,22 +109,16 @@ Focused tests:
 
 ```text
 python -m pytest -q experiments/tests/test_m2_fidelity_replay.py \
+  experiments/tests/test_m2_fidelity_replay_independent.py \
   infra/tests/test_policy.py experiments/tests/test_m1_sampler_loader.py
-31 passed in 0.08s
-```
-
-Full relevant experiment and infrastructure tests:
-
-```text
-python -m pytest -q experiments/tests infra/tests
-64 passed in 1.13s
+41 passed in 2.45s
 ```
 
 Repository-wide tests with the infrastructure package on the import path:
 
 ```text
 PYTHONPATH=infra:. python -m pytest -q
-137 passed in 4.10s
+147 passed in 5.57s
 ```
 
 A bare repository-root `python -m pytest -q` cannot collect four existing

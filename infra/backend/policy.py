@@ -63,6 +63,26 @@ def revision_is_unresolved(value: Any) -> bool:
     return not text or text.startswith(UNRESOLVED_REVISION_PREFIX)
 
 
+def forbidden_replay_surface_keys(value: Any) -> list[str]:
+    """Find paid/private surface aliases recursively in a replay config."""
+    forbidden_parts = {"api", "provider", "judge", "sealed", "hidden"}
+    found: list[str] = []
+    if isinstance(value, dict):
+        for key, child in value.items():
+            normalized = str(key).casefold().replace("-", "_")
+            parts = {part for part in normalized.split("_") if part}
+            if parts & forbidden_parts or any(
+                normalized.startswith(part) or normalized.endswith(part)
+                for part in forbidden_parts
+            ):
+                found.append(str(key))
+            found.extend(forbidden_replay_surface_keys(child))
+    elif isinstance(value, list):
+        for child in value:
+            found.extend(forbidden_replay_surface_keys(child))
+    return found
+
+
 def validate_launch(payload: dict[str, Any]) -> LaunchPolicy:
     config = payload.get("config")
     if not isinstance(config, dict):
@@ -112,9 +132,9 @@ def validate_launch(payload: dict[str, Any]) -> LaunchPolicy:
     if workflow_step == "replay_equivalence":
         if str((config.get("workflow") or {}).get("protocol_version")) != "dftr.adapter_merge_replay.v1":
             raise PolicyError("replay_equivalence requires the frozen public replay protocol")
-        forbidden = {"api", "provider", "judge", "sealed", "hidden"} & {
-            str(key).casefold() for key in config
-        }
+        if task_kind != "experiment":
+            raise PolicyError("replay_equivalence requires the credential-free experiment task kind")
+        forbidden = forbidden_replay_surface_keys(config)
         if forbidden:
             raise PolicyError("replay_equivalence cannot expose paid or hidden surfaces")
     api_reserved = 0.0

@@ -11,6 +11,7 @@ from backend.policy import (
     authorized,
     budget_snapshot,
     canonical_hash,
+    forbidden_replay_surface_keys,
     has_capacity,
     run_snapshot,
     validate_launch,
@@ -105,6 +106,20 @@ def test_replay_equivalence_policy_rejects_paid_or_hidden_surfaces():
     value["config_hash"] = canonical_hash(value["config"])
     with pytest.raises(PolicyError, match="paid or hidden"):
         validate_launch(value)
+
+
+@pytest.mark.parametrize(
+    "config",
+    [
+        {"workflow": {"runtime": {"judge_url": "https://example.invalid"}}},
+        {"runtime": [{"provider-config": {"name": "remote"}}]},
+        {"nested": {"sealedEvaluator": "remote"}},
+        {"nested": {"hidden_data": "/private"}},
+        {"nested": {"apiKey": "secret"}},
+    ],
+)
+def test_recursive_replay_surface_alias_scan(config):
+    assert forbidden_replay_surface_keys(config)
 
 
 def test_14b_requires_human_flag():

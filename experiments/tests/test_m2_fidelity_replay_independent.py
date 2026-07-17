@@ -18,10 +18,6 @@ def _config() -> dict:
     return yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8"))
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="the frozen fingerprint order is not bound; reversing it is currently accepted",
-)
 def test_replay_rejects_reordered_frozen_fingerprints() -> None:
     config = _config()
     config["sampling"]["dev_subset_fingerprints"].reverse()
@@ -30,10 +26,6 @@ def test_replay_rejects_reordered_frozen_fingerprints() -> None:
         fidelity.validate_replay_spec(config)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="substring forbidden surfaces such as judge_url are currently accepted",
-)
 def test_replay_rejects_nested_judge_url_surface() -> None:
     config = _config()
     config["runtime"] = {"judge_url": "https://example.invalid"}
@@ -42,10 +34,6 @@ def test_replay_rejects_nested_judge_url_surface() -> None:
         fidelity.validate_replay_spec(config)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="infra policy checks only top-level keys for forbidden replay surfaces",
-)
 def test_backend_policy_rejects_nested_judge_surface() -> None:
     config = {
         "run": {
@@ -79,10 +67,6 @@ def test_backend_policy_rejects_nested_judge_surface() -> None:
         validate_launch(payload)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Transformers 4.57.6 rejects generator as an unused generate model kwarg",
-)
 def test_generate_one_accepts_the_per_record_generator() -> None:
     torch = pytest.importorskip("torch")
     transformers = pytest.importorskip("transformers")

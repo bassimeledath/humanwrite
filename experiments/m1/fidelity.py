@@ -32,15 +32,7 @@ TOKENIZER_FILES = {
     "tokenizer_config.json",
     "vocab.json",
 }
-PAID_OR_HIDDEN_KEYS = {
-    "api",
-    "api_key",
-    "judge",
-    "provider",
-    "sealed",
-    "sealed_eval_url",
-    "hidden",
-}
+PAID_OR_HIDDEN_KEY_PARTS = {"api", "judge", "provider", "sealed", "hidden"}
 
 
 def _sha256_bytes(value: bytes) -> str:
@@ -106,20 +98,26 @@ def derive_record_seed(global_seed: int, fingerprint: str) -> int:
     return int.from_bytes(hashlib.sha256(payload).digest()[:8], "big") % (2**63)
 
 
-def _walk_keys(value: Any) -> list[str]:
+def _forbidden_surface_keys(value: Any) -> list[str]:
     keys: list[str] = []
     if isinstance(value, dict):
         for key, child in value.items():
-            keys.append(str(key).casefold())
-            keys.extend(_walk_keys(child))
+            normalized = str(key).casefold().replace("-", "_")
+            parts = {part for part in normalized.split("_") if part}
+            if parts & PAID_OR_HIDDEN_KEY_PARTS or any(
+                normalized.startswith(part) or normalized.endswith(part)
+                for part in PAID_OR_HIDDEN_KEY_PARTS
+            ):
+                keys.append(str(key))
+            keys.extend(_forbidden_surface_keys(child))
     elif isinstance(value, list):
         for child in value:
-            keys.extend(_walk_keys(child))
+            keys.extend(_forbidden_surface_keys(child))
     return keys
 
 
 def assert_public_only_config(config: dict[str, Any]) -> None:
-    forbidden = sorted(set(_walk_keys(config)) & PAID_OR_HIDDEN_KEYS)
+    forbidden = sorted(set(_forbidden_surface_keys(config)))
     if forbidden:
         raise M1ConfigError("replay config contains paid or hidden surfaces: " + ", ".join(forbidden))
     run = config.get("run") or {}
@@ -192,6 +190,25 @@ def validate_replay_spec(config: dict[str, Any]) -> tuple[list[str], list[int]]:
     seeds = list((config.get("sampling") or {}).get("seeds") or [])
     if seeds != EXACT_SAMPLING_SEEDS:
         raise M1ConfigError("replay sampling seeds must be exactly [101, 202, 303]")
+    historical_path = resolve_repo_path(str(workflow.get("historical_sampling_config") or ""))
+    if not historical_path.is_file():
+        raise M1ConfigError("historical sampling config is required to bind fingerprint order")
+    historical_sha = _require_sha(
+        workflow.get("historical_sampling_config_sha256"),
+        "historical sampling config SHA-256",
+    )
+    if file_sha256(historical_path) != historical_sha:
+        raise M1ConfigError("historical sampling config SHA-256 mismatch")
+    historical = read_structured(historical_path)
+    historical_sampling = historical.get("sampling") or {}
+    if fingerprints != list(historical_sampling.get("dev_subset_fingerprints") or []):
+        raise M1ConfigError("replay fingerprint order differs from the frozen historical config")
+    if seeds != list(historical_sampling.get("seeds") or []):
+        raise M1ConfigError("replay seed order differs from the frozen historical config")
+    if str((config.get("sampling") or {}).get("dev_subset_hash")) != str(
+        historical_sampling.get("dev_subset_hash")
+    ):
+        raise M1ConfigError("replay subset identity differs from the frozen historical config")
     _require_sha(workflow.get("fixed_manifest_sha256"), "fixed manifest SHA-256")
     _require_sha((config.get("artifacts") or {}).get("adapter_manifest_sha256"), "adapter manifest SHA-256")
     _require_sha((config.get("artifacts") or {}).get("adapter_sha256"), "adapter SHA-256")
@@ -261,7 +278,7 @@ def verify_artifact_identities(config: dict[str, Any]) -> dict[str, Any]:
         "adapter": {
             "path": str(adapter_dir.resolve()),
             "files": observed_adapter_files,
-            "tensor_identity_sha256": _canonical_json_sha256(
+            "weight_serialization_file_map_identity_sha256": _canonical_json_sha256(
                 {"adapter_model.safetensors": observed_adapter_files["adapter_model.safetensors"]}
             ),
         },
@@ -269,7 +286,9 @@ def verify_artifact_identities(config: dict[str, Any]) -> dict[str, Any]:
             "path": str(merged_dir.resolve()),
             "content_hash": merged_content_hash,
             "weight_files": merged_files,
-            "tensor_identity_sha256": _canonical_json_sha256(merged_files),
+            "weight_shard_serialization_file_map_identity_sha256": _canonical_json_sha256(
+                merged_files
+            ),
         },
         "tokenizer": {
             "files": adapter_tokenizer,
@@ -380,10 +399,19 @@ def _generate_one(
         for key, value in encoded.items()
     }
     args = dict(generation)
-    if generator is not None:
-        args["generator"] = generator
-    with torch.inference_mode():
-        sequence = model.generate(**tensors, pad_token_id=tokenizer.pad_token_id, **args)[0]
+    rng_seed = int(generator.initial_seed()) if generator is not None else None
+    cuda_devices: list[int] = []
+    if device.type == "cuda":
+        cuda_devices = [device.index if device.index is not None else torch.cuda.current_device()]
+    with torch.random.fork_rng(devices=cuda_devices, enabled=rng_seed is not None):
+        if rng_seed is not None:
+            torch.manual_seed(rng_seed)
+            if device.type == "cuda":
+                torch.cuda.manual_seed(rng_seed)
+        with torch.inference_mode():
+            sequence = model.generate(
+                **tensors, pad_token_id=tokenizer.pad_token_id, **args
+            )[0]
     output_ids = [int(value) for value in sequence[tensors["input_ids"].shape[1]:].tolist()]
     return output_ids, tokenizer.decode(output_ids, skip_special_tokens=True)
 
