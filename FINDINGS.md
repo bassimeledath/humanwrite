@@ -2210,3 +2210,26 @@ independently signed attestation path.
 NEXT: Before spending on another objective, quantify how little A64 moved the
 policy (48 of 64 sampled outputs were byte-identical) and preregister the next
 lower-variance mechanism against the same matched control.
+
+## [2026-07-17] M2 / A64-mechanism-diagnostic
+HYPOTHESIS: The failed public effect came from insufficient or noisy policy
+movement rather than training divergence or factual collapse.
+SETUP: Compare A0/A64 step traces and exact matched generation bytes without
+opening any new endpoint, provider call, or GPU job.
+RESULTS: A64's score-function estimator variance averaged `17.98`, ranged from
+`0.44` to `76.78`, and the MMD policy-loss contribution changed sign three
+times across eight steps. Mean advantage standard deviation was only `0.047`.
+Despite a 3.2x larger mean gradient norm than A0, A64's KL remained at or below
+`0.00118`. In matched seed-101 generation, 48/64 documents (`75%`) were
+byte-identical. The 16 changed documents had mean word-sequence similarity
+`0.584` and only `2.125` mean absolute words of length difference.
+DECISION: The arm was stable but mostly failed to displace the A0 policy. Do
+not interpret the negative result as evidence that 4B is too small, and do not
+repair it by spending on longer outputs or confirmation seeds. A new arm must
+reduce estimator variance or provide a differentiable distribution signal,
+and it needs a fresh prospective measurement panel because the current one has
+been opened.
+NEXT: The cheapest defensible choices are (a) a larger effective-rollout MMD
+estimator under a matched token budget, or (b) teacher-forced distribution
+moment matching. Freeze the next mechanism and fresh panel before any model
+output; reserve 14B and Tier 3 for a genuine 4B effect.

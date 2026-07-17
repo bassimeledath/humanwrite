@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-07-17T10:51:00Z",
+  "updated_at": "2026-07-17T10:58:00Z",
   "phase": "M2 — first genuine adapter-native DFT comparison",
   "headline": "First genuine 4B DFT screen completed: stable A64 treatment had no material effect",
   "summary": "Matched adapter-native A0 and A64 training and 64-document generation completed under the signed, prospective measurement-v2 protocol. A64 passed stability and repetition checks, but its candidate-minus-control MMD was only -0.000067 versus the frozen -0.0018 threshold (paired p=0.740), while authorship separability worsened by 0.0096 instead of improving by at least 0.15. The report is independently attested and archived; the score-function A64 path stops before extra seeds, 128 tokens, sealed evaluation, 14B, or GPTZero.",
@@ -25,6 +25,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "03:58",
+      "title": "Mechanism diagnosis: stable training, insufficient policy movement",
+      "detail": "A64 estimator variance averaged 17.98 and peaked at 76.78; its MMD loss changed sign three times while KL remained below 0.00118. Forty-eight of 64 matched outputs were byte-identical to A0. The next defensible arm must reduce estimator variance or use a differentiable distribution signal under a fresh prospective panel; scaling the same failed arm is closed.",
+      "tone": "complete"
+    },
     {
       "at": "03:51",
       "title": "Reviewer audit preserved the decision and repaired uncertainty",
