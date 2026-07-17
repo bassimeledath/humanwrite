@@ -1,12 +1,12 @@
 {
-  "updated_at": "2026-07-17T06:31:51Z",
+  "updated_at": "2026-07-17T06:59:20Z",
   "phase": "Next cycle — instrument and fidelity audit",
-  "headline": "Measurement-v2 passed; final fidelity classifier repair is active",
-  "summary": "No new model run has launched. Measurement-v2 passed independent verification with 201 tests and all six historical inventories green; its unmaterialized candidate remains correctly fail-closed. Fidelity-v2's exact protocol and artifact guards passed, but final review found the public-surface key classifier both missed wrapped private aliases and rejected legitimate tokenizer metadata. A narrow structured classifier repair is active before any replay authorization.",
+  "headline": "Measurement-v2 passed; tokenizer-aware fidelity v3 is being preregistered",
+  "summary": "Measurement-v2 passed independent verification and is merged. Fidelity-v2 passed 375 CPU tests and launched under an exact config boundary, then stopped before generation because adapter and merged tokenizer_config.json bytes differ. Five tokenizer files and the chat template match; the merge config adds only max_length, stride, and explicit truncation metadata. A prospective v3 will hash-bind both configs and still require exact runtime token IDs and masks before generation.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
-    "modal_committed_usd": 3.839238,
+    "modal_committed_usd": 3.861422,
     "openrouter_cap_usd": 100,
     "openrouter_spend_usd": 0.945997
   },
@@ -25,6 +25,18 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "23:59",
+      "title": "Strict fidelity-v2 replay stopped on tokenizer metadata identity",
+      "detail": "Run dftr-1784271369-f403028f failed before generation after 34.107 L40S-seconds and 0.022184 dollars. All core tokenizer files and the chat template match; tokenizer_config.json differs only by max_length=384, stride=0, truncation_side=right, and truncation_strategy=longest_first added during merge saving. Prospective v3 will bind this exact difference and retain runtime tokenization equality as a hard gate.",
+      "tone": "active"
+    },
+    {
+      "at": "23:52",
+      "title": "Fidelity-v2 implementation passed final independent review",
+      "detail": "Exact v1/v2 config identities, artifact bindings, and all public/private surface tests passed. Four independent fidelity packs passed 106 tests and the full forced repository passed 375 before launch authorization.",
+      "tone": "complete"
+    },
     {
       "at": "23:31",
       "title": "Measurement-v2 independently passed; fidelity remains blocked",
