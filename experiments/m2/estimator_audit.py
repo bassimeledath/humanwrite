@@ -216,6 +216,7 @@ def validate_estimator_audit_config(config: dict[str, Any]) -> dict[str, Any]:
             "max_new_tokens",
             "rollout_target_length_tokens",
             "max_input_tokens",
+            "logprob_microbatch_size",
             "prompt_schedule_seed",
             "rollout_seed_start",
             "gradient_supports",
@@ -238,6 +239,7 @@ def validate_estimator_audit_config(config: dict[str, Any]) -> dict[str, Any]:
         or audit.get("rollout_target_length_tokens") != 64
         or not isinstance(audit.get("max_input_tokens"), int)
         or audit["max_input_tokens"] <= 0
+        or audit.get("logprob_microbatch_size") != 1
         or not isinstance(audit.get("prompt_schedule_seed"), int)
         or not isinstance(audit.get("rollout_seed_start"), int)
         or audit.get("gradient_supports") != list(SUPPORTS)
@@ -362,6 +364,46 @@ def cosine(left: Any, right: Any) -> float:
 
     denominator = float(left.norm().item() * right.norm().item())
     return 0.0 if denominator == 0 else float(torch.dot(left, right).item() / denominator)
+
+
+def accumulate_score_gradient_microbatched(
+    model: Any,
+    sequences: Any,
+    prompt_attention_mask: Any,
+    prompt_width: int,
+    action_mask: Any,
+    advantages: Any,
+    *,
+    microbatch_size: int,
+) -> tuple[list[float], float]:
+    """Accumulate the exact mean REINFORCE gradient without a K-way graph."""
+    import torch
+
+    group_size = int(sequences.shape[0])
+    if microbatch_size <= 0 or group_size != len(advantages):
+        raise EstimatorAuditError("invalid score-gradient microbatch dimensions")
+    detached_log_probs: list[float] = []
+    detached_loss = 0.0
+    for start in range(0, group_size, microbatch_size):
+        stop = min(group_size, start + microbatch_size)
+        micro_log_probs = sequence_log_probs_eos_aware(
+            model,
+            sequences[start:stop],
+            prompt_attention_mask[start:stop],
+            prompt_width,
+            action_mask[start:stop],
+        )
+        micro_loss = -(
+            advantages[start:stop].detach() * micro_log_probs
+        ).sum() / group_size
+        if not torch.isfinite(micro_loss):
+            raise EstimatorAuditError("non-finite microbatched score loss")
+        micro_loss.backward()
+        detached_log_probs.extend(
+            float(value) for value in micro_log_probs.detach().cpu()
+        )
+        detached_loss += float(micro_loss.detach().item())
+    return detached_log_probs, detached_loss
 
 
 def _truncate_texts_to_horizon(tokenizer: Any, texts: list[str], horizon: int) -> list[str]:
@@ -546,15 +588,19 @@ def run_estimator_audit(config: dict[str, Any], run_id: str) -> dict[str, Any]:
                 )
                 advantages = rewards - baselines
                 policy.zero_grad(set_to_none=True)
-                sequence_log_probs = sequence_log_probs_eos_aware(
+                # A full K-way differentiable causal-LM forward retains every
+                # layer activation and materializes K large vocabulary logits.
+                # Accumulate the exact mean score-function gradient one sample
+                # at a time, matching the reviewed training topology.
+                detached_log_probs, detached_loss = accumulate_score_gradient_microbatched(
                     policy,
                     sampled.sequences[:group_size],
                     encoded["attention_mask"][:group_size],
                     prompt_width,
                     sampled.action_mask[:group_size],
+                    advantages,
+                    microbatch_size=int(audit["logprob_microbatch_size"]),
                 )
-                loss = score_function_loss(sequence_log_probs, advantages, 1.0)
-                loss.backward()
                 sketch, gradient_norm = count_sketch_gradients(
                     policy.named_parameters(),
                     dimension=int(audit["sketch_dimension"]),
@@ -574,7 +620,10 @@ def run_estimator_audit(config: dict[str, Any], run_id: str) -> dict[str, Any]:
                         "reward_std": float(rewards.std(unbiased=True).item()),
                         "advantage_mean": float(advantages.mean().item()),
                         "advantage_std": float(advantages.std(unbiased=True).item()),
-                        "surrogate_loss": float(loss.detach().item()),
+                        "surrogate_loss": detached_loss,
+                        "sequence_log_probability_mean": float(
+                            sum(detached_log_probs) / len(detached_log_probs)
+                        ),
                         "gradient_norm": gradient_norm,
                         "gradient_sketch": sketch.tolist(),
                         "mean_active_tokens": float(
@@ -583,6 +632,8 @@ def run_estimator_audit(config: dict[str, Any], run_id: str) -> dict[str, Any]:
                     }
                 )
         policy.zero_grad(set_to_none=True)
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
     summaries = _summarize(logs, audit["group_sizes"])
     thresholds = audit["go_thresholds"]
     k32 = summaries["rollout_horizon_humans"]["32"]

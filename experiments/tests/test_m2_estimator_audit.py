@@ -1,4 +1,5 @@
 import copy
+from types import SimpleNamespace
 
 import pytest
 import torch
@@ -7,6 +8,7 @@ from experiments.m2.estimator_audit import (
     ESTIMATOR_AUDIT_SCHEMA,
     EstimatorAuditError,
     audit_contract_payload,
+    accumulate_score_gradient_microbatched,
     canonical_hash,
     cosine,
     count_sketch_gradients,
@@ -72,6 +74,7 @@ def _config():
             "max_new_tokens": 64,
             "rollout_target_length_tokens": 64,
             "max_input_tokens": 1024,
+            "logprob_microbatch_size": 1,
             "prompt_schedule_seed": 3101,
             "rollout_seed_start": 4101,
             "gradient_supports": ["full_humans", "rollout_horizon_humans"],
@@ -132,3 +135,47 @@ def test_count_sketch_is_deterministic_and_tracks_exact_gradient_norm():
     assert norm_a == pytest.approx(11.0 ** 0.5)
     assert norm_b == pytest.approx(norm_a)
     assert cosine(sketch_a, sketch_b) == pytest.approx(1.0)
+
+
+def test_single_sequence_accumulation_matches_full_group_gradient():
+    class TinyPolicy(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.embedding = torch.nn.Embedding(9, 4)
+            self.projection = torch.nn.Linear(4, 9, bias=False)
+
+        def forward(self, *, input_ids, attention_mask, return_dict):
+            del attention_mask
+            return SimpleNamespace(logits=self.projection(self.embedding(input_ids)))
+
+    torch.manual_seed(13)
+    full = TinyPolicy()
+    micro = copy.deepcopy(full)
+    sequences = torch.tensor(
+        [[0, 2, 4, 5, 1], [0, 3, 6, 1, 0], [0, 4, 2, 7, 1], [0, 5, 8, 1, 0]]
+    )
+    prompt_mask = torch.tensor([[0, 1]] * 4)
+    action_mask = torch.tensor([[1, 1, 1], [1, 1, 0], [1, 1, 1], [1, 1, 0]])
+    advantages = torch.tensor([0.4, -0.2, 0.1, -0.3])
+    full_logs, full_loss = accumulate_score_gradient_microbatched(
+        full,
+        sequences,
+        prompt_mask,
+        2,
+        action_mask,
+        advantages,
+        microbatch_size=4,
+    )
+    micro_logs, micro_loss = accumulate_score_gradient_microbatched(
+        micro,
+        sequences,
+        prompt_mask,
+        2,
+        action_mask,
+        advantages,
+        microbatch_size=1,
+    )
+    assert micro_logs == pytest.approx(full_logs)
+    assert micro_loss == pytest.approx(full_loss)
+    for full_parameter, micro_parameter in zip(full.parameters(), micro.parameters()):
+        assert torch.allclose(full_parameter.grad, micro_parameter.grad, atol=1e-7)

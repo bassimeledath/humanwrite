@@ -1,6 +1,6 @@
 artifact_schema: dftr.m2.frozen_estimator_audit.v1
 run:
-  comparison_id: M2-frozen-estimator-audit-4b-v1
+  comparison_id: M2-frozen-estimator-audit-4b-v2
   arm: frozen-estimator-audit
   budget_class: screen
   task_kind: experiment
@@ -44,6 +44,7 @@ audit:
   max_new_tokens: 64
   rollout_target_length_tokens: 64
   max_input_tokens: 1024
+  logprob_microbatch_size: 1
   prompt_schedule_seed: 3101
   rollout_seed_start: 4101
   gradient_supports: [full_humans, rollout_horizon_humans]
@@ -65,4 +66,4 @@ output:
 workflow:
   protocol_version: dftr.m2.frozen_estimator_audit.v1
   step: audit_estimator
-  audit_contract_sha256: ae86a9148122672564d24f3ae377a2dfaa633185bcc551fb84bc91ea05732e80
+  audit_contract_sha256: 00d884baae53a08ae06f6ef5e73edbb75e97e15984f478f000a13e9168b6be8d

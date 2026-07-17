@@ -402,7 +402,7 @@ def validate_estimator_audit_launch_config(
         (representation, {"model", "revision", "layer", "pooling", "normalize", "role", "batch_size", "max_tokens"}),
         (audit, {
             "replicates", "group_sizes", "max_new_tokens", "rollout_target_length_tokens",
-            "max_input_tokens", "prompt_schedule_seed", "rollout_seed_start",
+            "max_input_tokens", "logprob_microbatch_size", "prompt_schedule_seed", "rollout_seed_start",
             "gradient_supports", "sketch_dimension", "sketch_seed", "bandwidth_scales",
             "go_thresholds",
         }),
@@ -439,7 +439,7 @@ def validate_estimator_audit_launch_config(
         or task_kind != "experiment"
         or budget_class != "screen"
         or run != {
-            "comparison_id": "M2-frozen-estimator-audit-4b-v1",
+            "comparison_id": "M2-frozen-estimator-audit-4b-v2",
             "arm": "frozen-estimator-audit",
             "budget_class": "screen",
             "task_kind": "experiment",
@@ -477,6 +477,7 @@ def validate_estimator_audit_launch_config(
             "max_new_tokens": 64,
             "rollout_target_length_tokens": 64,
             "max_input_tokens": 1024,
+            "logprob_microbatch_size": 1,
             "prompt_schedule_seed": 3101,
             "rollout_seed_start": 4101,
             "gradient_supports": ["full_humans", "rollout_horizon_humans"],

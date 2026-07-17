@@ -1,12 +1,12 @@
 {
-  "updated_at": "2026-07-17T15:35:29Z",
+  "updated_at": "2026-07-17T15:42:56Z",
   "phase": "M2 — fresh-instrument and estimator rebuild",
-  "headline": "Frozen K=4/8/16/32 gradient audit implemented and preregistered for launch",
-  "summary": "The exact A64 recipe remains rejected, but the next diagnostic is now executable: 16 nested frozen-policy rollout groups compare K=4/8/16/32 under both full-human and 64-token-matched reward support. The new versioned path requests 64 tokens explicitly, terminates scoring at EOS, sketches the whole LoRA gradient, takes no optimizer step, and has a frozen pass rule. Gateway deployment and one Modal launch are next.",
+  "headline": "Audit launch OOM diagnosed; exact per-sequence gradient accumulation repair ready",
+  "summary": "The first frozen estimator-audit launch failed before producing evidence because it retained a differentiable K-way 4B graph. It cost $0.034 and generated no result. The repaired v2 path accumulates the mathematically identical score gradient one sequence at a time, has a direct equivalence test, and preserves the nested K=4/8/16/32 design, EOS/length repairs, and pass rule. Commit, deploy, and relaunch are active.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
-    "modal_committed_usd": 5.460194,
+    "modal_committed_usd": 5.494501,
     "openrouter_cap_usd": 100,
     "openrouter_spend_usd": 1.061925
   },
@@ -25,6 +25,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "08:42",
+      "title": "First audit launch failed safely; microbatch repair verified",
+      "detail": "Run dftr-1784302659-54f7383f exhausted L40S memory at the first differentiable K-way log-probability forward, before any audit result. It used 52.747 accelerator-seconds and $0.034307. The v2 implementation now accumulates the exact mean REINFORCE gradient one sequence at a time; a tiny-model test matches full-batch parameter gradients to 1e-7.",
+      "tone": "active"
+    },
     {
       "at": "08:35",
       "title": "K-scaling estimator audit preregistered and ready for deployment",

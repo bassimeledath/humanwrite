@@ -2289,3 +2289,23 @@ failure routes the next arm to a lower-variance differentiable or
 reward-weighted SFT objective rather than spending more on the same estimator.
 NEXT: Deploy the gateway at the committed audit code, launch once, and archive
 the result before selecting a treatment.
+
+## [2026-07-17] M2 / frozen-estimator-audit-v1-launch-failure
+HYPOTHESIS: The preregistered diagnostic will execute without updating model
+parameters and return group-size gradient summaries.
+SETUP: Launched commit `450baabe75fd0366dc7f85ee844f524f8eede3cc`,
+config hash `186744e1`, as run `dftr-1784302659-54f7383f` on one L40S.
+RESULTS: Failed before the first audit row or result artifact. A differentiable
+K-way log-probability forward retained whole-model activations and attempted an
+additional 2.11 GiB allocation with only 1.63 GiB free. Runtime was 52.747
+accelerator-seconds, actual cost `$0.034307`, and token accounting was zero.
+The worker trace is archived at the run artifact path.
+DECISION: This is an implementation OOM, not evidence about the estimator.
+Replace the K-way differentiable forward with exact per-sequence loss/gradient
+accumulation divided by K, as required by the reviewed topology. Preserve the
+nested rollouts, rewards, advantages, and pass thresholds.
+NEXT: The repaired v2 config adds `logprob_microbatch_size: 1` and has config
+hash `67c5b0b96321bd0f27e2d78ed7edf3e34ce294d74edec52cd3f8905484f1f682`.
+An explicit tiny-model test proves single-sequence accumulation equals the
+full-group loss and parameter gradient. Commit, deploy, and relaunch as a new
+comparison identity.
