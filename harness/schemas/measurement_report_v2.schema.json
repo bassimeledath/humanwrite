@@ -16,8 +16,12 @@
         "effective_prompt_clusters": {"type": "integer", "minimum": 64}
       }
     },
-    "hashes": {"type": "object", "additionalProperties": {"$ref": "#/$defs/sha256"}},
-    "seeds": {"type": "object"},
+    "hashes": {
+      "type": "object",
+      "required": ["protocol_sha256", "prompt_panel_sha256", "human_eval_sha256", "human_floor_a_sha256", "human_floor_b_sha256", "bandwidths_sha256", "power_plan_sha256", "calibration_sha256", "matched_baseline_sha256", "selection_policy_sha256", "candidate_full_brief_sha256", "control_full_brief_sha256", "sampling_grid_sha256", "control_output_manifest_sha256", "dependency_lock_sha256", "evaluator_commit_sha256"],
+      "additionalProperties": {"$ref": "#/$defs/sha256"}
+    },
+    "seeds": {"type": "object", "required": ["training", "sampling", "cells"]},
     "checkpoint_manifest": {"type": "object"},
     "distribution": {
       "type": "object",
@@ -26,7 +30,7 @@
     "quality": {"type": "object", "required": ["status"]},
     "repetition": {"type": "object", "required": ["status"]},
     "authorship": {"type": "object", "required": ["status", "effective_clusters", "fit_count"]},
-    "promotion": {"type": "object", "required": ["eligible"]}
+    "promotion": {"type": "object", "required": ["eligible"], "properties": {"eligible": {"type": "boolean"}}}
   },
   "$defs": {"sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
 }

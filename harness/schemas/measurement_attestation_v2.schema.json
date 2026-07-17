@@ -3,7 +3,7 @@
   "$id": "dftr.measurement.operator_attestation.v2",
   "title": "Independent operator attestation v2",
   "type": "object",
-  "required": ["artifact_schema", "status", "protocol_sha256", "operator", "attested_at", "evaluator_commit", "dependency_lock_sha256", "fixture_pack_sha256", "historical_inventory_verified", "blind_test_groups", "no_sealed_imitation"],
+  "required": ["artifact_schema", "status", "protocol_sha256", "operator", "attested_at", "evaluator_commit", "dependency_lock_sha256", "fixture_pack_sha256", "blind_test_manifest_sha256", "signature_verification", "operator_signature", "historical_inventory_verified", "blind_test_groups", "no_sealed_imitation"],
   "properties": {
     "artifact_schema": {"const": "dftr.measurement.operator_attestation.v2"},
     "status": {"const": "qualified"},
@@ -13,6 +13,9 @@
     "evaluator_commit": {"$ref": "#/$defs/sha256"},
     "dependency_lock_sha256": {"$ref": "#/$defs/sha256"},
     "fixture_pack_sha256": {"$ref": "#/$defs/sha256"},
+    "blind_test_manifest_sha256": {"$ref": "#/$defs/sha256"},
+    "signature_verification": {"type": "object", "properties": {"status": {"const": "verified"}}},
+    "operator_signature": {"type": "object", "properties": {"algorithm": {"const": "ed25519"}}},
     "historical_inventory_verified": {"const": true},
     "blind_test_groups": {"type": "array", "minItems": 13, "uniqueItems": true},
     "no_sealed_imitation": {"const": true}

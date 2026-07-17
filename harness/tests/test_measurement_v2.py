@@ -64,6 +64,9 @@ def valid_report():
             "protocol_sha256", "prompt_panel_sha256", "human_eval_sha256",
             "human_floor_a_sha256", "human_floor_b_sha256", "bandwidths_sha256",
             "power_plan_sha256", "dependency_lock_sha256", "evaluator_commit_sha256",
+            "calibration_sha256", "matched_baseline_sha256", "selection_policy_sha256",
+            "candidate_full_brief_sha256", "control_full_brief_sha256", "sampling_grid_sha256",
+            "control_output_manifest_sha256",
         )
     }
     return {
@@ -71,12 +74,15 @@ def valid_report():
         "evidence_class": "prospective_screen",
         "counts": {"documents_per_cell": 64, "human_documents_per_panel": 64, "effective_prompt_clusters": 64},
         "hashes": hashes,
-        "seeds": {"training": [29], "sampling": [101]},
+        "seeds": {
+            "training": [29], "sampling": [101],
+            "cells": [{"training_seed": 29, "sampling_seeds": [101]}],
+        },
         "checkpoint_manifest": {"selection": {"rule_type": "fixed_seed", "seed": 29}},
         "distribution": {
             "documents_per_cell": 64,
             "human_documents_per_panel": 64,
-            "bandwidth_sha256": sha("kernel"),
+            "bandwidth_sha256": hashes["bandwidths_sha256"],
             "candidate_mmd2_unbiased": 0.01,
             "control_mmd2_unbiased": 0.02,
             "human_floor_mmd2_unbiased": -0.001,
@@ -91,7 +97,8 @@ def valid_report():
 
 def test_report_requires_matched_n_prompt_n_and_nonpromoting_underpowered_state():
     report = valid_report()
-    assert validate_report_v2(report)["status"] == "pass"
+    with pytest.raises(MeasurementV2Error, match="protocol"):
+        validate_report_v2(report)
     report["counts"]["effective_prompt_clusters"] = 32
     with pytest.raises(MeasurementV2Error, match="inflate"):
         validate_report_v2(report)
@@ -101,6 +108,27 @@ def test_report_requires_matched_n_prompt_n_and_nonpromoting_underpowered_state(
         validate_report_v2(malformed)
 
 
+def test_report_rejects_promotion_fail_open_paths_before_protocol_resolution():
+    bandwidth = valid_report()
+    bandwidth["distribution"]["bandwidth_sha256"] = sha("other-bandwidth")
+    with pytest.raises(MeasurementV2Error, match="bandwidth"):
+        validate_report_v2(bandwidth)
+    seed = valid_report()
+    seed["seeds"]["training"] = [11]
+    with pytest.raises(MeasurementV2Error, match="seed"):
+        validate_report_v2(seed)
+    shadow = valid_report()
+    shadow["evidence_class"] = "post_hoc_shadow"
+    shadow["promotion"]["eligible"] = True
+    with pytest.raises(MeasurementV2Error, match="post-hoc"):
+        validate_report_v2(shadow)
+    authorship = valid_report()
+    authorship["authorship"]["status"] = "underpowered"
+    authorship["promotion"]["eligible"] = True
+    with pytest.raises(MeasurementV2Error, match="underpowered authorship"):
+        validate_report_v2(authorship)
+
+
 def test_attestation_requires_all_thirteen_blind_groups():
     assert len(REQUIRED_BLIND_GROUPS) == 13
     with pytest.raises(MeasurementV2Error):
@@ -108,6 +136,13 @@ def test_attestation_requires_all_thirteen_blind_groups():
             protocol={}, inventory_check={"status": "pass"}, blind_test_manifest={},
             operator="operator", attested_at="2026-07-16T00:00:00Z",
         )
+
+
+def test_claimed_ready_protocol_without_bound_artifacts_and_signature_fails_closed():
+    readiness = protocol_readiness(ready_protocol())
+    assert readiness["status"] == "fail_closed"
+    assert any("artifact_evidence_invalid" in reason for reason in readiness["reasons"])
+    assert any("signature_invalid" in reason for reason in readiness["reasons"])
 
 
 def ready_protocol():
@@ -141,7 +176,7 @@ def ready_protocol():
     }
 
 
-def test_complete_operator_attestation_binds_protocol_and_blind_evidence():
+def test_unsigned_self_asserted_attestation_is_rejected():
     manifest = {
         "tests": [{"name": name, "status": "pass"} for name in REQUIRED_BLIND_GROUPS],
         "evaluator_commit": sha("commit"),
@@ -149,14 +184,11 @@ def test_complete_operator_attestation_binds_protocol_and_blind_evidence():
         "fixture_pack_sha256": sha("fixtures"),
         "no_sealed_imitation": True,
     }
-    result = build_attestation(
-        protocol=ready_protocol(),
-        inventory_check={"status": "pass"},
-        blind_test_manifest=manifest,
-        operator="independent-operator",
-        attested_at="2026-07-16T00:00:00Z",
-    )
-    assert result["status"] == "qualified"
-    assert result["historical_inventory_verified"] is True
-    assert len(result["blind_test_groups"]) == 13
-    assert len(result["protocol_sha256"]) == 64
+    with pytest.raises(MeasurementV2Error, match="signature"):
+        build_attestation(
+            protocol=ready_protocol(),
+            inventory_check={"status": "pass"},
+            blind_test_manifest=manifest,
+            operator="independent-operator",
+            attested_at="2026-07-16T00:00:00Z",
+        )

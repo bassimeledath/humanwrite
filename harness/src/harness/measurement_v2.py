@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
 import json
 import math
@@ -9,7 +10,10 @@ from pathlib import Path
 import re
 from typing import Any, Sequence
 
-from .metrics.distribution_v2 import MeasurementV2Error
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+
+from .metrics.distribution_v2 import MeasurementV2Error, bandwidth_hash as compute_bandwidth_hash
 from .metrics.quality_v2 import validate_selection_firewall
 
 
@@ -28,6 +32,21 @@ REQUIRED_BLIND_GROUPS = {
     "cluster_power",
     "historical_immutability",
     "no_sealed_imitation",
+}
+
+ARTIFACT_BINDINGS = {
+    "dependency_lock": ("dependency_lock_sha256", None),
+    "metric_code": ("metric_code_sha256", None),
+    "prompt_panel": ("prompt_panel_sha256", "dftr.measurement.prompt_panel.v2"),
+    "prompt_brief": ("prompt_brief_sha256", None),
+    "human_panels": ("human_panels_sha256", "dftr.measurement.human_panels.v2"),
+    "human_panel_contents": ("human_panel_contents_sha256", None),
+    "bandwidths": ("bandwidths_sha256", "dftr.measurement.bandwidths.v2"),
+    "power_plan": ("power_plan_sha256", "dftr.measurement.power_plan.v2"),
+    "calibration": ("calibration_sha256", "dftr.measurement.calibration.v2"),
+    "matched_baseline": ("matched_baseline_sha256", "dftr.measurement.matched_sft_baseline.v2"),
+    "matched_baseline_outputs": ("matched_baseline_outputs_sha256", None),
+    "selection_policy": ("selection_policy_sha256", "dftr.measurement.selection_policy.v2"),
 }
 
 
@@ -77,6 +96,228 @@ def _canonical_sha256(value: Any) -> str:
     return hashlib.sha256(
         json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
     ).hexdigest()
+
+
+def _canonical_bytes_without(value: dict[str, Any], field: str) -> bytes:
+    payload = {key: item for key, item in value.items() if key != field}
+    return json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+
+
+def _decode_public_key(value: str) -> bytes:
+    try:
+        raw = bytes.fromhex(value) if re.fullmatch(r"[0-9a-fA-F]{64}", value) else base64.b64decode(value, validate=True)
+    except (ValueError, base64.binascii.Error) as error:
+        raise MeasurementV2Error("trusted Ed25519 public key is malformed") from error
+    if len(raw) != 32:
+        raise MeasurementV2Error("trusted Ed25519 public key must contain 32 bytes")
+    return raw
+
+
+def verify_signed_document(
+    document: dict[str, Any],
+    *,
+    signature_field: str,
+    trusted_public_keys: dict[str, str] | None,
+) -> dict[str, str]:
+    signature = document.get(signature_field) or {}
+    if signature.get("algorithm") != "ed25519":
+        raise MeasurementV2Error("verifiable Ed25519 signature is required")
+    key_id = str(signature.get("key_id") or "")
+    trusted = trusted_public_keys or {}
+    if not key_id or key_id not in trusted:
+        raise MeasurementV2Error("signature key is not independently trusted")
+    encoded = str(signature.get("signature_base64") or "")
+    try:
+        signature_bytes = base64.b64decode(encoded, validate=True)
+    except (ValueError, base64.binascii.Error) as error:
+        raise MeasurementV2Error("signature encoding is invalid") from error
+    payload = _canonical_bytes_without(document, signature_field)
+    expected_payload_sha = hashlib.sha256(payload).hexdigest()
+    if signature.get("signed_payload_sha256") != expected_payload_sha:
+        raise MeasurementV2Error("signature payload hash mismatch")
+    try:
+        Ed25519PublicKey.from_public_bytes(_decode_public_key(trusted[key_id])).verify(
+            signature_bytes, payload
+        )
+    except (InvalidSignature, ValueError) as error:
+        raise MeasurementV2Error("signature verification failed") from error
+    return {"status": "verified", "key_id": key_id, "signed_payload_sha256": expected_payload_sha}
+
+
+def _resolve_bound_path(root: Path, relative: Any, field: str) -> Path:
+    text = str(relative or "")
+    if not text or Path(text).is_absolute():
+        raise MeasurementV2Error(f"artifact binding {field} requires a relative path")
+    path = (root / text).resolve()
+    try:
+        path.relative_to(root)
+    except ValueError as error:
+        raise MeasurementV2Error(f"artifact binding {field} escapes artifact root") from error
+    if not path.is_file():
+        raise MeasurementV2Error(f"artifact binding {field} does not resolve to a file")
+    return path
+
+
+def _verify_artifact_bindings(
+    protocol: dict[str, Any], artifact_root: str | Path | None
+) -> dict[str, dict[str, Any]]:
+    if artifact_root is None:
+        raise MeasurementV2Error("artifact root is required for content verification")
+    root = Path(artifact_root).resolve()
+    bindings = protocol.get("artifact_bindings") or {}
+    hashes = protocol.get("hashes") or {}
+    loaded: dict[str, dict[str, Any]] = {}
+    for name, (hash_field, expected_schema) in ARTIFACT_BINDINGS.items():
+        binding = bindings.get(name) or {}
+        path = _resolve_bound_path(root, binding.get("path"), name)
+        observed = _sha256(path)
+        declared = _require_sha(binding.get("sha256"), f"artifact_bindings.{name}.sha256")
+        top_level = _require_sha(hashes.get(hash_field), f"hashes.{hash_field}")
+        if observed != declared or observed != top_level:
+            raise MeasurementV2Error(f"artifact binding hash mismatch: {name}")
+        if expected_schema is not None:
+            value = _load(path)
+            if value.get("artifact_schema") != expected_schema:
+                raise MeasurementV2Error(f"artifact binding {name} has unexpected schema")
+            loaded[name] = value
+    return loaded
+
+
+def _validate_bound_protocol_content(
+    protocol: dict[str, Any], artifacts: dict[str, dict[str, Any]]
+) -> None:
+    n = protocol["design"]["documents_per_cell"]
+    hashes = protocol["hashes"]
+    panels = artifacts["human_panels"]
+    if panels.get("status") != "materialized" or panels.get("frozen") is not True:
+        raise MeasurementV2Error("human panel manifest is not frozen and materialized")
+    if panels.get("content_bundle_sha256") != hashes["human_panel_contents_sha256"]:
+        raise MeasurementV2Error("human panel manifest does not bind the content bundle bytes")
+    if panels.get("target_n_per_panel") != n:
+        raise MeasurementV2Error("human panel manifest n does not match protocol")
+    seen_ids: set[str] = set()
+    seen_content: set[str] = set()
+    manifest_panels = panels.get("panels") or {}
+    for name in ("human_eval", "human_floor_a", "human_floor_b"):
+        rows = manifest_panels.get(name)
+        if not isinstance(rows, list) or len(rows) != n:
+            raise MeasurementV2Error(f"human panel content cardinality mismatch: {name}")
+        ids = []
+        for row in rows:
+            if not isinstance(row, dict):
+                raise MeasurementV2Error("human panel rows must be content-addressed objects")
+            document_id = str(row.get("document_id") or "")
+            content_sha = _require_sha(row.get("content_sha256"), "human panel content_sha256")
+            if not document_id or document_id in seen_ids or content_sha in seen_content:
+                raise MeasurementV2Error("human panel IDs and content hashes must be globally unique")
+            ids.append(document_id)
+            seen_ids.add(document_id)
+            seen_content.add(content_sha)
+        if ids != (protocol["panels"].get(name) or {}).get("document_ids"):
+            raise MeasurementV2Error(f"protocol panel IDs do not bind manifest order: {name}")
+        if (protocol["panels"].get(name) or {}).get("content_manifest_sha256") != _canonical_sha256(rows):
+            raise MeasurementV2Error(f"protocol panel content hash mismatch: {name}")
+    _require_sha(panels.get("eligibility_attestation_sha256"), "human panels eligibility attestation")
+
+    bandwidths = artifacts["bandwidths"]
+    if (
+        bandwidths.get("status") != "frozen"
+        or bandwidths.get("frozen") is not True
+        or bandwidths.get("source") != "human_floor_a_union_human_floor_b_only"
+        or bandwidths.get("values") != protocol["bandwidth_contract"].get("values")
+        or bandwidths.get("panel_manifest_sha256") != hashes["human_panels_sha256"]
+        or bandwidths.get("floor_a_content_manifest_sha256")
+        != protocol["panels"]["human_floor_a"].get("content_manifest_sha256")
+        or bandwidths.get("floor_b_content_manifest_sha256")
+        != protocol["panels"]["human_floor_b"].get("content_manifest_sha256")
+    ):
+        raise MeasurementV2Error("frozen human-only bandwidth artifact is not cross-bound")
+    _require_sha(bandwidths.get("embedder_sha256"), "bandwidth embedder hash")
+    _require_sha(bandwidths.get("preprocessing_sha256"), "bandwidth preprocessing hash")
+    if bandwidth_hash := bandwidths.get("bandwidth_sha256"):
+        if bandwidth_hash != compute_bandwidth_hash(bandwidths["values"]):
+            raise MeasurementV2Error("frozen bandwidth value hash mismatch")
+    else:
+        raise MeasurementV2Error("frozen bandwidth value hash is absent")
+    if protocol["bandwidth_contract"].get("bandwidth_value_sha256") != bandwidth_hash:
+        raise MeasurementV2Error("protocol bandwidth value hash mismatch")
+
+    prompt_panel = artifacts["prompt_panel"]
+    prompt_ids = prompt_panel.get("prompt_ids") or []
+    if (
+        prompt_panel.get("status") != "frozen"
+        or prompt_panel.get("frozen") is not True
+        or len(prompt_ids) != n
+        or len(set(prompt_ids)) != n
+    ):
+        raise MeasurementV2Error("prompt panel is not a frozen unique n-sized panel")
+    full_brief_sha = _require_sha(prompt_panel.get("full_brief_sha256"), "prompt panel full brief hash")
+    if full_brief_sha != hashes["prompt_brief_sha256"]:
+        raise MeasurementV2Error("prompt panel does not bind the complete brief bytes")
+
+    baseline = artifacts["matched_baseline"]
+    matched = protocol.get("matched_design") or {}
+    if (
+        matched.get("candidate_full_brief_sha256") != full_brief_sha
+        or matched.get("control_full_brief_sha256") != full_brief_sha
+    ):
+        raise MeasurementV2Error("candidate/control full brief bytes are not prompt-panel bound")
+    if (
+        baseline.get("status") != "materialized"
+        or baseline.get("frozen") is not True
+        or baseline.get("documents_per_cell") != n
+        or baseline.get("prompt_panel_sha256") != hashes["prompt_panel_sha256"]
+        or baseline.get("full_brief_sha256") != full_brief_sha
+        or baseline.get("sampling_grid_sha256") != matched.get("sampling_grid_sha256")
+        or baseline.get("seed_grid") != matched.get("seed_grid")
+        or baseline.get("output_manifest_sha256") != matched.get("control_output_manifest_sha256")
+        or baseline.get("output_manifest_sha256") != hashes["matched_baseline_outputs_sha256"]
+    ):
+        raise MeasurementV2Error("matched baseline does not bind the frozen prompt/sampling design")
+
+    calibration = artifacts["calibration"]
+    required_calibration_hashes = {
+        "human_panels_sha256": hashes["human_panels_sha256"],
+        "bandwidths_sha256": hashes["bandwidths_sha256"],
+        "matched_baseline_sha256": hashes["matched_baseline_sha256"],
+        "dependency_lock_sha256": hashes["dependency_lock_sha256"],
+    }
+    if (
+        calibration.get("status") != "frozen"
+        or calibration.get("frozen") is not True
+        or calibration.get("documents_per_cell") != n
+        or any(calibration.get(key) != value for key, value in required_calibration_hashes.items())
+    ):
+        raise MeasurementV2Error("calibration artifact is not matched and cross-bound")
+
+    power = artifacts["power_plan"]
+    results = power.get("results") or {}
+    if (
+        power.get("status") != "frozen"
+        or power.get("frozen") is not True
+        or power.get("all_targets_pass") is not True
+        or power.get("documents_per_cell") != n
+        or results.get("mmd_type_i_max", 1.0) > 0.05
+        or results.get("mmd_type_i_rate", 1.0) > results.get("mmd_type_i_max", 0.05)
+        or results.get("mmd_power", 0.0) < 0.8
+        or results.get("auc_power", 0.0) < 0.8
+        or results.get("repetition_power", 0.0) < 0.8
+        or not 0.93 <= results.get("coverage", 0.0) <= 0.97
+        or not str((power.get("multiplicity") or {}).get("method") or "")
+        or any(power.get(key) != hashes[value] for key, value in {
+            "human_panels_sha256": "human_panels_sha256",
+            "bandwidths_sha256": "bandwidths_sha256",
+            "calibration_sha256": "calibration_sha256",
+            "matched_baseline_sha256": "matched_baseline_sha256",
+            "dependency_lock_sha256": "dependency_lock_sha256",
+        }.items())
+    ):
+        raise MeasurementV2Error("power evidence is incomplete, underpowered, or not cross-bound")
+
+    selection = artifacts["selection_policy"]
+    if selection.get("status") != "frozen" or selection.get("selection") != protocol.get("selection_policy", {}).get("selection"):
+        raise MeasurementV2Error("selection policy artifact is not cross-bound")
+    validate_selection_firewall(selection)
 
 
 def _manifest_digest(root: Path, paths: Sequence[Path]) -> str:
@@ -136,7 +377,12 @@ def verify_historical_inventory(
     }
 
 
-def protocol_readiness(protocol: dict[str, Any]) -> dict[str, Any]:
+def protocol_readiness(
+    protocol: dict[str, Any],
+    *,
+    artifact_root: str | Path | None = None,
+    trusted_public_keys: dict[str, str] | None = None,
+) -> dict[str, Any]:
     reasons = []
     if protocol.get("artifact_schema") != "dftr.measurement.protocol.v2":
         reasons.append("unexpected_schema")
@@ -157,9 +403,14 @@ def protocol_readiness(protocol: dict[str, Any]) -> dict[str, Any]:
         "dependency_lock_sha256",
         "metric_code_sha256",
         "prompt_panel_sha256",
+        "prompt_brief_sha256",
         "human_panels_sha256",
+        "human_panel_contents_sha256",
         "bandwidths_sha256",
         "power_plan_sha256",
+        "calibration_sha256",
+        "matched_baseline_sha256",
+        "matched_baseline_outputs_sha256",
         "selection_policy_sha256",
     ):
         if not SHA256_RE.fullmatch(str(hashes.get(field) or "")):
@@ -172,8 +423,12 @@ def protocol_readiness(protocol: dict[str, Any]) -> dict[str, Any]:
             reasons.append(f"panel_unavailable:{name}")
         if _int_or_zero(panel.get("document_count")) != n:
             reasons.append(f"panel_cardinality:{name}")
-        panel_ids.extend(panel.get("document_ids") or [])
-    if panel_ids and len(panel_ids) != len(set(panel_ids)):
+        ids = panel.get("document_ids")
+        if not isinstance(ids, list) or len(ids) != n:
+            reasons.append(f"panel_id_cardinality:{name}")
+        else:
+            panel_ids.extend(ids)
+    if len(panel_ids) != 3 * n or len(panel_ids) != len(set(panel_ids)):
         reasons.append("human_panels_not_disjoint")
     bandwidth = protocol.get("bandwidth_contract") or {}
     bandwidth_values = bandwidth.get("values") or []
@@ -208,6 +463,19 @@ def protocol_readiness(protocol: dict[str, Any]) -> dict[str, Any]:
         or not str(approval.get("reviewed_at") or "").strip()
     ):
         reasons.append("operator_approval_not_bound")
+    try:
+        artifacts = _verify_artifact_bindings(protocol, artifact_root)
+        _validate_bound_protocol_content(protocol, artifacts)
+    except (OSError, json.JSONDecodeError, MeasurementV2Error, TypeError, KeyError) as error:
+        reasons.append(f"artifact_evidence_invalid:{error}")
+    try:
+        verify_signed_document(
+            protocol,
+            signature_field="operator_signature",
+            trusted_public_keys=trusted_public_keys,
+        )
+    except MeasurementV2Error as error:
+        reasons.append(f"signature_invalid:{error}")
     return {
         "artifact_schema": "dftr.measurement.protocol_readiness.v2",
         "status": "ready" if not reasons else "fail_closed",
@@ -215,8 +483,15 @@ def protocol_readiness(protocol: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def validate_protocol(protocol: dict[str, Any]) -> dict[str, Any]:
-    result = protocol_readiness(protocol)
+def validate_protocol(
+    protocol: dict[str, Any],
+    *,
+    artifact_root: str | Path | None = None,
+    trusted_public_keys: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    result = protocol_readiness(
+        protocol, artifact_root=artifact_root, trusted_public_keys=trusted_public_keys
+    )
     if result["status"] != "ready":
         raise MeasurementV2Error(
             "measurement v2 protocol is not ready: " + ", ".join(result["reasons"])
@@ -225,7 +500,11 @@ def validate_protocol(protocol: dict[str, Any]) -> dict[str, Any]:
 
 
 def prepare_protocol_transfer(
-    candidate_path: str | Path, expected_sha256: str
+    candidate_path: str | Path,
+    expected_sha256: str,
+    *,
+    artifact_root: str | Path | None = None,
+    trusted_public_keys: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     path = Path(candidate_path)
     if _sha256(path) != _require_sha(expected_sha256, "expected_sha256"):
@@ -235,21 +514,40 @@ def prepare_protocol_transfer(
         raise MeasurementV2Error("unexpected protocol candidate schema")
     if (candidate.get("operator_review") or {}).get("approved") is not True:
         raise MeasurementV2Error("protocol candidate lacks operator approval")
-    transferred = dict(candidate)
-    transferred["artifact_schema"] = "dftr.measurement.protocol.v2"
-    transferred["frozen"] = True
-    transferred["status"] = "ready"
-    transferred["operator_approval"] = dict(candidate["operator_review"])
-    transferred.pop("operator_review", None)
-    validate_protocol(transferred)
-    return transferred
+    transferred = candidate.get("frozen_protocol")
+    if not isinstance(transferred, dict):
+        raise MeasurementV2Error("candidate lacks a separately signed frozen protocol")
+    if (
+        transferred.get("artifact_schema") != "dftr.measurement.protocol.v2"
+        or transferred.get("status") != "ready"
+        or transferred.get("frozen") is not True
+    ):
+        raise MeasurementV2Error("embedded frozen protocol has invalid transfer state")
+    validate_protocol(
+        transferred, artifact_root=artifact_root, trusted_public_keys=trusted_public_keys
+    )
+    return dict(transferred)
 
 
-def validate_report_v2(report: dict[str, Any]) -> dict[str, Any]:
+def validate_report_v2(
+    report: dict[str, Any],
+    *,
+    protocol: dict[str, Any] | None = None,
+    artifact_root: str | Path | None = None,
+    trusted_public_keys: dict[str, str] | None = None,
+) -> dict[str, Any]:
     if report.get("artifact_schema") != "dftr.measurement.report.v2":
         raise MeasurementV2Error("unexpected measurement report schema")
     if report.get("evidence_class") not in {"prospective_screen", "post_hoc_shadow"}:
         raise MeasurementV2Error("v2 report has invalid evidence_class")
+    promotion = report.get("promotion") or {}
+    if not isinstance(promotion.get("eligible"), bool):
+        raise MeasurementV2Error("report promotion eligibility must be boolean")
+    if report.get("evidence_class") == "post_hoc_shadow" and promotion.get("eligible") is True:
+        raise MeasurementV2Error("post-hoc shadow evidence can never be promotion eligible")
+    authorship = report.get("authorship") or {}
+    if authorship.get("status") == "underpowered" and promotion.get("eligible") is True:
+        raise MeasurementV2Error("underpowered authorship can never be promotion eligible")
     counts = report.get("counts") or {}
     n = _require_int(counts.get("documents_per_cell"), "report.counts.documents_per_cell", minimum=64)
     if _require_int(
@@ -280,14 +578,17 @@ def validate_report_v2(report: dict[str, Any]) -> dict[str, Any]:
     seeds = report.get("seeds") or {}
     _require_seed_list(seeds.get("training"), "report.seeds.training")
     _require_seed_list(seeds.get("sampling"), "report.seeds.sampling")
-    validate_selection_firewall(report.get("checkpoint_manifest") or {})
     distribution = report.get("distribution") or {}
     if (
         _require_int(distribution.get("documents_per_cell"), "report.distribution.documents_per_cell", minimum=1) != n
         or _require_int(distribution.get("human_documents_per_panel"), "report.distribution.human_documents_per_panel", minimum=1) != n
     ):
         raise MeasurementV2Error("distribution cells must all use report n")
-    _require_sha(distribution.get("bandwidth_sha256"), "report.distribution.bandwidth_sha256")
+    distribution_bandwidth_hash = _require_sha(
+        distribution.get("bandwidth_sha256"), "report.distribution.bandwidth_sha256"
+    )
+    if distribution_bandwidth_hash != hashes["bandwidths_sha256"]:
+        raise MeasurementV2Error("distribution bandwidth hash does not match frozen bandwidth artifact")
     for field in (
         "candidate_mmd2_unbiased",
         "control_mmd2_unbiased",
@@ -297,19 +598,38 @@ def validate_report_v2(report: dict[str, Any]) -> dict[str, Any]:
         if not isinstance(value, (int, float)) or not math.isfinite(value):
             raise MeasurementV2Error(f"report.distribution.{field} must be finite")
     _require_int(distribution.get("permutation_seed"), "report.distribution.permutation_seed")
+    checkpoint_manifest = report.get("checkpoint_manifest") or {}
+    validate_selection_firewall(checkpoint_manifest)
+    selection = checkpoint_manifest["selection"]
+    selected_seeds = (
+        selection.get("seeds")
+        if selection.get("rule_type") == "all_preregistered_seeds"
+        else [selection.get("seed")]
+    )
+    if selection.get("rule_type") != "training_only" and selected_seeds != seeds["training"]:
+        raise MeasurementV2Error("checkpoint selection seed does not match report training seeds")
+    for field in (
+        "calibration_sha256",
+        "matched_baseline_sha256",
+        "selection_policy_sha256",
+        "candidate_full_brief_sha256",
+        "control_full_brief_sha256",
+        "sampling_grid_sha256",
+        "control_output_manifest_sha256",
+    ):
+        _require_sha(hashes.get(field), f"report.hashes.{field}")
     if (report.get("quality") or {}).get("status") == "measured":
         linkage = report.get("quality_linkage") or {}
         if linkage.get("status") != "verified" or _int_or_zero(linkage.get("matched_pairs")) != n:
             raise MeasurementV2Error("measured quality lacks one-to-one prompt linkage")
     if (report.get("repetition") or {}).get("status") == "underpowered":
-        if (report.get("promotion") or {}).get("eligible") is True:
+        if promotion.get("eligible") is True:
             raise MeasurementV2Error("underpowered repetition cannot promote")
     repetition = report.get("repetition") or {}
     if _require_int(repetition.get("documents_per_panel"), "report.repetition.documents_per_panel", minimum=1) != n:
         raise MeasurementV2Error("repetition must use matched report n")
     if repetition.get("power_plan_passed") is not True and repetition.get("status") != "underpowered":
         raise MeasurementV2Error("repetition without power evidence must be underpowered")
-    authorship = report.get("authorship") or {}
     if authorship.get("grouped") is not True or _require_int(
         authorship.get("fit_count"), "report.authorship.fit_count", minimum=1
     ) < 1:
@@ -318,6 +638,66 @@ def validate_report_v2(report: dict[str, Any]) -> dict[str, Any]:
         authorship.get("effective_clusters"), "report.authorship.effective_clusters", minimum=1
     ) < 64 and authorship.get("status") != "underpowered":
         raise MeasurementV2Error("authorship with fewer than 64 clusters is underpowered")
+    if protocol is None:
+        raise MeasurementV2Error("report must be bound to a verified frozen protocol")
+    validate_protocol(
+        protocol, artifact_root=artifact_root, trusted_public_keys=trusted_public_keys
+    )
+    if hashes["protocol_sha256"] != _canonical_sha256(protocol):
+        raise MeasurementV2Error("report protocol hash does not match verified protocol")
+    protocol_hashes = protocol.get("hashes") or {}
+    for report_field, protocol_field in (
+        ("prompt_panel_sha256", "prompt_panel_sha256"),
+        ("control_output_manifest_sha256", "matched_baseline_outputs_sha256"),
+        ("bandwidths_sha256", "bandwidths_sha256"),
+        ("power_plan_sha256", "power_plan_sha256"),
+        ("calibration_sha256", "calibration_sha256"),
+        ("matched_baseline_sha256", "matched_baseline_sha256"),
+        ("selection_policy_sha256", "selection_policy_sha256"),
+        ("dependency_lock_sha256", "dependency_lock_sha256"),
+        ("evaluator_commit_sha256", "metric_code_sha256"),
+    ):
+        if hashes[report_field] != protocol_hashes.get(protocol_field):
+            raise MeasurementV2Error(f"report hash is not protocol-bound: {report_field}")
+    for report_field, panel_name in (
+        ("human_eval_sha256", "human_eval"),
+        ("human_floor_a_sha256", "human_floor_a"),
+        ("human_floor_b_sha256", "human_floor_b"),
+    ):
+        if hashes[report_field] != (protocol.get("panels", {}).get(panel_name) or {}).get(
+            "content_manifest_sha256"
+        ):
+            raise MeasurementV2Error(f"report human panel content hash mismatch: {report_field}")
+    matched = protocol.get("matched_design") or {}
+    for field in (
+        "candidate_full_brief_sha256",
+        "control_full_brief_sha256",
+        "sampling_grid_sha256",
+        "control_output_manifest_sha256",
+    ):
+        if hashes[field] != matched.get(field):
+            raise MeasurementV2Error(f"report matched-design hash mismatch: {field}")
+    cells = seeds.get("cells")
+    if not isinstance(cells, list) or cells != matched.get("seed_grid"):
+        raise MeasurementV2Error("report training/sampling seed nesting is not protocol-bound")
+    if promotion.get("eligible") is True:
+        hard_gates = report.get("hard_gates") or {}
+        quality = report.get("quality") or {}
+        if (
+            report.get("evidence_class") != "prospective_screen"
+            or distribution.get("decision") != "pass"
+            or distribution.get("power_plan_passed") is not True
+            or quality.get("status") != "measured"
+            or quality.get("decision") != "pass"
+            or repetition.get("status") != "ready"
+            or repetition.get("decision") != "pass"
+            or repetition.get("power_plan_passed") is not True
+            or authorship.get("status") != "ready"
+            or authorship.get("decision") != "pass"
+            or not hard_gates
+            or not all(value is True for value in hard_gates.values())
+        ):
+            raise MeasurementV2Error("promotion intersection rule is not satisfied")
     return {"status": "pass", "artifact_schema": "dftr.measurement.report_check.v2"}
 
 
@@ -328,13 +708,28 @@ def build_attestation(
     blind_test_manifest: dict[str, Any],
     operator: str,
     attested_at: str,
+    artifact_root: str | Path | None = None,
+    trusted_public_keys: dict[str, str] | None = None,
 ) -> dict[str, Any]:
-    validate_protocol(protocol)
+    validate_protocol(
+        protocol, artifact_root=artifact_root, trusted_public_keys=trusted_public_keys
+    )
     if inventory_check.get("status") != "pass":
         raise MeasurementV2Error("historical inventory check did not pass")
     tests = blind_test_manifest.get("tests") or []
-    observed = {str(row.get("name")) for row in tests if row.get("status") == "pass"}
-    missing = sorted(REQUIRED_BLIND_GROUPS - observed)
+    if (
+        blind_test_manifest.get("artifact_schema") != "dftr.measurement.blind_test_manifest.v2"
+        or blind_test_manifest.get("status") != "qualified"
+        or not str(blind_test_manifest.get("tested_at") or "").strip()
+        or not isinstance(blind_test_manifest.get("runtime_versions"), dict)
+        or not blind_test_manifest.get("runtime_versions")
+    ):
+        raise MeasurementV2Error("signed blind manifest metadata is incomplete")
+    observed = [str(row.get("name")) for row in tests if row.get("status") == "pass"]
+    if len(observed) != len(set(observed)):
+        raise MeasurementV2Error("signed blind manifest contains duplicate test groups")
+    observed_set = set(observed)
+    missing = sorted(REQUIRED_BLIND_GROUPS - observed_set)
     if missing:
         raise MeasurementV2Error("blind qualification is incomplete: " + ", ".join(missing))
     for field in ("evaluator_commit", "dependency_lock_sha256", "fixture_pack_sha256"):
@@ -343,6 +738,23 @@ def build_attestation(
         raise MeasurementV2Error("no-sealed-imitation attestation is absent")
     if not str(operator).strip() or not str(attested_at).strip():
         raise MeasurementV2Error("operator and attested_at are required")
+    signature_result = verify_signed_document(
+        blind_test_manifest,
+        signature_field="operator_signature",
+        trusted_public_keys=trusted_public_keys,
+    )
+    if blind_test_manifest.get("dependency_lock_sha256") != protocol["hashes"].get(
+        "dependency_lock_sha256"
+    ):
+        raise MeasurementV2Error("signed blind manifest dependency lock is not protocol-bound")
+    if blind_test_manifest.get("evaluator_commit") != protocol["hashes"].get(
+        "metric_code_sha256"
+    ):
+        raise MeasurementV2Error("signed blind manifest evaluator image is not protocol-bound")
+    if blind_test_manifest.get("protocol_sha256") != _canonical_sha256(protocol):
+        raise MeasurementV2Error("signed blind manifest protocol hash mismatch")
+    if str(blind_test_manifest.get("signer_identity") or "").strip() != str(operator).strip():
+        raise MeasurementV2Error("signed blind manifest operator identity mismatch")
     return {
         "artifact_schema": "dftr.measurement.operator_attestation.v2",
         "status": "qualified",
@@ -352,6 +764,9 @@ def build_attestation(
         "evaluator_commit": blind_test_manifest["evaluator_commit"],
         "dependency_lock_sha256": blind_test_manifest["dependency_lock_sha256"],
         "fixture_pack_sha256": blind_test_manifest["fixture_pack_sha256"],
+        "blind_test_manifest_sha256": _canonical_sha256(blind_test_manifest),
+        "signature_verification": signature_result,
+        "operator_signature": blind_test_manifest["operator_signature"],
         "historical_inventory_verified": True,
         "blind_test_groups": sorted(REQUIRED_BLIND_GROUPS),
         "no_sealed_imitation": True,
@@ -366,27 +781,50 @@ def main(argv: Sequence[str] | None = None) -> int:
     inventory_parser.add_argument("--repo-root", required=True)
     protocol_parser = subparsers.add_parser("validate-protocol")
     protocol_parser.add_argument("protocol")
+    protocol_parser.add_argument("--artifact-root", required=True)
+    protocol_parser.add_argument("--trusted-keys", required=True)
     transfer_parser = subparsers.add_parser("prepare-protocol-transfer")
     transfer_parser.add_argument("candidate")
     transfer_parser.add_argument("--expected-sha256", required=True)
+    transfer_parser.add_argument("--artifact-root", required=True)
+    transfer_parser.add_argument("--trusted-keys", required=True)
     report_parser = subparsers.add_parser("validate-report")
     report_parser.add_argument("report")
+    report_parser.add_argument("--protocol", required=True)
+    report_parser.add_argument("--artifact-root", required=True)
+    report_parser.add_argument("--trusted-keys", required=True)
     attestation_parser = subparsers.add_parser("attest")
     attestation_parser.add_argument("protocol")
     attestation_parser.add_argument("inventory_check")
     attestation_parser.add_argument("blind_test_manifest")
     attestation_parser.add_argument("--operator", required=True)
     attestation_parser.add_argument("--attested-at", required=True)
+    attestation_parser.add_argument("--artifact-root", required=True)
+    attestation_parser.add_argument("--trusted-keys", required=True)
     args = parser.parse_args(argv)
     try:
         if args.command == "verify-inventory":
             result = verify_historical_inventory(_load(args.inventory), repo_root=args.repo_root)
         elif args.command == "validate-protocol":
-            result = validate_protocol(_load(args.protocol))
+            result = validate_protocol(
+                _load(args.protocol),
+                artifact_root=args.artifact_root,
+                trusted_public_keys=_load(args.trusted_keys),
+            )
         elif args.command == "prepare-protocol-transfer":
-            result = prepare_protocol_transfer(args.candidate, args.expected_sha256)
+            result = prepare_protocol_transfer(
+                args.candidate,
+                args.expected_sha256,
+                artifact_root=args.artifact_root,
+                trusted_public_keys=_load(args.trusted_keys),
+            )
         elif args.command == "validate-report":
-            result = validate_report_v2(_load(args.report))
+            result = validate_report_v2(
+                _load(args.report),
+                protocol=_load(args.protocol),
+                artifact_root=args.artifact_root,
+                trusted_public_keys=_load(args.trusted_keys),
+            )
         else:
             result = build_attestation(
                 protocol=_load(args.protocol),
@@ -394,6 +832,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 blind_test_manifest=_load(args.blind_test_manifest),
                 operator=args.operator,
                 attested_at=args.attested_at,
+                artifact_root=args.artifact_root,
+                trusted_public_keys=_load(args.trusted_keys),
             )
     except (OSError, json.JSONDecodeError, MeasurementV2Error) as error:
         print(f"measurement-v2: {error}")

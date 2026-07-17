@@ -3,8 +3,13 @@
   "status": "unmaterialized",
   "frozen": false,
   "training_prompt_ids_sha256": null,
+  "prompt_panel_sha256": null,
+  "full_brief_sha256": null,
   "sampling_grid_sha256": null,
+  "seed_grid": [],
+  "output_manifest_sha256": null,
   "candidate_checkpoint_sha256": null,
   "control_checkpoint_sha256": null,
+  "documents_per_cell": 64,
   "notes": "Candidate and control must share training data, prompt grid, and sampling grid; only the intervention may differ."
 }

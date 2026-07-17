@@ -7,6 +7,10 @@
   "source": "matched_current_control_and_disjoint_visible_humans_only",
   "legacy_baseline_stats_admissible": false,
   "raw_paired_effects_required": true,
+  "human_panels_sha256": null,
+  "bandwidths_sha256": null,
+  "matched_baseline_sha256": null,
+  "dependency_lock_sha256": null,
   "composite_scale": null,
   "notes": "Materialize only under the frozen v2 prompt, panel, sampler, seed, and cluster design. Historical two-document and report-count summaries are quarantined."
 }

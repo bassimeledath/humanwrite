@@ -12,6 +12,7 @@ dependencies = [
   "torch>=2.2",
   "pyyaml>=6",
   "requests>=2.31",
+  "cryptography>=42",
 ]
 
 [project.optional-dependencies]

@@ -6,5 +6,9 @@
   "estimator": "median_positive_squared_pairwise_distance_multiscale",
   "values": [],
   "panel_manifest_sha256": null,
+  "floor_a_content_manifest_sha256": null,
+  "floor_b_content_manifest_sha256": null,
+  "embedder_sha256": null,
+  "preprocessing_sha256": null,
   "bandwidth_sha256": null
 }

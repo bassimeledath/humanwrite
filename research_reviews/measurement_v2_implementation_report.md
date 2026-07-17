@@ -10,18 +10,33 @@ Disposition: implemented prospectively; real-data qualification remains fail-clo
 
 Measurement v2 is implemented as a new, additive namespace. Historical v1 metric code, calibration files, baselines, reports, selection records, and the preserved sealed aggregate were not edited. The checked-in v1 inventory verifies byte-for-byte after installation.
 
-The implementation is deliberately not a promotion-ready result. The visible human pool, three real no-replacement panels, bandwidth array, prospective power simulations, matched current SFT control, and independent blind-test signature are still unmaterialized. The candidate protocol therefore reports `fail_closed`, and protocol transfer requires both an exact candidate SHA-256 and explicit operator approval.
+The implementation is deliberately not a promotion-ready result. The visible human pool, three real no-replacement panels, bandwidth array, prospective power simulations, matched current SFT control, trusted operator key, and independent blind-test signature are still unmaterialized. The candidate protocol therefore reports `fail_closed`. Transfer now requires an exact candidate SHA-256, explicit operator approval, and a separately signed frozen protocol whose referenced artifact bytes and content contracts all verify.
 
 No sealed evaluator source, hidden fixture, hidden prompt, private embedder identifier, private per-item output, or paid service was accessed.
 
 ## Implemented surfaces
 
 - `harness.metrics.distribution_v2` provides immutable-ID embedding panels, three-panel disjoint/equal-cardinality checks, bandwidths derived only from the union of the two human floor panels, a fixed common kernel, unbiased MMD, deterministic label permutations, prompt-paired candidate/control swaps, cluster intervals, and raw candidate/control/human-floor reporting. Candidate and control are aligned by prompt ID; missing, duplicated, or replaced IDs fail before scoring.
-- `harness.metrics.quality_v2` enforces one-to-one prompt/brief/split/fingerprint linkage, deterministic pair order, prompt-clustered quality intervals, repeated grouped authorship cross-fitting with full-pipeline uncertainty refits, signed AUC plus distance from 0.5, small-cluster `underpowered` status, and an endpoint-selection firewall.
+- `harness.metrics.quality_v2` enforces one-to-one prompt/brief/split/SHA-256 fingerprint linkage from both generated and human rows, deterministic pair order, prompt-clustered quality intervals, repeated grouped authorship cross-fitting with the actual fitted-pipeline count and successful refit seeds, signed AUC plus distance from 0.5, small-cluster `underpowered` status, and a structurally validated endpoint-selection firewall.
 - `harness.metrics.validity_v2` enforces same-n self-BLEU with n-1 references and a one-sided Newcombe repetition non-inferiority interface. Inadequate n or absent power evidence is `underpowered`/non-promoting; zero candidate events never fail for being below a lower bound.
-- `harness.measurement_v2` verifies historical manifests, validates frozen protocols and v2 reports, binds operator transfer to an expected SHA-256, and emits an attestation only after the historical check and all 13 named blind groups pass.
+- `harness.measurement_v2` verifies historical manifests; opens and hashes every protocol-bound artifact; checks panel-content, human-only bandwidth, prompt/brief, power, calibration, matched-baseline, seed-grid, evaluator-image, and dependency-lock semantics; verifies Ed25519 signatures against an external trust store; validates the promotion intersection rule; and emits an attestation only after the historical check and all 13 signed blind groups pass.
 - Versioned protocol, report, and attestation JSON Schemas are checked in under `harness/schemas/`.
-- Operator artifacts under `harness/measurement_v2/` include the historical inventory/quarantine, fail-closed protocol candidate, unmaterialized panel/bandwidth/power/calibration/matched-control files, and an aggregate-only blind-test manifest candidate.
+- Operator artifacts under `harness/measurement_v2/` include the historical inventory/quarantine, fail-closed protocol candidate, unmaterialized prompt/panel/bandwidth/power/calibration/matched-control/selection files, an empty external trust-store template, and an aggregate-only blind-test manifest candidate.
+
+## Independent-test repair
+
+Independent tester commit `099cc78` rejected the first implementation with 11 strict executable qualification failures. The repair closes all 11 without changing the tester-owned cases:
+
+- claimed panel counts with empty ID/content lists fail;
+- protocol readiness requires the real artifact root, exact file digests, required artifact schemas, semantic cross-bindings, and a valid Ed25519 signature from an externally trusted key;
+- signed blind evidence binds the protocol, evaluator image, dependency lock, signer identity, runtime metadata, timestamp, unique 13-group result set, fixture hash, and no-sealed-imitation assertion;
+- report bandwidths, prompt/panel contents, calibration, baseline, dependency lock, evaluator image, full brief, sampling grid, nested seed cells, and selection policy are cross-bound to the verified protocol;
+- `post_hoc_shadow`, underpowered repetition, and underpowered authorship cannot be promotion eligible, and an eligible prospective report must satisfy the full endpoint/hard-gate intersection;
+- fixed/all-seed selection rules require nonempty deterministic seed declarations, selected seeds must equal report training seeds, and BLEU is prohibited alongside the earlier endpoints;
+- generated quality rows must declare the exact prompt-matched human reference fingerprint; and
+- authorship `fit_count` is the actual number of `.fit()` calls across every grouped fold, not a count of nominal OOF evaluations.
+
+The public synthetic positive-path fixture generates a temporary Ed25519 key and content-addressed evidence bundle. It proves a complete synthetic protocol/report/attestation can validate, while a one-byte dependency-lock change fails readiness. It contains no real human or private operator data.
 
 ## Historical quarantine and verification
 
@@ -47,12 +62,22 @@ Public tests exercise:
 12. historical manifest pass and changed-byte detection; and
 13. all-13-group/no-sealed-imitation attestation gating.
 
-Validation run from `harness/`:
+Validation runs:
 
 ```text
-uv run --extra test pytest -q
-70 passed, 8 warnings in 5.10s
+uv run --extra test pytest -q tests
+75 passed, 8 warnings in 5.21s
+
+uv run --extra test pytest -q tests ../research_reviews/test_measurement_v2_independent_adversarial.py --runxfail
+88 passed, 8 warnings in 4.93s
+
+PYTHONPATH=<repo>:<repo>/harness/src:<repo>/infra harness/.venv/bin/pytest -q \
+  data/tests experiments/tests harness/tests infra/tests ledger/tests \
+  research_reviews/test_measurement_v2_independent_adversarial.py --runxfail
+164 passed, 8 warnings in 5.20s
 ```
+
+`--runxfail` executes the tester-owned strict-xfail bodies as ordinary tests. The markers were deliberately preserved; without that flag, repaired strict xfails correctly appear as strict XPASS until the independent tester updates its verdict artifact.
 
 The eight warnings originate in the untouched v1 authorship test path's explicit scikit-learn `penalty` argument. The new v2 path does not emit them.
 
@@ -60,6 +85,6 @@ The inventory CLI was also run after the full suite and returned `status: pass` 
 
 ## Required independent follow-through
 
-Before prospective scoring, a separate operator must materialize at least `3n` eligible unique visible humans, freeze the three disjoint n-sized panels with `n >= 64`, freeze human-only bandwidths and all preprocessing/model/dependency hashes, complete the simulation power artifact, freeze endpoint-independent checkpoint selection and all seeds, and materialize an exactly prompt/sampler/seed-matched current SFT control. A second operator must run the private synthetic blind pack and return only its signed aggregate manifest.
+Before prospective scoring, a separate operator must materialize at least `3n` eligible unique visible humans, freeze the three disjoint n-sized content-addressed panels with `n >= 64`, freeze human-only bandwidths and all preprocessing/embedder/model/dependency hashes, complete the simulation power and multiplicity artifact, freeze endpoint-independent checkpoint selection and nested seed cells, and materialize an exactly prompt/brief/sampler/seed-matched current SFT control. A trusted operator key must be provisioned outside the protocol bundle. A second operator must run the private synthetic blind pack and return only its signed aggregate manifest.
 
 Until those steps pass, no `measurement_protocol_v2.json` should be issued, no operator attestation can be produced, and no v2 result is promotion evidence. Preserved compatible outputs, if later replayed, must be labeled `post_hoc_shadow`.

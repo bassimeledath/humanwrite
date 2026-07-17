@@ -1,0 +1,8 @@
+{
+  "artifact_schema": "dftr.measurement.prompt_panel.v2",
+  "status": "unmaterialized",
+  "frozen": false,
+  "prompt_ids": [],
+  "full_brief_sha256": null,
+  "notes": "An independent operator must freeze unique prompt IDs and the complete brief-byte hash before candidate outputs are opened."
+}

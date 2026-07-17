@@ -14,20 +14,26 @@
     "dependency_lock_sha256": null,
     "metric_code_sha256": null,
     "prompt_panel_sha256": null,
+    "prompt_brief_sha256": null,
     "human_panels_sha256": null,
+    "human_panel_contents_sha256": null,
     "bandwidths_sha256": null,
     "power_plan_sha256": null,
+    "calibration_sha256": null,
+    "matched_baseline_sha256": null,
+    "matched_baseline_outputs_sha256": null,
     "selection_policy_sha256": null
   },
   "panels": {
-    "human_eval": {"status": "unmaterialized", "frozen": false, "document_count": 0, "document_ids": []},
-    "human_floor_a": {"status": "unmaterialized", "frozen": false, "document_count": 0, "document_ids": []},
-    "human_floor_b": {"status": "unmaterialized", "frozen": false, "document_count": 0, "document_ids": []}
+    "human_eval": {"status": "unmaterialized", "frozen": false, "document_count": 0, "document_ids": [], "content_manifest_sha256": null},
+    "human_floor_a": {"status": "unmaterialized", "frozen": false, "document_count": 0, "document_ids": [], "content_manifest_sha256": null},
+    "human_floor_b": {"status": "unmaterialized", "frozen": false, "document_count": 0, "document_ids": [], "content_manifest_sha256": null}
   },
   "bandwidth_contract": {
     "status": "unmaterialized",
     "source": "human_floor_a_union_human_floor_b",
-    "values": []
+    "values": [],
+    "bandwidth_value_sha256": null
   },
   "power": {
     "mmd_type_i": "not_run",
@@ -45,17 +51,45 @@
     "selection": {"rule_type": "fixed_seed", "value": null},
     "declared_before_measurement": true
   },
+  "matched_design": {
+    "candidate_full_brief_sha256": null,
+    "control_full_brief_sha256": null,
+    "sampling_grid_sha256": null,
+    "seed_grid": [],
+    "control_output_manifest_sha256": null
+  },
   "quality_reference_split": "quality_visible_human",
   "artifacts": {
-    "panel_manifest": "human_panels_v2.manifest.json",
-    "bandwidths": "bandwidths_v2.json",
-    "power_plan": "power_plan_v2.json",
-    "report_schema": "../schemas/measurement_report_v2.schema.json"
+    "dependency_lock": "uv.lock",
+    "metric_code": "src/harness/measurement_v2.py",
+    "prompt_panel": "measurement_v2/prompt_panel_v2.json",
+    "prompt_brief": "measurement_v2/prompt_brief_v2.unmaterialized.txt",
+    "panel_manifest": "measurement_v2/human_panels_v2.manifest.json",
+    "panel_contents": "measurement_v2/human_panel_contents_v2.unmaterialized.json",
+    "bandwidths": "measurement_v2/bandwidths_v2.json",
+    "power_plan": "measurement_v2/power_plan_v2.json",
+    "report_schema": "schemas/measurement_report_v2.schema.json"
+  },
+  "artifact_bindings": {
+    "dependency_lock": {"path": "uv.lock", "sha256": null},
+    "metric_code": {"path": "src/harness/measurement_v2.py", "sha256": null},
+    "prompt_panel": {"path": "measurement_v2/prompt_panel_v2.json", "sha256": null},
+    "prompt_brief": {"path": "measurement_v2/prompt_brief_v2.unmaterialized.txt", "sha256": null},
+    "human_panels": {"path": "measurement_v2/human_panels_v2.manifest.json", "sha256": null},
+    "human_panel_contents": {"path": "measurement_v2/human_panel_contents_v2.unmaterialized.json", "sha256": null},
+    "bandwidths": {"path": "measurement_v2/bandwidths_v2.json", "sha256": null},
+    "power_plan": {"path": "measurement_v2/power_plan_v2.json", "sha256": null},
+    "calibration": {"path": "measurement_v2/calibration_v2_measurement.json", "sha256": null},
+    "matched_baseline": {"path": "measurement_v2/matched_sft_baseline_v2.json", "sha256": null},
+    "matched_baseline_outputs": {"path": "measurement_v2/matched_baseline_outputs_v2.unmaterialized.jsonl", "sha256": null},
+    "selection_policy": {"path": "measurement_v2/selection_policy_v2.json", "sha256": null}
   },
   "operator_review": {
     "approved": false,
     "reviewer": null,
     "reviewed_at": null
   },
+  "operator_signature": null,
+  "frozen_protocol": null,
   "notes": "This candidate is intentionally fail-closed until an independent operator materializes real human panels, bandwidths, power evidence, seeds, hashes, and approval."
 }

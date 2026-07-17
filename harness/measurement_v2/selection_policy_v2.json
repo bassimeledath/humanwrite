@@ -1,0 +1,10 @@
+{
+  "artifact_schema": "dftr.measurement.selection_policy.v2",
+  "status": "unmaterialized",
+  "frozen": false,
+  "selection": {
+    "rule_type": "fixed_seed",
+    "seed": null
+  },
+  "notes": "Materialize and hash an endpoint-independent seed rule before scoring."
+}

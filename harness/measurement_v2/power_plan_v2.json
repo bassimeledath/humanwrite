@@ -3,6 +3,7 @@
   "status": "not_run",
   "frozen": false,
   "minimum_n": 64,
+  "documents_per_cell": 64,
   "targets": {
     "distribution_permutation_power": "not_run",
     "quality_prompt_cluster_power": "not_run",
@@ -10,5 +11,12 @@
     "authorship_effective_clusters": "not_run"
   },
   "all_targets_pass": false,
+  "human_panels_sha256": null,
+  "bandwidths_sha256": null,
+  "calibration_sha256": null,
+  "matched_baseline_sha256": null,
+  "dependency_lock_sha256": null,
+  "results": {},
+  "multiplicity": {"method": null},
   "notes": "Materialize from pilot assumptions before protocol transfer. A nominal n alone is not power evidence."
 }

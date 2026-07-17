@@ -6,10 +6,12 @@
   "target_n_per_panel": 64,
   "required_pool_size": 192,
   "sampling": "disjoint_without_replacement",
+  "content_bundle_sha256": null,
+  "eligibility_attestation_sha256": null,
   "panels": {
-    "floor_a": [],
-    "floor_b": [],
-    "evaluation": []
+    "human_floor_a": [],
+    "human_floor_b": [],
+    "human_eval": []
   },
   "quality_reference_split": "quality_visible_human",
   "private_text_in_manifest": false

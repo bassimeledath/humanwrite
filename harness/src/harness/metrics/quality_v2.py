@@ -27,6 +27,7 @@ PROMOTION_ENDPOINT_TOKENS = {
     "semantic",
     "repetition",
     "self_bleu",
+    "bleu",
     "score",
     "s",
 }
@@ -54,6 +55,8 @@ def align_prompt_linked_references(
     for human in humans:
         prompt_id = _required(human, "prompt_id")
         fingerprint = _required(human, "reference_fingerprint")
+        if not re.fullmatch(r"[0-9a-f]{64}", fingerprint):
+            raise MeasurementV2Error("quality reference fingerprint must be a lowercase SHA-256")
         if prompt_id in human_index or fingerprint in fingerprints:
             raise MeasurementV2Error("quality references must be one-to-one and unique")
         if _required(human, "split") != expected_human_split:
@@ -71,8 +74,8 @@ def align_prompt_linked_references(
         reference = human_index[prompt_id]
         if _required(generated_row, "brief_sha256") != _required(reference, "brief_sha256"):
             raise MeasurementV2Error("generated/reference brief hash mismatch")
-        declared_fingerprint = str(generated_row.get("reference_fingerprint") or "")
-        if declared_fingerprint and declared_fingerprint != reference["reference_fingerprint"]:
+        declared_fingerprint = _required(generated_row, "reference_fingerprint")
+        if declared_fingerprint != reference["reference_fingerprint"]:
             raise MeasurementV2Error("generated/reference fingerprint mismatch")
         _required(generated_row, "text")
         aligned.append((generated_row, reference))
@@ -180,7 +183,7 @@ def _probe_pipeline():
     )
 
 
-def _grouped_oof_auc(texts, labels, groups, *, folds: int, fold_seed: int) -> float:
+def _grouped_oof_auc(texts, labels, groups, *, folds: int, fold_seed: int) -> tuple[float, int]:
     splitter = StratifiedGroupKFold(n_splits=folds, shuffle=True, random_state=fold_seed)
     scores = np.full(len(texts), np.nan, dtype=np.float64)
     for train, test in splitter.split(texts, labels, groups):
@@ -189,7 +192,7 @@ def _grouped_oof_auc(texts, labels, groups, *, folds: int, fold_seed: int) -> fl
         scores[test] = model.predict_proba(texts[test].tolist())[:, 1]
     if not np.isfinite(scores).all():
         raise MeasurementV2Error("grouped authorship cross-fit left unscored rows")
-    return float(roc_auc_score(labels, scores))
+    return float(roc_auc_score(labels, scores)), folds
 
 
 def grouped_authorship_auc(
@@ -217,12 +220,15 @@ def grouped_authorship_auc(
     fold_seeds = tuple(int(value) for value in fold_seeds)
     if not fold_seeds:
         raise MeasurementV2Error("authorship fold seeds must be frozen")
-    point_estimates = [
+    point_results = [
         _grouped_oof_auc(texts, labels, groups, folds=folds, fold_seed=value)
         for value in fold_seeds
     ]
+    point_estimates = [value for value, _ in point_results]
+    fit_count = sum(count for _, count in point_results)
     rng = np.random.default_rng(seed)
     refit_estimates = []
+    successful_refit_seeds = []
     for replicate in range(int(uncertainty_refits)):
         sampled_indices, sampled_groups = [], []
         selected = rng.choice(
@@ -242,15 +248,17 @@ def grouped_authorship_auc(
         if boot_folds < 2:
             continue
         try:
-            refit_estimates.append(
-                _grouped_oof_auc(
-                    texts[indices],
-                    boot_labels,
-                    boot_groups,
-                    folds=boot_folds,
-                    fold_seed=fold_seeds[replicate % len(fold_seeds)] + replicate,
-                )
+            refit_seed = fold_seeds[replicate % len(fold_seeds)] + replicate
+            estimate, replicate_fit_count = _grouped_oof_auc(
+                texts[indices],
+                boot_labels,
+                boot_groups,
+                folds=boot_folds,
+                fold_seed=refit_seed,
             )
+            refit_estimates.append(estimate)
+            fit_count += replicate_fit_count
+            successful_refit_seeds.append(refit_seed)
         except (ValueError, MeasurementV2Error):
             continue
     if len(refit_estimates) < max(10, uncertainty_refits // 2):
@@ -267,7 +275,8 @@ def grouped_authorship_auc(
         },
         "effective_clusters": len(unique_groups),
         "fold_seeds": list(fold_seeds),
-        "fit_count": len(point_estimates) + len(refit_estimates),
+        "fit_count": fit_count,
+        "uncertainty_refit_fold_seeds": successful_refit_seeds,
     }
 
 
@@ -287,4 +296,28 @@ def validate_selection_firewall(selection_manifest: dict[str, Any]) -> dict[str,
         raise MeasurementV2Error(
             "checkpoint selection references promotion endpoints: " + ", ".join(forbidden)
         )
+    if rule_type == "fixed_seed":
+        seed = selection.get("seed")
+        if not isinstance(seed, int) or isinstance(seed, bool) or seed < 0:
+            raise MeasurementV2Error("fixed_seed selection requires a nonnegative seed")
+    elif rule_type == "all_preregistered_seeds":
+        seeds = selection.get("seeds")
+        if (
+            not isinstance(seeds, list)
+            or not seeds
+            or len(seeds) != len(set(seeds))
+            or any(not isinstance(seed, int) or isinstance(seed, bool) or seed < 0 for seed in seeds)
+        ):
+            raise MeasurementV2Error("all_preregistered_seeds requires unique nonnegative seeds")
+    elif rule_type == "hash_selected_seed":
+        seed = selection.get("seed")
+        if not isinstance(seed, int) or isinstance(seed, bool) or seed < 0:
+            raise MeasurementV2Error("hash_selected_seed requires a nonnegative seed")
+        digest = str(selection.get("selector_input_sha256") or "")
+        if not re.fullmatch(r"[0-9a-f]{64}", digest):
+            raise MeasurementV2Error("hash_selected_seed requires selector_input_sha256")
+    elif rule_type == "training_only":
+        digest = str(selection.get("training_objective_sha256") or "")
+        if not re.fullmatch(r"[0-9a-f]{64}", digest):
+            raise MeasurementV2Error("training_only requires training_objective_sha256")
     return {"status": "pass", "rule_type": rule_type}

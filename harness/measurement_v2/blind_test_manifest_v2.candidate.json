@@ -1,11 +1,13 @@
 {
   "artifact_schema": "dftr.measurement.blind_test_manifest.v2",
   "status": "not_run",
+  "protocol_sha256": null,
   "evaluator_commit": null,
   "dependency_lock_sha256": null,
   "fixture_pack_sha256": null,
   "runtime_versions": {},
   "tested_at": null,
+  "signer_identity": null,
   "tests": [
     {"name": "disjoint_floor", "status": "not_run"},
     {"name": "small_matrix_oracle", "status": "not_run"},
@@ -22,5 +24,6 @@
     {"name": "no_sealed_imitation", "status": "not_run"}
   ],
   "no_sealed_imitation": false,
+  "operator_signature": null,
   "notes": "An independent tester replaces this candidate with a signed aggregate-only manifest. Fixture contents must not enter this checkout."
 }

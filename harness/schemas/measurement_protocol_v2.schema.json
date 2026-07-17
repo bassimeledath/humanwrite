@@ -3,7 +3,7 @@
   "$id": "dftr.measurement.protocol.v2",
   "title": "Frozen prospective measurement protocol v2",
   "type": "object",
-  "required": ["artifact_schema", "status", "frozen", "design", "hashes", "panels", "bandwidth_contract", "power", "seeds", "selection_policy", "operator_approval"],
+  "required": ["artifact_schema", "status", "frozen", "design", "hashes", "panels", "bandwidth_contract", "power", "seeds", "selection_policy", "matched_design", "artifact_bindings", "operator_approval", "operator_signature"],
   "properties": {
     "artifact_schema": {"const": "dftr.measurement.protocol.v2"},
     "status": {"const": "ready"},
@@ -19,7 +19,7 @@
     },
     "hashes": {
       "type": "object",
-      "required": ["dependency_lock_sha256", "metric_code_sha256", "prompt_panel_sha256", "human_panels_sha256", "bandwidths_sha256", "power_plan_sha256", "selection_policy_sha256"],
+      "required": ["dependency_lock_sha256", "metric_code_sha256", "prompt_panel_sha256", "prompt_brief_sha256", "human_panels_sha256", "human_panel_contents_sha256", "bandwidths_sha256", "power_plan_sha256", "calibration_sha256", "matched_baseline_sha256", "matched_baseline_outputs_sha256", "selection_policy_sha256"],
       "additionalProperties": {"$ref": "#/$defs/sha256"}
     },
     "panels": {"type": "object"},
@@ -27,6 +27,11 @@
     "power": {"type": "object"},
     "seeds": {"type": "object"},
     "selection_policy": {"type": "object"},
+    "matched_design": {"type": "object"},
+    "artifact_bindings": {
+      "type": "object",
+      "required": ["dependency_lock", "metric_code", "prompt_panel", "prompt_brief", "human_panels", "human_panel_contents", "bandwidths", "power_plan", "calibration", "matched_baseline", "matched_baseline_outputs", "selection_policy"]
+    },
     "operator_approval": {
       "type": "object",
       "required": ["approved", "reviewer", "reviewed_at"],
@@ -35,7 +40,15 @@
         "reviewer": {"type": "string", "minLength": 1},
         "reviewed_at": {"type": "string", "minLength": 1}
       }
-    }
+    },
+    "operator_signature": {"$ref": "#/$defs/signature"}
   },
-  "$defs": {"sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "signature": {
+      "type": "object",
+      "required": ["algorithm", "key_id", "signed_payload_sha256", "signature_base64"],
+      "properties": {"algorithm": {"const": "ed25519"}}
+    }
+  }
 }
