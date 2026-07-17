@@ -224,3 +224,30 @@ PYTHONPATH=infra:. python -m pytest -q \
 PYTHONPATH=infra:. python -m pytest -q
 162 passed in 5.64s
 ```
+
+## Fidelity-v2 launch-boundary repair
+
+Independent tester commit `25c2f60` confirmed the direct artifact-identity
+checks but found three launch bypasses. The follow-up repair closes them at the
+worker workflow, backend policy, and local GPU client without changing either
+tester-owned artifact:
+
+- replay protocol and comparison IDs are now bidirectional: v2 can only use
+  `M2-adapter-merge-fidelity-replay-v2`; v1 can only use the historical v1
+  comparison, submitted-snapshot hash, and exact canonical parsed-config hash
+  `859798f2...4587b9f` whose source YAML remains byte-pinned at
+  `8015afd2...0ef4c`;
+- backend and client now enforce `exact_serialization_bytes` and the canonical
+  explicit generation-arguments authority, matching worker validation; and
+- recursive public-only scans reject credential, secret, token, auth, key,
+  endpoint, and service aliases, including nested/compound forms, while not
+  misclassifying ordinary tokenizer fields.
+
+Forced execution of the three tester-owned blockers now passes all 19 tests.
+The focused replay/policy/sampler suite passes 90 tests with strict-xfail
+markers forced to ordinary execution; the repository-wide forced run passes
+196 tests. A normal repository run excluding only the tester file passes 177
+tests; keeping that strict-xfail file in a normal run intentionally reports
+strict XPASS until the independent tester updates its verdict artifact. No
+preregistration, deployment, launch, remote artifact access, or spend was
+performed by this repair.

@@ -24,6 +24,15 @@ from .contracts import (
 REPLAY_SCHEMA = "dftr.adapter_merge_replay.v1"
 REPLAY_SCHEMA_V2 = "dftr.adapter_merge_replay.v2"
 REPLAY_SCHEMAS = {REPLAY_SCHEMA, REPLAY_SCHEMA_V2}
+REPLAY_COMPARISON_V1 = "M2-adapter-merge-fidelity-replay-v1"
+REPLAY_COMPARISON_V2 = "M2-adapter-merge-fidelity-replay-v2"
+CANONICAL_REPLAY_V1_CONFIG_PATH = "configs/m2/m2_adapter_merge_fidelity_replay_v1.yaml"
+CANONICAL_REPLAY_V1_CONFIG_SHA256 = (
+    "8015afd23f7d21953e0e7f0f1045db824a87377ec38de4c7c478b7455570ef4c"
+)
+CANONICAL_REPLAY_V1_CONFIG_HASH = (
+    "859798f2ce66b81a2db32665b7f8fda5a76f5d9e82c64789e7e1f797c4587b9f"
+)
 CONTRACT_SCHEMA = "dftr.canonical_generation.v1"
 REPLAY_TRANSFORMERS_VERSION = "4.57.6"
 CANONICAL_GENERATION_CONTRACT_PATH = "configs/m2/canonical_full_brief_generation_v1.json"
@@ -55,7 +64,12 @@ TOKENIZER_FILES = {
     "tokenizer_config.json",
     "vocab.json",
 }
-PAID_OR_HIDDEN_KEY_PARTS = {"api", "judge", "provider", "sealed", "hidden"}
+PAID_OR_HIDDEN_KEY_PARTS = {
+    "api", "judge", "provider", "sealed", "hidden",
+    "credential", "credentials", "secret", "secrets", "token", "tokens",
+    "auth", "authentication", "authorization", "key", "keys",
+    "endpoint", "endpoints", "service", "services",
+}
 
 
 def _sha256_bytes(value: bytes) -> str:
@@ -130,6 +144,20 @@ def _forbidden_surface_keys(value: Any) -> list[str]:
             if parts & PAID_OR_HIDDEN_KEY_PARTS or any(
                 normalized.startswith(part) or normalized.endswith(part)
                 for part in PAID_OR_HIDDEN_KEY_PARTS
+                if part in {"api", "judge", "provider", "sealed", "hidden"}
+            ) or any(
+                normalized == part
+                or normalized.endswith(part)
+                or (
+                    part in {
+                        "credential", "credentials", "secret", "secrets",
+                        "auth", "authentication", "authorization",
+                        "endpoint", "endpoints", "service", "services",
+                    }
+                    and normalized.startswith(part)
+                )
+                for part in PAID_OR_HIDDEN_KEY_PARTS
+                if part not in {"api", "judge", "provider", "sealed", "hidden"}
             ):
                 keys.append(str(key))
             keys.extend(_forbidden_surface_keys(child))
@@ -276,6 +304,14 @@ def validate_replay_spec(config: dict[str, Any]) -> tuple[list[str], list[int]]:
     protocol_version = workflow.get("protocol_version")
     if workflow.get("step") != "replay_equivalence" or protocol_version not in REPLAY_SCHEMAS:
         raise M1ConfigError("replay requires the exact replay workflow schema and step")
+    comparison_id = str((config.get("run") or {}).get("comparison_id") or "")
+    if protocol_version == REPLAY_SCHEMA:
+        if comparison_id != REPLAY_COMPARISON_V1:
+            raise M1ConfigError(
+                "replay protocol and comparison identity must match bidirectionally"
+            )
+    elif comparison_id != REPLAY_COMPARISON_V2:
+        raise M1ConfigError("replay protocol and comparison identity must match bidirectionally")
     if str((config.get("runtime") or {}).get("transformers_version")) != REPLAY_TRANSFORMERS_VERSION:
         raise M1ConfigError(
             f"replay requires Transformers {REPLAY_TRANSFORMERS_VERSION} exactly"
@@ -315,9 +351,18 @@ def validate_replay_spec(config: dict[str, Any]) -> tuple[list[str], list[int]]:
     _require_sha((config.get("artifacts") or {}).get("adapter_sha256"), "adapter SHA-256")
     _require_sha((config.get("artifacts") or {}).get("merged_content_hash"), "merged content hash", length=16)
     if protocol_version == REPLAY_SCHEMA_V2:
-        if str((config.get("run") or {}).get("comparison_id")) != "M2-adapter-merge-fidelity-replay-v2":
-            raise M1ConfigError("replay v2 requires its prospective comparison identity")
         load_snapshot_identity_audit(config)
+    else:
+        canonical_path = resolve_repo_path(CANONICAL_REPLAY_V1_CONFIG_PATH)
+        if (
+            not canonical_path.is_file()
+            or file_sha256(canonical_path) != CANONICAL_REPLAY_V1_CONFIG_SHA256
+            or canonical_hash(config) != CANONICAL_REPLAY_V1_CONFIG_HASH
+            or config != read_structured(canonical_path)
+        ):
+            raise M1ConfigError(
+                "replay v1 is restricted to the exact canonical historical config identity"
+            )
     return fingerprints, seeds
 
 

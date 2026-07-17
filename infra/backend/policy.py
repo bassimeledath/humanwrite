@@ -46,6 +46,13 @@ REPLAY_HISTORICAL_CONFIG_SHA256 = (
     "a02d893eda4c5e457864e1145e5cb4a4d238ab04037bc74e269a1ab20e52a72c"
 )
 REPLAY_PROTOCOLS = {"dftr.adapter_merge_replay.v1", "dftr.adapter_merge_replay.v2"}
+REPLAY_PROTOCOL_V1 = "dftr.adapter_merge_replay.v1"
+REPLAY_PROTOCOL_V2 = "dftr.adapter_merge_replay.v2"
+REPLAY_COMPARISON_V1 = "M2-adapter-merge-fidelity-replay-v1"
+REPLAY_COMPARISON_V2 = "M2-adapter-merge-fidelity-replay-v2"
+REPLAY_CANONICAL_V1_CONFIG_HASH = (
+    "859798f2ce66b81a2db32665b7f8fda5a76f5d9e82c64789e7e1f797c4587b9f"
+)
 REPLAY_SNAPSHOT_IDENTITY_PATH = (
     "configs/m2/manifests/m2_adapter_merge_snapshot_identity_v2.json"
 )
@@ -54,6 +61,14 @@ REPLAY_SNAPSHOT_IDENTITY_SHA256 = (
 )
 REPLAY_ORIGINAL_MERGE_HASH_V2 = "7f095c31e83f8b03"
 REPLAY_SUBMITTED_SNAPSHOT_HASH_V2 = "0f437f62bc1cca0c"
+REPLAY_V1_MERGED_CONTENT_HASH = REPLAY_SUBMITTED_SNAPSHOT_HASH_V2
+REPLAY_EXACT_SERIALIZATION_IDENTITY = "exact_serialization_bytes"
+REPLAY_FORBIDDEN_SURFACE_PARTS = {
+    "api", "provider", "judge", "sealed", "hidden",
+    "credential", "credentials", "secret", "secrets", "token", "tokens",
+    "auth", "authentication", "authorization", "key", "keys",
+    "endpoint", "endpoints", "service", "services",
+}
 
 
 class PolicyError(ValueError):
@@ -85,15 +100,28 @@ def revision_is_unresolved(value: Any) -> bool:
 
 def forbidden_replay_surface_keys(value: Any) -> list[str]:
     """Find paid/private surface aliases recursively in a replay config."""
-    forbidden_parts = {"api", "provider", "judge", "sealed", "hidden"}
     found: list[str] = []
     if isinstance(value, dict):
         for key, child in value.items():
             normalized = str(key).casefold().replace("-", "_")
             parts = {part for part in normalized.split("_") if part}
-            if parts & forbidden_parts or any(
+            if parts & REPLAY_FORBIDDEN_SURFACE_PARTS or any(
                 normalized.startswith(part) or normalized.endswith(part)
-                for part in forbidden_parts
+                for part in REPLAY_FORBIDDEN_SURFACE_PARTS
+                if part in {"api", "provider", "judge", "sealed", "hidden"}
+            ) or any(
+                normalized == part
+                or normalized.endswith(part)
+                or (
+                    part in {
+                        "credential", "credentials", "secret", "secrets",
+                        "auth", "authentication", "authorization",
+                        "endpoint", "endpoints", "service", "services",
+                    }
+                    and normalized.startswith(part)
+                )
+                for part in REPLAY_FORBIDDEN_SURFACE_PARTS
+                if part not in {"api", "provider", "judge", "sealed", "hidden"}
             ):
                 found.append(str(key))
             found.extend(forbidden_replay_surface_keys(child))
@@ -101,6 +129,41 @@ def forbidden_replay_surface_keys(value: Any) -> list[str]:
         for child in value:
             found.extend(forbidden_replay_surface_keys(child))
     return found
+
+
+def validate_replay_launch_contract(config: dict[str, Any]) -> None:
+    """Bind replay schema, comparison, and artifact identity before launch."""
+    run = config.get("run") or {}
+    workflow = config.get("workflow") or {}
+    artifacts = config.get("artifacts") or {}
+    protocol = str(workflow.get("protocol_version") or "")
+    comparison = str(run.get("comparison_id") or "")
+    if protocol == REPLAY_PROTOCOL_V1:
+        if (
+            comparison != REPLAY_COMPARISON_V1
+            or artifacts.get("merged_content_hash") != REPLAY_V1_MERGED_CONTENT_HASH
+            or canonical_hash(config) != REPLAY_CANONICAL_V1_CONFIG_HASH
+        ):
+            raise PolicyError(
+                "replay v1 is restricted to the exact canonical historical config identity"
+            )
+        return
+    if protocol != REPLAY_PROTOCOL_V2 or comparison != REPLAY_COMPARISON_V2:
+        raise PolicyError("replay protocol and comparison identity must match bidirectionally")
+    audit = config.get("submitted_snapshot_audit") or {}
+    if (
+        artifacts.get("merged_content_hash") != REPLAY_ORIGINAL_MERGE_HASH_V2
+        or audit.get("identity_manifest") != REPLAY_SNAPSHOT_IDENTITY_PATH
+        or audit.get("identity_manifest_sha256") != REPLAY_SNAPSHOT_IDENTITY_SHA256
+        or audit.get("canonical_directory_hash") != REPLAY_SUBMITTED_SNAPSHOT_HASH_V2
+        or list(audit.get("metadata_difference_files") or [])
+        != ["generation_config.json", "train_config.json"]
+        or audit.get("weights_tokenizer_index_identity")
+        != REPLAY_EXACT_SERIALIZATION_IDENTITY
+        or audit.get("generation_arguments_authority")
+        != REPLAY_GENERATION_CONTRACT_PATH
+    ):
+        raise PolicyError("replay v2 requires the exact original/snapshot identity repair")
 
 
 def validate_launch(payload: dict[str, Any]) -> LaunchPolicy:
@@ -169,19 +232,7 @@ def validate_launch(payload: dict[str, Any]) -> LaunchPolicy:
         }
         if any(str(replay_workflow.get(key) or "") != value for key, value in expected_bindings.items()):
             raise PolicyError("replay_equivalence requires canonical frozen contract bindings")
-        if protocol_version == "dftr.adapter_merge_replay.v2":
-            audit = config.get("submitted_snapshot_audit") or {}
-            artifacts = config.get("artifacts") or {}
-            if (
-                comparison_id != "M2-adapter-merge-fidelity-replay-v2"
-                or artifacts.get("merged_content_hash") != REPLAY_ORIGINAL_MERGE_HASH_V2
-                or audit.get("identity_manifest") != REPLAY_SNAPSHOT_IDENTITY_PATH
-                or audit.get("identity_manifest_sha256") != REPLAY_SNAPSHOT_IDENTITY_SHA256
-                or audit.get("canonical_directory_hash") != REPLAY_SUBMITTED_SNAPSHOT_HASH_V2
-                or list(audit.get("metadata_difference_files") or [])
-                != ["generation_config.json", "train_config.json"]
-            ):
-                raise PolicyError("replay v2 requires the exact original/snapshot identity repair")
+        validate_replay_launch_contract(config)
     api_reserved = 0.0
     if task_kind == "experiment":
         command = run.get("command", ALLOWED_COMMAND_PREFIX)

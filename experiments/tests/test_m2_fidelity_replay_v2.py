@@ -152,3 +152,60 @@ def test_v1_config_remains_byte_identical_and_historical() -> None:
     historical = yaml.safe_load(CONFIG_V1.read_text(encoding="utf-8"))
     assert historical["workflow"]["protocol_version"] == "dftr.adapter_merge_replay.v1"
     assert historical["artifacts"]["merged_content_hash"] == "0f437f62bc1cca0c"
+
+
+def test_only_exact_canonical_v1_identity_can_use_historical_protocol() -> None:
+    historical = yaml.safe_load(CONFIG_V1.read_text(encoding="utf-8"))
+    assert fidelity.validate_replay_spec(historical)[1] == [101, 202, 303]
+    assert validate_launch(_payload(historical)).comparison_id == (
+        "M2-adapter-merge-fidelity-replay-v1"
+    )
+    client = runpy.run_path(str(ROOT / "infra" / "gpu"))
+    validate_submit = client["_validate_submit"]
+    validate_submit.__globals__["_preregistration"] = lambda comparison: {
+        "kind": "prereg", "comparison": comparison, "status": "open",
+    }
+    assert validate_submit(historical, "screen")[0] == (
+        "M2-adapter-merge-fidelity-replay-v1"
+    )
+
+    changed = copy.deepcopy(historical)
+    changed["run"]["arm"] = "prospective-substitute"
+    with pytest.raises(M1ConfigError, match="canonical historical config"):
+        fidelity.validate_replay_spec(changed)
+    with pytest.raises(PolicyError, match="canonical historical config"):
+        validate_launch(_payload(changed))
+    with pytest.raises(SystemExit):
+        validate_submit(changed, "screen")
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        lambda value: (
+            value["workflow"].update(protocol_version="dftr.adapter_merge_replay.v1"),
+            value["artifacts"].update(merged_content_hash="0f437f62bc1cca0c"),
+        ),
+        lambda value: value["submitted_snapshot_audit"].update(
+            weights_tokenizer_index_identity="not-exact"
+        ),
+        lambda value: value["runtime"].update(
+            nested={"credential": "private-value"}
+        ),
+    ],
+)
+def test_workflow_backend_and_client_reject_all_v2_launch_bypasses(mutation) -> None:
+    config = _config()
+    mutation(config)
+    with pytest.raises(M1ConfigError):
+        fidelity.validate_replay_spec(config)
+    with pytest.raises(PolicyError):
+        validate_launch(_payload(config))
+
+    client = runpy.run_path(str(ROOT / "infra" / "gpu"))
+    validate_submit = client["_validate_submit"]
+    validate_submit.__globals__["_preregistration"] = lambda comparison: {
+        "kind": "prereg", "comparison": comparison, "status": "open",
+    }
+    with pytest.raises(SystemExit):
+        validate_submit(config, "screen")

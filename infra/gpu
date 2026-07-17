@@ -35,13 +35,11 @@ from infra.backend.policy import (  # noqa: E402
     REPLAY_GENERATION_CONTRACT_SHA256,
     REPLAY_HISTORICAL_CONFIG_PATH,
     REPLAY_HISTORICAL_CONFIG_SHA256,
-    REPLAY_ORIGINAL_MERGE_HASH_V2,
     REPLAY_PROTOCOLS,
-    REPLAY_SNAPSHOT_IDENTITY_PATH,
-    REPLAY_SNAPSHOT_IDENTITY_SHA256,
-    REPLAY_SUBMITTED_SNAPSHOT_HASH_V2,
     REPLAY_TRANSFORMERS_VERSION,
+    PolicyError,
     forbidden_replay_surface_keys,
+    validate_replay_launch_contract,
 )
 
 LEDGER = ROOT / "ledger" / "ledger.py"
@@ -214,19 +212,10 @@ def _validate_submit(config: dict, budget_class: str) -> tuple[str, dict]:
         }
         if any(str(replay_workflow.get(key) or "") != value for key, value in expected_bindings.items()):
             _die("REJECTED: replay_equivalence requires canonical frozen contract bindings")
-        if protocol_version == "dftr.adapter_merge_replay.v2":
-            audit = config.get("submitted_snapshot_audit") or {}
-            artifacts = config.get("artifacts") or {}
-            if (
-                str(run.get("comparison_id")) != "M2-adapter-merge-fidelity-replay-v2"
-                or artifacts.get("merged_content_hash") != REPLAY_ORIGINAL_MERGE_HASH_V2
-                or audit.get("identity_manifest") != REPLAY_SNAPSHOT_IDENTITY_PATH
-                or audit.get("identity_manifest_sha256") != REPLAY_SNAPSHOT_IDENTITY_SHA256
-                or audit.get("canonical_directory_hash") != REPLAY_SUBMITTED_SNAPSHOT_HASH_V2
-                or list(audit.get("metadata_difference_files") or [])
-                != ["generation_config.json", "train_config.json"]
-            ):
-                _die("REJECTED: replay v2 requires the exact original/snapshot identity repair")
+        try:
+            validate_replay_launch_contract(config)
+        except PolicyError as exc:
+            _die(f"REJECTED: {exc}")
     task_kind = str(run.get("task_kind", "experiment"))
     if task_kind == "experiment":
         command = run.get("command", ["python", "-m", "experiments.runner"])

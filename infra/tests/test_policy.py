@@ -10,6 +10,10 @@ from backend.policy import (
     REPLAY_GENERATION_CONTRACT_SHA256,
     REPLAY_HISTORICAL_CONFIG_PATH,
     REPLAY_HISTORICAL_CONFIG_SHA256,
+    REPLAY_ORIGINAL_MERGE_HASH_V2,
+    REPLAY_SNAPSHOT_IDENTITY_PATH,
+    REPLAY_SNAPSHOT_IDENTITY_SHA256,
+    REPLAY_SUBMITTED_SNAPSHOT_HASH_V2,
     REPLAY_TRANSFORMERS_VERSION,
     accrued_gpu_spend,
     append_event,
@@ -49,9 +53,12 @@ def payload(**compute_overrides):
 
 
 def configure_replay(value):
+    comparison = "M2-adapter-merge-fidelity-replay-v2"
+    value["config"]["run"]["comparison_id"] = comparison
+    value["preregistration"]["comparison"] = comparison
     value["config"]["workflow"] = {
         "step": "replay_equivalence",
-        "protocol_version": "dftr.adapter_merge_replay.v1",
+        "protocol_version": "dftr.adapter_merge_replay.v2",
         "generation_contract": REPLAY_GENERATION_CONTRACT_PATH,
         "generation_contract_sha256": REPLAY_GENERATION_CONTRACT_SHA256,
         "historical_sampling_config": REPLAY_HISTORICAL_CONFIG_PATH,
@@ -59,6 +66,17 @@ def configure_replay(value):
     }
     value["config"]["runtime"] = {
         "transformers_version": REPLAY_TRANSFORMERS_VERSION,
+    }
+    value["config"]["artifacts"] = {
+        "merged_content_hash": REPLAY_ORIGINAL_MERGE_HASH_V2,
+    }
+    value["config"]["submitted_snapshot_audit"] = {
+        "identity_manifest": REPLAY_SNAPSHOT_IDENTITY_PATH,
+        "identity_manifest_sha256": REPLAY_SNAPSHOT_IDENTITY_SHA256,
+        "canonical_directory_hash": REPLAY_SUBMITTED_SNAPSHOT_HASH_V2,
+        "metadata_difference_files": ["generation_config.json", "train_config.json"],
+        "weights_tokenizer_index_identity": "exact_serialization_bytes",
+        "generation_arguments_authority": REPLAY_GENERATION_CONTRACT_PATH,
     }
 
 
@@ -149,6 +167,18 @@ def test_replay_policy_rejects_runtime_or_canonical_binding_substitution():
 )
 def test_recursive_replay_surface_alias_scan(config):
     assert forbidden_replay_surface_keys(config)
+
+
+@pytest.mark.parametrize(
+    "alias",
+    [
+        "credential", "client_secret", "access_token", "authentication",
+        "signing_key", "private_endpoint", "remote_service",
+        "credentialStore", "clientSecret", "authConfig", "serviceUrl",
+    ],
+)
+def test_recursive_replay_surface_scan_rejects_neutral_credential_aliases(alias):
+    assert forbidden_replay_surface_keys({"nested": {alias: "private-value"}})
 
 
 def test_14b_requires_human_flag():
