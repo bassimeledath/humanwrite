@@ -101,3 +101,29 @@ The frozen file identities after implementation are:
   `71ac41a8cbf8eaa0fc4346e3c87cfa7c6e7ea196eeeb8797d0dba819a3d4405b`;
 - v3 tokenizer manifest SHA-256:
   `54891d4320ee45db4f4ad08124c22b1696410b70210e63f0da5239e3958a7712`.
+
+## Complete tokenizer-surface repair
+
+Independent tester commit `0a1a79f` found that the first v3 implementation
+verified every declared tokenizer file but its runtime map enumerated only six
+fixed names. An undeclared adapter-only tokenizer model such as
+`tokenizer.model` could therefore be omitted from the comparison.
+
+The runtime tokenizer map now includes the exact declared JSON/text/template
+files and discovers standard model artifacts (`tokenizer.model`,
+`spiece.model`, and `sentencepiece.bpe.model`) plus any `tokenizer.*` or
+`tokenizer_*` file. Recognized symlinks and non-regular files fail closed. For
+v3, the complete discovered adapter and merged maps must equal their respective
+manifest maps exactly, so undeclared tokenizer artifacts on either side are
+rejected before model loading or diagnostics.
+
+Verification after this repair:
+
+```text
+v3 implementation + independent pack: 55 passed, 3 skipped, 1 stale scope deselected
+full forced repository: 428 passed, 3 skipped, 3 stale scope checks deselected
+```
+
+The three skips require real remote checkpoint files and remain covered by the
+prospective GPU replay. No preregistration, deployment, launch, or spend was
+performed by this repair.

@@ -102,11 +102,17 @@ MERGED_TOKENIZER_CONFIG_ADDITIONS = {
 EXACT_SAMPLING_SEEDS = [101, 202, 303]
 TOKENIZER_FILES = {
     "added_tokens.json",
+    "chat_template.jinja",
     "merges.txt",
     "special_tokens_map.json",
     "tokenizer.json",
     "tokenizer_config.json",
     "vocab.json",
+}
+TOKENIZER_MODEL_FILES = {
+    "tokenizer.model",
+    "spiece.model",
+    "sentencepiece.bpe.model",
 }
 SENSITIVE_REPLAY_KEY_WORDS = {
     "api", "judge", "provider", "sealed", "hidden", "private",
@@ -534,11 +540,22 @@ def _verify_file_map(root: Path, expected: dict[str, Any], label: str) -> dict[s
 
 
 def _tokenizer_file_map(root: Path) -> dict[str, str]:
-    return {
-        name: file_sha256(root / name)
-        for name in sorted(TOKENIZER_FILES)
-        if (root / name).is_file() and not (root / name).is_symlink()
-    }
+    observed: dict[str, str] = {}
+    for path in sorted(root.iterdir(), key=lambda value: value.name):
+        name = path.name
+        normalized = name.casefold()
+        recognized = (
+            name in TOKENIZER_FILES
+            or normalized in TOKENIZER_MODEL_FILES
+            or normalized.startswith("tokenizer.")
+            or normalized.startswith("tokenizer_")
+        )
+        if not recognized:
+            continue
+        if path.is_symlink() or not path.is_file():
+            raise M1ConfigError(f"tokenizer artifact is not a regular file: {name}")
+        observed[name] = file_sha256(path)
+    return observed
 
 
 def _tokenizer_config_json_difference(
@@ -639,6 +656,20 @@ def verify_artifact_identities(config: dict[str, Any]) -> dict[str, Any]:
         raise M1ConfigError("adapter and merged tokenizer file identities are absent")
     if protocol_version != REPLAY_SCHEMA_V3 and adapter_tokenizer != merged_tokenizer:
         raise M1ConfigError("adapter and merged tokenizer file identities differ")
+    if tokenizer_identity is not None:
+        expected_adapter_tokenizer = dict(
+            (tokenizer_identity.get("adapter") or {}).get("file_sha256") or {}
+        )
+        expected_merged_tokenizer = dict(
+            (tokenizer_identity.get("original_merge") or {}).get("file_sha256") or {}
+        )
+        if (
+            adapter_tokenizer != expected_adapter_tokenizer
+            or merged_tokenizer != expected_merged_tokenizer
+        ):
+            raise M1ConfigError(
+                "replay v3 actual tokenizer surface differs from the exact manifest"
+            )
     result = {
         "adapter": {
             "path": str(adapter_dir.resolve()),

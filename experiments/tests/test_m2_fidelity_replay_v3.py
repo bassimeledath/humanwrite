@@ -234,3 +234,21 @@ def test_v1_and_v2_configs_and_manifest_remain_byte_identical() -> None:
     ) == "602cb05fed6fe3a0ecc1e37bc811ae5bb255c2624b57b051ae0744c7a0973b2c"
     assert accepting_layers(load_config(CONFIG_V1)) == {"worker", "backend", "client"}
     assert accepting_layers(load_config(CONFIG_V2)) == {"worker", "backend", "client"}
+
+
+@pytest.mark.parametrize(
+    "extra_name",
+    ["tokenizer.model", "spiece.model", "sentencepiece.bpe.model"],
+)
+def test_tokenizer_map_discovers_additional_model_artifacts(
+    tmp_path: Path, extra_name: str
+) -> None:
+    adapter = tmp_path / "adapter"
+    merged = tmp_path / "merged"
+    adapter.mkdir()
+    merged.mkdir()
+    (adapter / "tokenizer.json").write_text("{}\n", encoding="utf-8")
+    (merged / "tokenizer.json").write_text("{}\n", encoding="utf-8")
+    (adapter / extra_name).write_text("adapter-only\n", encoding="utf-8")
+
+    assert fidelity._tokenizer_file_map(adapter) != fidelity._tokenizer_file_map(merged)
