@@ -94,3 +94,71 @@ The committed tests cover the CPU-reproducible findings only. Actual model,
 archive reproduction, greedy/logit parity, and 48-pair output parity remain
 unverified until the blockers are fixed and a separately authorized GPU replay
 is run.
+
+## Re-test addendum: repair commit `9f350e1`
+
+Final verdict: **FAIL — two launch-readiness blockers remain.**
+
+The repair was tested independently at
+`9f350e135e5e56353a6fd64397d780b618b1e56f`. It genuinely closes the four
+immediate implementation defects from the first review:
+
+- The stochastic path no longer forwards `generator=` to Transformers. With
+  the locally installed Transformers `4.57.6`, a real tiny GPT-2 model generated
+  successfully inside the scoped RNG context. The ambient PyTorch RNG state was
+  restored exactly, and per-record outputs were identical under forward,
+  reverse, singleton, and regrouped execution.
+- Reversing the checked-in 16-fingerprint list is rejected against the
+  hash-verified historical config, and the three seed values/order remain bound.
+- Workflow, backend, and `infra/gpu` policy now recursively reject tested exact
+  and aliased API/provider/judge/sealed/hidden keys.
+- Identity fields and the implementation report now accurately describe hashes
+  of serialized weight files/shard maps rather than claiming a canonical
+  tensor-value identity. A tensor-value digest independent of serialization and
+  sharding is still not produced, so that stronger native red-team criterion
+  remains unverified rather than misrepresented.
+
+Two fail-closed gaps remain:
+
+1. **Transformers is not pinned.** The GPU worker image still declares
+   `transformers>=4.53,<5`. Recording the installed version after execution does
+   not freeze the generation environment before launch. The local 4.57.6 test
+   therefore does not guarantee the same sampling behavior for a later image
+   rebuild.
+2. **The historical order binding is self-substitutable.** Both
+   `historical_sampling_config` and its expected SHA-256 come from the mutable
+   replay config. An adversarial config can point to a substitute historical
+   YAML, update the supplied hash, reverse the fingerprints in both files, and
+   pass `validate_replay_spec`. Neither preregistration nor policy binds the
+   launch to the repository's canonical replay-config digest or to hard-coded
+   historical path/hash constants.
+
+These two gaps are strict expected-failure tests. Repair verification commands:
+
+```bash
+python -m pytest -q -rxX \
+  experiments/tests/test_m2_fidelity_replay_independent.py
+# 6 passed, 2 xfailed
+
+PYTHONPATH=infra python -m pytest -q \
+  experiments/tests/test_m2_fidelity_replay.py \
+  experiments/tests/test_m2_fidelity_replay_independent.py \
+  infra/tests/test_policy.py experiments/tests/test_m1_sampler_loader.py
+# 43 passed, 2 xfailed
+
+PYTHONPATH=infra python -m pytest -q
+# 149 passed, 2 xfailed
+
+python -m py_compile experiments/m1/fidelity.py experiments/m1/workflow.py \
+  experiments/tests/test_m2_fidelity_replay_independent.py \
+  infra/backend/policy.py infra/gpu
+git diff --check
+# both passed
+
+git diff --name-only a4cae58 HEAD -- configs/m1 \
+  ':(glob)configs/m2/m2_sealed*' harness experiments/m1/tier1
+# no output; historical artifacts remain unchanged
+```
+
+No GPU, deploy, provider, judge, sealed/private repository, or hidden-data
+access was performed during this re-test.
