@@ -34,7 +34,9 @@ def canonical_hash(value: Any) -> str:
 def generation_contract_payload(config: dict[str, Any]) -> dict[str, Any]:
     return {
         "artifact_schema": "dftr.m2.generation_contract.v1",
+        "method_contract_sha256": config["checkpoint"]["method_contract_sha256"],
         "prompt_schema_version": config["data"]["prompt_schema_version"],
+        "prompt_briefs_sha256": config["data"]["prompt_briefs_sha256"],
         "prompt_serializer_sha256": config["data"]["prompt_serializer_sha256"],
         "prompt_format": config["data"]["prompt_format"],
         "prompt_order": config["sampling"]["prompt_order"],
@@ -196,6 +198,18 @@ def _load_jsonl(path: Path) -> list[dict[str, Any]]:
     return rows
 
 
+def _checkpoint_file_map(root: Path) -> dict[str, str]:
+    observed: dict[str, str] = {}
+    for item in sorted(root.rglob("*")):
+        if item.is_symlink():
+            raise GenerationConfigError("checkpoint cannot contain symlinks")
+        if item.is_file() and item.name != "checkpoint_manifest.json":
+            observed[item.relative_to(root).as_posix()] = file_sha256(item)
+    if not observed:
+        raise GenerationConfigError("checkpoint file map is empty")
+    return observed
+
+
 def _verify_inputs(config: dict[str, Any]) -> tuple[Path, list[dict[str, Any]]]:
     checkpoint = config["checkpoint"]
     checkpoint_dir = Path(checkpoint["path"])
@@ -210,6 +224,7 @@ def _verify_inputs(config: dict[str, Any]) -> tuple[Path, list[dict[str, Any]]]:
     ):
         raise GenerationConfigError("checkpoint byte binding failed")
     manifest = _load_json(manifest_path)
+    observed_map = _checkpoint_file_map(checkpoint_dir)
     if (
         manifest.get("artifact_schema") != "dftr.m2.adapter_native_checkpoint.v1"
         or manifest.get("status") != "completed"
@@ -218,7 +233,9 @@ def _verify_inputs(config: dict[str, Any]) -> tuple[Path, list[dict[str, Any]]]:
         or manifest.get("base_model") != config["model"]["base"]
         or manifest.get("base_revision") != config["model"]["revision"]
         or manifest.get("method_contract_sha256") != checkpoint["method_contract_sha256"]
-        or (manifest.get("file_sha256") or {}).get("adapter_model.safetensors") != checkpoint["adapter_model_sha256"]
+        or manifest.get("file_map_excludes") != ["checkpoint_manifest.json"]
+        or manifest.get("file_sha256") != observed_map
+        or observed_map.get("adapter_model.safetensors") != checkpoint["adapter_model_sha256"]
     ):
         raise GenerationConfigError("checkpoint manifest identity mismatch")
     prompt_path = Path(config["data"]["prompt_briefs_path"])
@@ -303,6 +320,9 @@ def run_generate_dft(config: dict[str, Any], run_id: str) -> dict[str, Any]:
                 "training_seed": config["sampling"]["training_seed"],
                 "sampling_seed": config["sampling"]["sampling_seed"],
                 "text": text,
+                "checkpoint_sha256": config["checkpoint"]["adapter_model_sha256"],
+                "generation_contract_sha256": config["workflow"]["generation_contract_sha256"],
+                "decoding_policy_sha256": config["workflow"]["decoding_policy_sha256"],
             })
     output_path = output_dir / config["output"]["filename"]
     write_jsonl(output_path, generated)

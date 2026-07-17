@@ -552,6 +552,31 @@ def _seed_grid(
     return [{"training_seed": training_seeds[0], "sampling_seeds": sampling_seeds}]
 
 
+def _validate_generation_provenance(
+    rows: Sequence[dict[str, Any]],
+    *,
+    checkpoint_sha256: str,
+    generation_contract_sha256: str,
+    decoding_policy_sha256: str,
+) -> None:
+    expected = {
+        "checkpoint_sha256": _require_sha(checkpoint_sha256, "generation checkpoint"),
+        "generation_contract_sha256": _require_sha(
+            generation_contract_sha256, "generation contract"
+        ),
+        "decoding_policy_sha256": _require_sha(
+            decoding_policy_sha256, "decoding policy"
+        ),
+    }
+    if any(
+        any(row.get(field) != value for field, value in expected.items())
+        for row in rows
+    ):
+        raise MeasurementV2Error(
+            "raw generation rows do not carry the expected checkpoint and contract provenance"
+        )
+
+
 def _simulate_power(
     assumptions: dict[str, Any],
     *,
@@ -812,6 +837,12 @@ def freeze_operator_bundle(
         )
     raw_control = _load_jsonl(control_outputs)
     seed_grid = _seed_grid(raw_control, prompt_ids)
+    _validate_generation_provenance(
+        raw_control,
+        checkpoint_sha256=control_checkpoint_sha256,
+        generation_contract_sha256=generation_contract_sha256,
+        decoding_policy_sha256=decoding_policy_sha256,
+    )
     selected_seed = seed_grid[0]["training_seed"]
 
     human_vectors, embedding_meta = _load_embeddings(human_embeddings)
@@ -1254,11 +1285,17 @@ def score_candidate_bundle(
     prompt_rows = _load_jsonl(root / "prompt_briefs.jsonl")
     prompt_ids = [str(row["prompt_id"]) for row in prompt_rows]
     raw_candidate = _load_jsonl(candidate_outputs)
-    candidate_seed_grid = _seed_grid(raw_candidate, prompt_ids)
     candidate_checkpoint_sha256 = _require_sha(
         candidate_checkpoint_sha256, "candidate checkpoint"
     )
     matched = protocol["matched_design"]
+    _validate_generation_provenance(
+        raw_candidate,
+        checkpoint_sha256=candidate_checkpoint_sha256,
+        generation_contract_sha256=matched["generation_contract_sha256"],
+        decoding_policy_sha256=matched["decoding_policy_sha256"],
+    )
+    candidate_seed_grid = _seed_grid(raw_candidate, prompt_ids)
     if candidate_seed_grid != matched["seed_grid"]:
         raise MeasurementV2Error(
             "candidate outputs do not use the frozen matched seed grid"

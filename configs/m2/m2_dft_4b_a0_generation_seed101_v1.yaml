@@ -49,5 +49,5 @@ output:
 workflow:
   protocol_version: dftr.m2.adapter_native_generation.v1
   step: generate_dft
-  generation_contract_sha256: ac8353ccc20330dbd477f118a0da04b831f2aed82f0639f2bcc1435c594b4fcd
+  generation_contract_sha256: 1554d88b15314da4412ad80f88e7c9cf38c81296b76636d5379b4a0b56142663
   decoding_policy_sha256: 85acea235952c6943970778fd3765221429a1035f7ccc816204a0bd5e4a87086

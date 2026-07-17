@@ -8,6 +8,7 @@ import yaml
 
 from experiments.m2.generate_dft import (
     GenerationConfigError,
+    _checkpoint_file_map,
     canonical_hash,
     decoding_policy_payload,
     generation_contract_payload,
@@ -49,6 +50,24 @@ def test_frozen_generation_config_validates() -> None:
     )
 
 
+def test_generation_contract_binds_prompt_bytes() -> None:
+    value = config()
+    original = canonical_hash(generation_contract_payload(value))
+    value["data"]["prompt_briefs_sha256"] = "f" * 64
+    assert canonical_hash(generation_contract_payload(value)) != original
+
+
+def test_checkpoint_file_map_rejects_symlinks_and_detects_mutation(tmp_path: Path) -> None:
+    (tmp_path / "adapter_model.safetensors").write_bytes(b"weights")
+    (tmp_path / "adapter_config.json").write_text("{}", encoding="utf-8")
+    original = _checkpoint_file_map(tmp_path)
+    (tmp_path / "adapter_config.json").write_text('{"changed":true}', encoding="utf-8")
+    assert _checkpoint_file_map(tmp_path) != original
+    (tmp_path / "escape").symlink_to(tmp_path / "adapter_config.json")
+    with pytest.raises(GenerationConfigError, match="symlink"):
+        _checkpoint_file_map(tmp_path)
+
+
 @pytest.mark.parametrize(
     "mutate",
     [
@@ -80,3 +99,10 @@ def test_gateway_accepts_only_modal_volume_generation(monkeypatch) -> None:
 def test_gateway_rejects_local_generation() -> None:
     with pytest.raises(PolicyError, match="generate_dft"):
         validate_launch(payload(config()), backend="local")
+
+
+def test_gateway_rejects_sampling_drift_before_worker() -> None:
+    value = config()
+    value["sampling"]["new_tokens"] = 63
+    with pytest.raises(PolicyError, match="generate_dft"):
+        validate_launch(payload(value), backend="modal")

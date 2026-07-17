@@ -53,6 +53,7 @@ REPLAY_PROTOCOLS = {
 }
 DFT_PROTOCOL = "dftr.m2.score_function_mmd.v1"
 DFT_GENERATION_PROTOCOL = "dftr.m2.adapter_native_generation.v1"
+DFT_FULL_BRIEF_SERIALIZER_SHA256 = "eed171580857ef228cb83d8219fbd49926cda555c86a93a085f461714149d7ec"
 PREPARE_DFT_PROTOCOL = "dftr.m2.prepare_training_bandwidths.v1"
 PREPARE_DFT_SUPPORTED_GPUS = {"L40S", "A100-80GB", "H100"}
 PREPARE_DFT_METHOD_KEYS = (
@@ -83,6 +84,90 @@ def _is_checkpoint_volume_path(path: Path) -> bool:
         return resolved != checkpoint_root and resolved.is_relative_to(checkpoint_root)
     except (OSError, RuntimeError, ValueError):
         return False
+
+
+def validate_dft_generation_launch_config(
+    config: dict[str, Any], *, backend: str, budget_class: str, task_kind: str
+) -> None:
+    """Reject generation drift before any accelerator reservation is created."""
+    run, compute, model = config.get("run") or {}, config.get("compute") or {}, config.get("model") or {}
+    checkpoint, data = config.get("checkpoint") or {}, config.get("data") or {}
+    sampling, runtime = config.get("sampling") or {}, config.get("runtime") or {}
+    workflow = config.get("workflow") or {}
+    exact_sets = (
+        (config, {"artifact_schema", "run", "compute", "model", "checkpoint", "data", "sampling", "runtime", "output", "workflow"}),
+        (run, {"comparison_id", "arm", "budget_class", "task_kind", "command", "seed"}),
+        (compute, {"gpu", "gpus", "timeout_min"}),
+        (model, {"base", "revision", "torch_dtype"}),
+        (checkpoint, {"path", "manifest_sha256", "adapter_model_sha256", "arm", "method_contract_sha256"}),
+        (data, {"prompt_briefs_path", "prompt_briefs_sha256", "prompt_format", "prompt_schema_version", "prompt_serializer_sha256"}),
+        (sampling, {"training_seed", "sampling_seed", "seed_scope", "prompt_order", "distribution", "batch_size", "new_tokens", "max_input_tokens", "decode"}),
+        (runtime, {"torch_version", "transformers_version", "peft_version", "deterministic_algorithms", "cublas_workspace_config"}),
+        (workflow, {"protocol_version", "step", "generation_contract_sha256", "decoding_policy_sha256"}),
+    )
+    if any(not isinstance(value, dict) or set(value) != keys for value, keys in exact_sets):
+        raise PolicyError("generate_dft exact schema mismatch")
+    sha_fields = (
+        checkpoint.get("manifest_sha256"), checkpoint.get("adapter_model_sha256"),
+        checkpoint.get("method_contract_sha256"), data.get("prompt_briefs_sha256"),
+        workflow.get("generation_contract_sha256"), workflow.get("decoding_policy_sha256"),
+    )
+    checkpoint_path, prompt_path = Path(str(checkpoint.get("path") or "")), Path(str(data.get("prompt_briefs_path") or ""))
+    fixed_sampling = {
+        "training_seed": 11, "sampling_seed": 101,
+        "seed_scope": "single_global_rng_stream", "prompt_order": "sorted_prompt_id",
+        "distribution": "raw_policy_categorical", "batch_size": 4,
+        "new_tokens": 64, "max_input_tokens": 1024,
+        "decode": {"skip_special_tokens": True},
+    }
+    generation_contract = {
+        "artifact_schema": "dftr.m2.generation_contract.v1",
+        "method_contract_sha256": checkpoint.get("method_contract_sha256"),
+        "prompt_schema_version": data.get("prompt_schema_version"),
+        "prompt_briefs_sha256": data.get("prompt_briefs_sha256"),
+        "prompt_serializer_sha256": data.get("prompt_serializer_sha256"),
+        "prompt_format": data.get("prompt_format"),
+        "prompt_order": sampling.get("prompt_order"),
+        "sampling_seed": sampling.get("sampling_seed"),
+        "seed_scope": sampling.get("seed_scope"),
+        "distribution": sampling.get("distribution"),
+        "batch_size": sampling.get("batch_size"),
+        "new_tokens": sampling.get("new_tokens"),
+        "max_input_tokens": sampling.get("max_input_tokens"),
+        "decode": sampling.get("decode"),
+    }
+    decoding_policy = {
+        "artifact_schema": "dftr.m2.decoding_policy.v1",
+        "distribution": sampling.get("distribution"), "raw_logits": True,
+        "warpers": [], "stopping": "exact_new_token_count",
+        "new_tokens": sampling.get("new_tokens"), "decode": sampling.get("decode"),
+    }
+    if (
+        config.get("artifact_schema") != DFT_GENERATION_PROTOCOL
+        or workflow.get("protocol_version") != DFT_GENERATION_PROTOCOL
+        or workflow.get("step") != "generate_dft"
+        or task_kind != "experiment" or budget_class != "screen" or backend != "modal"
+        or run.get("task_kind") != "experiment" or run.get("budget_class") != "screen"
+        or run.get("command") != ALLOWED_COMMAND_PREFIX or run.get("seed") != 101
+        or checkpoint.get("arm") not in {"A0", "A64"}
+        or run.get("arm") != f"{checkpoint.get('arm')}-generation"
+        or model != {"base": "Qwen/Qwen3-4B", "revision": "1cfa9a7208912126459214e8b04321603b3df60c", "torch_dtype": "bfloat16"}
+        or str(compute.get("gpu") or "").upper() not in {"L40S", "A100-80GB", "H100"}
+        or compute.get("gpus") != 1 or isinstance(compute.get("gpus"), bool)
+        or not isinstance(compute.get("timeout_min"), int) or isinstance(compute.get("timeout_min"), bool)
+        or not 0 < compute["timeout_min"] <= 120
+        or not _is_checkpoint_volume_path(checkpoint_path) or not _is_checkpoint_volume_path(prompt_path)
+        or any(not re.fullmatch(r"[0-9a-f]{64}", str(value or "")) for value in sha_fields)
+        or data.get("prompt_format") != "USER:\n{brief}\nASSISTANT:"
+        or data.get("prompt_schema_version") != "dft.full-brief.v1"
+        or data.get("prompt_serializer_sha256") != DFT_FULL_BRIEF_SERIALIZER_SHA256
+        or sampling != fixed_sampling
+        or runtime != {"torch_version": "2.13.0+cu130", "transformers_version": "4.57.6", "peft_version": "0.19.1", "deterministic_algorithms": True, "cublas_workspace_config": ":4096:8"}
+        or config.get("output") != {"filename": "outputs.jsonl", "overwrite": False}
+        or workflow.get("generation_contract_sha256") != canonical_hash(generation_contract)
+        or workflow.get("decoding_policy_sha256") != canonical_hash(decoding_policy)
+    ):
+        raise PolicyError("generate_dft frozen contract mismatch")
 REPLAY_PROTOCOL_V1 = "dftr.adapter_merge_replay.v1"
 REPLAY_PROTOCOL_V2 = "dftr.adapter_merge_replay.v2"
 REPLAY_PROTOCOL_V3 = "dftr.adapter_merge_replay.v3"
@@ -477,18 +562,9 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
         ):
             raise PolicyError("Modal prepare_dft inputs must use the checkpoint volume")
     if workflow_step == "generate_dft":
-        checkpoint_path = Path(str((config.get("checkpoint") or {}).get("path") or ""))
-        prompt_path = Path(str((config.get("data") or {}).get("prompt_briefs_path") or ""))
-        if (
-            config.get("artifact_schema") != DFT_GENERATION_PROTOCOL
-            or (config.get("workflow") or {}).get("protocol_version") != DFT_GENERATION_PROTOCOL
-            or task_kind != "experiment"
-            or budget_class != "screen"
-            or backend != "modal"
-            or not _is_checkpoint_volume_path(checkpoint_path)
-            or not _is_checkpoint_volume_path(prompt_path)
-        ):
-            raise PolicyError("generate_dft requires the frozen Modal checkpoint-volume protocol")
+        validate_dft_generation_launch_config(
+            config, backend=backend, budget_class=budget_class, task_kind=task_kind
+        )
     if workflow_step == "replay_equivalence":
         replay_workflow = config.get("workflow") or {}
         protocol_version = str(replay_workflow.get("protocol_version"))

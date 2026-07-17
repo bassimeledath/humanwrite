@@ -69,6 +69,9 @@ def source_inputs(tmp_path: Path):
             "training_seed": 11,
             "sampling_seed": 101,
             "text": f"Matched control text {index} with stable words.",
+            "checkpoint_sha256": sha("control-checkpoint"),
+            "generation_contract_sha256": sha("generation-contract"),
+            "decoding_policy_sha256": sha("decoding-policy"),
         }
         for index, row in enumerate(prompts)
     ]
@@ -258,9 +261,9 @@ def test_missing_humans_and_incomplete_control_grid_fail_closed(tmp_path):
             trusted_keys=inputs["trust"],
             historical_inventory=inputs["inventory"],
             repo_root=inputs["source_root"],
-            control_checkpoint_sha256=sha("control"),
-            decoding_policy_sha256=sha("decode"),
-            generation_contract_sha256=sha("generation"),
+            control_checkpoint_sha256=sha("control-checkpoint"),
+            decoding_policy_sha256=sha("decoding-policy"),
+            generation_contract_sha256=sha("generation-contract"),
             operator="operator-test",
             reviewed_at="2026-07-17T00:00:00Z",
         )
@@ -285,9 +288,9 @@ def test_missing_humans_and_incomplete_control_grid_fail_closed(tmp_path):
             trusted_keys=inputs["trust"],
             historical_inventory=inputs["inventory"],
             repo_root=inputs["source_root"],
-            control_checkpoint_sha256=sha("control"),
-            decoding_policy_sha256=sha("decode"),
-            generation_contract_sha256=sha("generation"),
+            control_checkpoint_sha256=sha("control-checkpoint"),
+            decoding_policy_sha256=sha("decoding-policy"),
+            generation_contract_sha256=sha("generation-contract"),
             operator="operator-test",
             reviewed_at="2026-07-17T00:00:00Z",
         )
@@ -314,9 +317,9 @@ def test_underpowered_assumptions_write_fail_closed_status(tmp_path):
             trusted_keys=inputs["trust"],
             historical_inventory=inputs["inventory"],
             repo_root=inputs["source_root"],
-            control_checkpoint_sha256=sha("control"),
-            decoding_policy_sha256=sha("decode"),
-            generation_contract_sha256=sha("generation"),
+            control_checkpoint_sha256=sha("control-checkpoint"),
+            decoding_policy_sha256=sha("decoding-policy"),
+            generation_contract_sha256=sha("generation-contract"),
             operator="operator-test",
             reviewed_at="2026-07-17T00:00:00Z",
         )
@@ -345,6 +348,8 @@ def test_score_rejects_candidate_grid_before_any_metric_work(tmp_path):
     rows = json.loads("[" + ",".join(inputs["control"].read_text().splitlines()) + "]")[
         :-1
     ]
+    for row in rows:
+        row["checkpoint_sha256"] = sha("candidate-checkpoint")
     write_jsonl(candidate, rows)
     score_embeddings = tmp_path / "unused-score-embeddings.json"
     write_json(score_embeddings, {"status": "unused"})
@@ -383,7 +388,11 @@ def test_complete_candidate_grid_emits_valid_nonpromoting_report(tmp_path, monke
     candidate_rows = []
     for index, row in enumerate(_jsonl(inputs["control"])):
         candidate_rows.append(
-            {**row, "text": f"Candidate text {index} with stable prose."}
+            {
+                **row,
+                "text": f"Candidate text {index} with stable prose.",
+                "checkpoint_sha256": sha("candidate-checkpoint"),
+            }
         )
     write_jsonl(candidate, candidate_rows)
     human_meta = json.loads(inputs["embeddings"].read_text())
