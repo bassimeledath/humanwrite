@@ -1,0 +1,20 @@
+run:
+  comparison_id: M2-qwen32b-clean-eval-pool-v1
+  arm: clean-eval-pool
+  budget_class: promo
+  task_kind: document_cleaning
+compute:
+  gpus: 1
+  timeout_min: 480
+data:
+  input_uri: modal-volume://humanwrite-checkpoints/data/m2-lower-variance-v1/raw-eval-pool.jsonl
+  output_uri: modal-volume://humanwrite-checkpoints/data/m2-lower-variance-v1/clean-eval-640.jsonl
+  input_sha256: cacc050d2cbab476cbe90d28066f8c58ce1e39c1d9bc20083a59b1953ac68fb5
+  max_records: 800
+  target_records: 640
+api:
+  model: qwen/qwen3-32b
+  max_cost_usd: 2.0
+quality:
+  min_word_count: 80
+  max_word_count: 220
