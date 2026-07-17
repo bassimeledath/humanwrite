@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-17T08:07:00Z",
+  "updated_at": "2026-07-17T08:13:00Z",
   "phase": "M2 — first genuine adapter-native DFT comparison",
-  "headline": "Measurement inputs and power gates frozen; A0 awaits DFT re-audit",
-  "summary": "The 192-document public pool, BGE-small embeddings, and 64 repaired prompt-matched briefs are complete. Prompt repair changed only user_prompt, yielded 64 unique natural requests, and passed every standalone guard for $0.023. Prospective n=64 power and decision thresholds are frozen before model output. The initial DFT code remains launch-blocked while its author repairs an independently found off-policy sampling defect plus memory and resume gaps.",
+  "headline": "DFT implementation passed re-audit; prospective arm split under final repair",
+  "summary": "The score-function MMD implementation now passes focused and policy tests after fixing on-policy sampling, full-brief conditioning, shared-base adapter memory, and resume provenance. A final sequencing review caught that A0 and A64 must be separately launchable so the real A0 can bind the frozen protocol before A64 exists. That repair and the training-only bandwidth materialization are active; no treatment output has been generated.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
@@ -25,6 +25,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "01:13",
+      "title": "DFT re-audit passed; prospective sequencing tightened",
+      "detail": "The repaired implementation passed 65 focused DFT, policy, and backend tests and was published at 3624793. Before launch, a final review caught that joint A0/A64 execution would violate the measurement-v2 freeze order. Execution is being split into selector-neutral matched jobs; no DFT output or model spend has occurred.",
+      "tone": "active"
+    },
     {
       "at": "01:07",
       "title": "All 64 repaired measurement prompts passed",
