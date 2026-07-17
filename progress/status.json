@@ -1,14 +1,14 @@
 {
-  "updated_at": "2026-07-17T07:55:00Z",
+  "updated_at": "2026-07-17T08:02:00Z",
   "phase": "M2 — first genuine adapter-native DFT comparison",
-  "headline": "Measurement inputs nearly frozen; one brief is in bounded recovery",
-  "summary": "The 192-document public pool and independent BGE-small embeddings are materialized, with zero overlap against training or Tier-1 data. Brief synthesis produced 63 of 64 fully valid prompt-matched rows for $0.091 and failed closed on one row; a one-record quote-free recovery is preregistered under a $0.10 cap. The measurement operator pipeline is complete and independently tested. The A64 score-function MMD trainer and exposure-matched A0 control are finishing local verification; no candidate output has opened.",
+  "headline": "All 64 briefs validate; prompt-only conditioning repair is running",
+  "summary": "The 192-document public pool, independent BGE-small embeddings, and all 64 source/outline/quotation-bound briefs are materialized. A standalone-prompt gate correctly rejected synthesis-instruction echoes in all 64 user prompts before any model output opened, so the proven prompt-only repair is running with every other field frozen. The measurement operator pipeline is complete. Independent audit of the first DFT implementation found an off-policy sampling defect and memory/resume gaps; those are being repaired before any GPU launch.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
     "modal_committed_usd": 3.92086,
     "openrouter_cap_usd": 100,
-    "openrouter_spend_usd": 1.036963
+    "openrouter_spend_usd": 1.038529
   },
   "services": [
     {"name": "GPU gateway", "detail": "Constrained launch API", "status": "online"},
@@ -25,6 +25,18 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "01:02",
+      "title": "Prompt-conditioning defect caught before protocol freeze",
+      "detail": "The 64-row brief artifact passed source, outline, quotation, and 25-percent empty-outline validation. A separate standalone-request gate rejected 64 of 64 user prompts for echoing synthesis instructions. Prompt-only repair is running on a new output while all non-prompt fields remain frozen.",
+      "tone": "active"
+    },
+    {
+      "at": "00:59",
+      "title": "First DFT implementation held by independent audit",
+      "detail": "The core MMD reward math passed, but audit found rollout/log-prob distribution mismatch plus full-brief, resume, and L40S-memory gaps. No launch occurred. The implementation is being corrected and will be re-audited before spend.",
+      "tone": "blocked"
+    },
     {
       "at": "00:55",
       "title": "63 of 64 prompt briefs validated; one-row recovery isolated",

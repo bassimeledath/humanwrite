@@ -2076,3 +2076,20 @@ DECISION: Preserve the 63 accepted bytes. Do not rerun them. Preregister a
 one-record quote-free recovery, the same bounded mechanism used in M1, with a
 strict `max_missing_records=1` gate and $0.10 cap.
 NEXT: Recover and validate only the missing row, then hash-freeze all 64 briefs.
+
+## [2026-07-17] M2 / measurement-v2-prompt-repair-preregistration
+HYPOTHESIS: The prompt-only recovery contract can replace all 64 synthesis-meta
+requests with document-specific standalone writing prompts while leaving every
+reference, outline, quotation, style, and provenance field unchanged.
+SETUP: Quote recovery run `dftr-1784274810-a0159737` completed the exact 64-row
+brief artifact for `$0.001566`; full validation passed with SHA
+`888c26189a...`, 16/64 empty outlines, and the exact source split hash. The
+separate standalone-prompt validator then rejected 64/64 prompts because they
+echoed the synthesis instructions, reproducing the earlier M1 conditioning
+defect before any A0/A64 output existed.
+RESULTS: Prompt repair pending under the frozen 64-record, $1 contract. All
+non-prompt fields are immutable and the output URI is new.
+DECISION: Do not freeze the defective prompt panel. Preregister and run the
+same prompt-only repair mechanism that restored M1 adherence.
+NEXT: Require 64 unique natural requests and exact non-prompt equality, then
+use only the repaired SHA in the signed measurement protocol.
