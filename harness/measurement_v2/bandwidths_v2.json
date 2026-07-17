@@ -1,0 +1,10 @@
+{
+  "artifact_schema": "dftr.measurement.bandwidths.v2",
+  "status": "unmaterialized",
+  "frozen": false,
+  "source": "human_floor_a_union_human_floor_b_only",
+  "estimator": "median_positive_squared_pairwise_distance_multiscale",
+  "values": [],
+  "panel_manifest_sha256": null,
+  "bandwidth_sha256": null
+}

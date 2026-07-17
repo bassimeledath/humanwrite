@@ -1,0 +1,33 @@
+{
+  "artifact_schema": "dftr.measurement.historical_quarantine.v1",
+  "created_at": "2026-07-16",
+  "inventory": "historical_v1_inventory.json",
+  "rule": "No listed artifact is admissible as a prospective v2 floor, quality reference, selection endpoint, promotion result, or uncertainty estimate.",
+  "artifact_sets": [
+    {
+      "name": "calibration_v1",
+      "reasons": ["replacement_biased_floor", "cardinality_mismatch", "prompt_unmatched_quality"]
+    },
+    {
+      "name": "baseline_v1",
+      "reasons": ["replacement_biased_floor", "cardinality_mismatch"]
+    },
+    {
+      "name": "tier1_v1",
+      "reasons": ["replacement_biased_floor", "pair_dependent_bandwidth", "prompt_unmatched_quality", "underpowered_repetition"]
+    },
+    {
+      "name": "m1_top_level_v1",
+      "reasons": ["replacement_biased_floor", "cardinality_mismatch", "historical_calibration_only"]
+    },
+    {
+      "name": "selection_v1",
+      "reasons": ["endpoint_selected_noisy_authorship_auc", "selection_uncertainty_not_propagated"]
+    },
+    {
+      "name": "sealed_v1",
+      "reasons": ["historical_visible_v1_protocol_only"],
+      "note": "The exact historical rejection remains valid for its frozen v1 protocol; quarantine prevents prospective v2 reuse, not historical reinterpretation."
+    }
+  ]
+}

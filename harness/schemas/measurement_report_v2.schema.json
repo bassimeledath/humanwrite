@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dftr.measurement.report.v2",
+  "title": "Measurement report v2",
+  "type": "object",
+  "required": ["artifact_schema", "evidence_class", "counts", "hashes", "seeds", "checkpoint_manifest", "distribution", "quality", "repetition", "authorship", "promotion"],
+  "properties": {
+    "artifact_schema": {"const": "dftr.measurement.report.v2"},
+    "evidence_class": {"enum": ["prospective_screen", "post_hoc_shadow"]},
+    "counts": {
+      "type": "object",
+      "required": ["documents_per_cell", "human_documents_per_panel", "effective_prompt_clusters"],
+      "properties": {
+        "documents_per_cell": {"type": "integer", "minimum": 64},
+        "human_documents_per_panel": {"type": "integer", "minimum": 64},
+        "effective_prompt_clusters": {"type": "integer", "minimum": 64}
+      }
+    },
+    "hashes": {"type": "object", "additionalProperties": {"$ref": "#/$defs/sha256"}},
+    "seeds": {"type": "object"},
+    "checkpoint_manifest": {"type": "object"},
+    "distribution": {
+      "type": "object",
+      "required": ["bandwidth_sha256", "candidate_mmd2_unbiased", "control_mmd2_unbiased", "human_floor_mmd2_unbiased", "permutation_seed"]
+    },
+    "quality": {"type": "object", "required": ["status"]},
+    "repetition": {"type": "object", "required": ["status"]},
+    "authorship": {"type": "object", "required": ["status", "effective_clusters", "fit_count"]},
+    "promotion": {"type": "object", "required": ["eligible"]}
+  },
+  "$defs": {"sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+}

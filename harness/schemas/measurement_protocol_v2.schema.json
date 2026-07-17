@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dftr.measurement.protocol.v2",
+  "title": "Frozen prospective measurement protocol v2",
+  "type": "object",
+  "required": ["artifact_schema", "status", "frozen", "design", "hashes", "panels", "bandwidth_contract", "power", "seeds", "selection_policy", "operator_approval"],
+  "properties": {
+    "artifact_schema": {"const": "dftr.measurement.protocol.v2"},
+    "status": {"const": "ready"},
+    "frozen": {"const": true},
+    "design": {
+      "type": "object",
+      "required": ["documents_per_cell", "human_pool_documents", "replacement_sampling"],
+      "properties": {
+        "documents_per_cell": {"type": "integer", "minimum": 64},
+        "human_pool_documents": {"type": "integer", "minimum": 192},
+        "replacement_sampling": {"const": false}
+      }
+    },
+    "hashes": {
+      "type": "object",
+      "required": ["dependency_lock_sha256", "metric_code_sha256", "prompt_panel_sha256", "human_panels_sha256", "bandwidths_sha256", "power_plan_sha256", "selection_policy_sha256"],
+      "additionalProperties": {"$ref": "#/$defs/sha256"}
+    },
+    "panels": {"type": "object"},
+    "bandwidth_contract": {"type": "object"},
+    "power": {"type": "object"},
+    "seeds": {"type": "object"},
+    "selection_policy": {"type": "object"},
+    "operator_approval": {
+      "type": "object",
+      "required": ["approved", "reviewer", "reviewed_at"],
+      "properties": {
+        "approved": {"const": true},
+        "reviewer": {"type": "string", "minLength": 1},
+        "reviewed_at": {"type": "string", "minLength": 1}
+      }
+    }
+  },
+  "$defs": {"sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+}

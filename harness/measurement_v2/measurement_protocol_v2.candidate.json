@@ -1,0 +1,61 @@
+{
+  "artifact_schema": "dftr.measurement.protocol_candidate.v2",
+  "status": "unmaterialized",
+  "frozen": false,
+  "created_at": "2026-07-16",
+  "owner": "independent_operator",
+  "design": {
+    "documents_per_cell": 64,
+    "human_pool_documents": 192,
+    "replacement_sampling": false,
+    "effective_n_unit": "unique_prompt_cluster"
+  },
+  "hashes": {
+    "dependency_lock_sha256": null,
+    "metric_code_sha256": null,
+    "prompt_panel_sha256": null,
+    "human_panels_sha256": null,
+    "bandwidths_sha256": null,
+    "power_plan_sha256": null,
+    "selection_policy_sha256": null
+  },
+  "panels": {
+    "human_eval": {"status": "unmaterialized", "frozen": false, "document_count": 0, "document_ids": []},
+    "human_floor_a": {"status": "unmaterialized", "frozen": false, "document_count": 0, "document_ids": []},
+    "human_floor_b": {"status": "unmaterialized", "frozen": false, "document_count": 0, "document_ids": []}
+  },
+  "bandwidth_contract": {
+    "status": "unmaterialized",
+    "source": "human_floor_a_union_human_floor_b",
+    "values": []
+  },
+  "power": {
+    "mmd_type_i": "not_run",
+    "mmd_power": "not_run",
+    "auc_power": "not_run",
+    "repetition_power": "not_run",
+    "coverage": "not_run"
+  },
+  "seeds": {
+    "permutation": null,
+    "bootstrap": null,
+    "authorship_split": null
+  },
+  "selection_policy": {
+    "selection": {"rule_type": "fixed_seed", "value": null},
+    "declared_before_measurement": true
+  },
+  "quality_reference_split": "quality_visible_human",
+  "artifacts": {
+    "panel_manifest": "human_panels_v2.manifest.json",
+    "bandwidths": "bandwidths_v2.json",
+    "power_plan": "power_plan_v2.json",
+    "report_schema": "../schemas/measurement_report_v2.schema.json"
+  },
+  "operator_review": {
+    "approved": false,
+    "reviewer": null,
+    "reviewed_at": null
+  },
+  "notes": "This candidate is intentionally fail-closed until an independent operator materializes real human panels, bandwidths, power evidence, seeds, hashes, and approval."
+}

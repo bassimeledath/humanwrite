@@ -1,0 +1,26 @@
+{
+  "artifact_schema": "dftr.measurement.blind_test_manifest.v2",
+  "status": "not_run",
+  "evaluator_commit": null,
+  "dependency_lock_sha256": null,
+  "fixture_pack_sha256": null,
+  "runtime_versions": {},
+  "tested_at": null,
+  "tests": [
+    {"name": "disjoint_floor", "status": "not_run"},
+    {"name": "small_matrix_oracle", "status": "not_run"},
+    {"name": "kernel_freeze", "status": "not_run"},
+    {"name": "cardinality_fail_closed", "status": "not_run"},
+    {"name": "matched_control", "status": "not_run"},
+    {"name": "self_bleu_cardinality", "status": "not_run"},
+    {"name": "repetition_resolution", "status": "not_run"},
+    {"name": "prompt_match", "status": "not_run"},
+    {"name": "auc_refit", "status": "not_run"},
+    {"name": "selection_firewall", "status": "not_run"},
+    {"name": "cluster_power", "status": "not_run"},
+    {"name": "historical_immutability", "status": "not_run"},
+    {"name": "no_sealed_imitation", "status": "not_run"}
+  ],
+  "no_sealed_imitation": false,
+  "notes": "An independent tester replaces this candidate with a signed aggregate-only manifest. Fixture contents must not enter this checkout."
+}

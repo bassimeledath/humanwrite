@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dftr.measurement.operator_attestation.v2",
+  "title": "Independent operator attestation v2",
+  "type": "object",
+  "required": ["artifact_schema", "status", "protocol_sha256", "operator", "attested_at", "evaluator_commit", "dependency_lock_sha256", "fixture_pack_sha256", "historical_inventory_verified", "blind_test_groups", "no_sealed_imitation"],
+  "properties": {
+    "artifact_schema": {"const": "dftr.measurement.operator_attestation.v2"},
+    "status": {"const": "qualified"},
+    "protocol_sha256": {"$ref": "#/$defs/sha256"},
+    "operator": {"type": "string", "minLength": 1},
+    "attested_at": {"type": "string", "minLength": 1},
+    "evaluator_commit": {"$ref": "#/$defs/sha256"},
+    "dependency_lock_sha256": {"$ref": "#/$defs/sha256"},
+    "fixture_pack_sha256": {"$ref": "#/$defs/sha256"},
+    "historical_inventory_verified": {"const": true},
+    "blind_test_groups": {"type": "array", "minItems": 13, "uniqueItems": true},
+    "no_sealed_imitation": {"const": true}
+  },
+  "$defs": {"sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+}

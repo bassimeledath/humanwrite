@@ -1,0 +1,16 @@
+{
+  "artifact_schema": "dftr.measurement.human_panels.v2",
+  "status": "unmaterialized",
+  "frozen": false,
+  "created_at": "2026-07-16",
+  "target_n_per_panel": 64,
+  "required_pool_size": 192,
+  "sampling": "disjoint_without_replacement",
+  "panels": {
+    "floor_a": [],
+    "floor_b": [],
+    "evaluation": []
+  },
+  "quality_reference_split": "quality_visible_human",
+  "private_text_in_manifest": false
+}

@@ -1,0 +1,10 @@
+{
+  "artifact_schema": "dftr.measurement.matched_sft_baseline.v2",
+  "status": "unmaterialized",
+  "frozen": false,
+  "training_prompt_ids_sha256": null,
+  "sampling_grid_sha256": null,
+  "candidate_checkpoint_sha256": null,
+  "control_checkpoint_sha256": null,
+  "notes": "Candidate and control must share training data, prompt grid, and sampling grid; only the intervention may differ."
+}

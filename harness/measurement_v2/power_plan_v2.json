@@ -1,0 +1,14 @@
+{
+  "artifact_schema": "dftr.measurement.power_plan.v2",
+  "status": "not_run",
+  "frozen": false,
+  "minimum_n": 64,
+  "targets": {
+    "distribution_permutation_power": "not_run",
+    "quality_prompt_cluster_power": "not_run",
+    "repetition_noninferiority_power": "not_run",
+    "authorship_effective_clusters": "not_run"
+  },
+  "all_targets_pass": false,
+  "notes": "Materialize from pilot assumptions before protocol transfer. A nominal n alone is not power evidence."
+}

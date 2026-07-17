@@ -1,0 +1,50 @@
+{
+  "artifact_schema": "dftr.measurement.historical_inventory.v1",
+  "created_at": "2026-07-16",
+  "frozen": true,
+  "hash_contract": "sha256 over sorted relative_path NUL file_sha256 LF",
+  "artifact_sets": [
+    {
+      "name": "calibration_v1",
+      "include_globs": ["harness/calibration*.json"],
+      "file_count": 2,
+      "manifest_sha256": "9165c5df9ebecfca37e98fc56d120d1e00d81c6e22eb38c11d9dd077e0ebdcbd",
+      "interpretation": "historical_reproducibility_only"
+    },
+    {
+      "name": "baseline_v1",
+      "include_globs": ["harness/baseline_stats.json"],
+      "file_count": 1,
+      "manifest_sha256": "61b9b78f057cf5a978c5808b3ea2c1fe7548ff9f14a5e15538ff1eafa4ba9312",
+      "interpretation": "historical_reproducibility_only"
+    },
+    {
+      "name": "tier1_v1",
+      "include_globs": ["experiments/m1/tier1/**/*.json"],
+      "file_count": 98,
+      "manifest_sha256": "0426cdcb6927577551293584cdd25ad904ff95c1ed9847224ce7af3bceefdcbf",
+      "interpretation": "historical_reproducibility_only"
+    },
+    {
+      "name": "m1_top_level_v1",
+      "include_globs": ["experiments/m1/*.json"],
+      "file_count": 5,
+      "manifest_sha256": "159adb81bf4a96b599bf1b50341bf5f9c78c8af03c24edd3b4a16e0d933c809c",
+      "interpretation": "historical_reproducibility_only"
+    },
+    {
+      "name": "selection_v1",
+      "include_globs": ["configs/m2/m2_sealed_4b_seed29*.json"],
+      "file_count": 5,
+      "manifest_sha256": "75a379ab116b514841eaeb37eed40ad1c3e4c6f299726ecde8d843bdf8667d9e",
+      "interpretation": "historical_reproducibility_only"
+    },
+    {
+      "name": "sealed_v1",
+      "include_globs": ["experiments/m2/sealed_4b_seed29_v1.json"],
+      "file_count": 1,
+      "manifest_sha256": "412cd05365ff3f8d8f7a0b547356a4e42813bd4e8ae469afbb84f95c74c9bd87",
+      "interpretation": "preserved_valid_rejection_exact_artifact"
+    }
+  ]
+}
