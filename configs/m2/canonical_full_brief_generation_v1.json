@@ -1,6 +1,9 @@
 {
   "contract_schema": "dftr.canonical_generation.v1",
   "dtype": "bfloat16",
+  "runtime": {
+    "transformers_version": "4.57.6"
+  },
   "prompt": {
     "format": "USER:\n{brief}\nASSISTANT:",
     "schema": "dft.full-brief.v1",

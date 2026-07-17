@@ -35,6 +35,10 @@ The new replay config binds:
   historical config, their subset hash, and sampling seeds `[101, 202, 303]`;
 - the generation-contract SHA-256 and canonical serializer source SHA-256.
 
+The canonical generation contract now pins Transformers `4.57.6`, and the
+checked-in replay config carries the same exact runtime requirement. The Modal
+worker image installs `transformers==4.57.6` rather than a version range.
+
 ## Execution order and evidence
 
 The workflow records prompt UTF-8 bytes and SHA-256, explicit token IDs,
@@ -103,6 +107,27 @@ runs `generate`, and restores prior RNG state. A stochastic fake-model test
 also verifies identical per-record outputs across forward, reverse, singleton,
 and regrouped execution orders.
 
+### Second independent re-test
+
+Independent re-test commit `befabaf` confirmed the four earlier repairs and
+identified two remaining launch gates: the worker still allowed a Transformers
+version range, and the caller could substitute both the historical binding file
+and its expected hash.
+
+Both are now closed:
+
+- Transformers `4.57.6` is exact in the worker image, generation contract,
+  replay config, backend policy, local GPU policy, and workflow runtime check.
+  The workflow aborts if the installed library reports any other version.
+- The canonical generation-contract path/SHA and historical sampling-config
+  path/SHA are repository-code constants in both workflow and launch policy.
+  Caller fields must equal those constants, and the workflow independently
+  hashes the canonical repository files. A self-consistent substitute path and
+  hash is rejected before compute by policy and again by the workflow.
+
+The two new independent expected failures were retained as normal regression
+tests and now pass.
+
 ## Verification
 
 Focused tests:
@@ -111,14 +136,14 @@ Focused tests:
 python -m pytest -q experiments/tests/test_m2_fidelity_replay.py \
   experiments/tests/test_m2_fidelity_replay_independent.py \
   infra/tests/test_policy.py experiments/tests/test_m1_sampler_loader.py
-41 passed in 2.45s
+47 passed in 2.70s
 ```
 
 Repository-wide tests with the infrastructure package on the import path:
 
 ```text
 PYTHONPATH=infra:. python -m pytest -q
-147 passed in 5.57s
+153 passed in 5.66s
 ```
 
 A bare repository-root `python -m pytest -q` cannot collect four existing

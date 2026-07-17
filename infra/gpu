@@ -30,7 +30,14 @@ from infra.backend.local_backend import (  # noqa: E402
     status_local,
     submit_local,
 )
-from infra.backend.policy import forbidden_replay_surface_keys  # noqa: E402
+from infra.backend.policy import (  # noqa: E402
+    REPLAY_GENERATION_CONTRACT_PATH,
+    REPLAY_GENERATION_CONTRACT_SHA256,
+    REPLAY_HISTORICAL_CONFIG_PATH,
+    REPLAY_HISTORICAL_CONFIG_SHA256,
+    REPLAY_TRANSFORMERS_VERSION,
+    forbidden_replay_surface_keys,
+)
 
 LEDGER = ROOT / "ledger" / "ledger.py"
 BUDGET = {
@@ -183,13 +190,24 @@ def _validate_submit(config: dict, budget_class: str) -> tuple[str, dict]:
     ):
         _die("REJECTED: M1 evidentiary experiment jobs require a resolved immutable model.revision")
     if workflow_step == "replay_equivalence":
-        if str((config.get("workflow") or {}).get("protocol_version")) != "dftr.adapter_merge_replay.v1":
+        replay_workflow = config.get("workflow") or {}
+        if str(replay_workflow.get("protocol_version")) != "dftr.adapter_merge_replay.v1":
             _die("REJECTED: replay_equivalence requires the frozen public replay protocol")
         if str(run.get("task_kind", "experiment")) != "experiment":
             _die("REJECTED: replay_equivalence requires the credential-free experiment task kind")
         forbidden = forbidden_replay_surface_keys(config)
         if forbidden:
             _die("REJECTED: replay_equivalence cannot expose paid or hidden surfaces")
+        if str((config.get("runtime") or {}).get("transformers_version")) != REPLAY_TRANSFORMERS_VERSION:
+            _die("REJECTED: replay_equivalence requires the exact frozen Transformers version")
+        expected_bindings = {
+            "generation_contract": REPLAY_GENERATION_CONTRACT_PATH,
+            "generation_contract_sha256": REPLAY_GENERATION_CONTRACT_SHA256,
+            "historical_sampling_config": REPLAY_HISTORICAL_CONFIG_PATH,
+            "historical_sampling_config_sha256": REPLAY_HISTORICAL_CONFIG_SHA256,
+        }
+        if any(str(replay_workflow.get(key) or "") != value for key, value in expected_bindings.items()):
+            _die("REJECTED: replay_equivalence requires canonical frozen contract bindings")
     task_kind = str(run.get("task_kind", "experiment"))
     if task_kind == "experiment":
         command = run.get("command", ["python", "-m", "experiments.runner"])

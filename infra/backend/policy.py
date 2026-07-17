@@ -34,6 +34,17 @@ GPU_USD_PER_SECOND = {
 ALLOWED_COMMAND_PREFIX = ["python", "-m", "experiments.runner"]
 TERMINAL = {"completed", "failed", "cancelled", "reaped", "launch_failed"}
 UNRESOLVED_REVISION_PREFIX = "__M1_RESOLVE_"
+REPLAY_TRANSFORMERS_VERSION = "4.57.6"
+REPLAY_GENERATION_CONTRACT_PATH = "configs/m2/canonical_full_brief_generation_v1.json"
+REPLAY_GENERATION_CONTRACT_SHA256 = (
+    "db7c970440c451ffd21e634b53df3fa3d556b139e87257dfff7521442fe8f219"
+)
+REPLAY_HISTORICAL_CONFIG_PATH = (
+    "configs/m1/m1_realdata_adherence_directional_qwen3_4b_three_seed_v1.yaml"
+)
+REPLAY_HISTORICAL_CONFIG_SHA256 = (
+    "a02d893eda4c5e457864e1145e5cb4a4d238ab04037bc74e269a1ab20e52a72c"
+)
 
 
 class PolicyError(ValueError):
@@ -130,13 +141,24 @@ def validate_launch(payload: dict[str, Any]) -> LaunchPolicy:
             "M1 evidentiary experiment jobs require model.revision to be a resolved immutable revision"
         )
     if workflow_step == "replay_equivalence":
-        if str((config.get("workflow") or {}).get("protocol_version")) != "dftr.adapter_merge_replay.v1":
+        replay_workflow = config.get("workflow") or {}
+        if str(replay_workflow.get("protocol_version")) != "dftr.adapter_merge_replay.v1":
             raise PolicyError("replay_equivalence requires the frozen public replay protocol")
         if task_kind != "experiment":
             raise PolicyError("replay_equivalence requires the credential-free experiment task kind")
         forbidden = forbidden_replay_surface_keys(config)
         if forbidden:
             raise PolicyError("replay_equivalence cannot expose paid or hidden surfaces")
+        if str((config.get("runtime") or {}).get("transformers_version")) != REPLAY_TRANSFORMERS_VERSION:
+            raise PolicyError("replay_equivalence requires the exact frozen Transformers version")
+        expected_bindings = {
+            "generation_contract": REPLAY_GENERATION_CONTRACT_PATH,
+            "generation_contract_sha256": REPLAY_GENERATION_CONTRACT_SHA256,
+            "historical_sampling_config": REPLAY_HISTORICAL_CONFIG_PATH,
+            "historical_sampling_config_sha256": REPLAY_HISTORICAL_CONFIG_SHA256,
+        }
+        if any(str(replay_workflow.get(key) or "") != value for key, value in expected_bindings.items()):
+            raise PolicyError("replay_equivalence requires canonical frozen contract bindings")
     api_reserved = 0.0
     if task_kind == "experiment":
         command = run.get("command", ALLOWED_COMMAND_PREFIX)

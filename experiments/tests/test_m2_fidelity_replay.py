@@ -27,6 +27,8 @@ def test_frozen_replay_config_has_exact_cardinality_hashes_and_no_paid_surfaces(
     assert len(set(fingerprints)) == 16
     assert seeds == [101, 202, 303]
     assert contract["dtype"] == "bfloat16"
+    assert contract["runtime"]["transformers_version"] == "4.57.6"
+    assert config["runtime"]["transformers_version"] == "4.57.6"
     assert digest == file_sha256(path)
     assert config["artifacts"]["adapter_sha256"] == (
         "a34c14230f4847001a3a0c4362a3bc26b3a43c1d0ef049e12a7a0d029aacea91"
@@ -50,15 +52,26 @@ def test_replay_spec_fails_closed_on_scope_or_cardinality_tampering(mutation, er
         fidelity.validate_replay_spec(config)
 
 
-def test_generation_contract_hash_tampering_is_rejected(tmp_path: Path) -> None:
+def test_generation_contract_substitution_is_rejected(tmp_path: Path) -> None:
     config = _config()
     original = ROOT / config["workflow"]["generation_contract"]
     changed = tmp_path / "contract.json"
     changed.write_bytes(original.read_bytes() + b" ")
     config["workflow"]["generation_contract"] = str(changed)
 
-    with pytest.raises(M1ConfigError, match="generation contract SHA-256 mismatch"):
+    with pytest.raises(M1ConfigError, match="canonical generation contract"):
         fidelity.load_generation_contract(config)
+
+
+def test_runtime_transformers_version_is_enforced(monkeypatch: pytest.MonkeyPatch) -> None:
+    transformers = pytest.importorskip("transformers")
+    config = _config()
+    contract, _, _ = fidelity.load_generation_contract(config)
+    assert fidelity.verify_runtime_version(config, contract) == "4.57.6"
+
+    monkeypatch.setattr(transformers, "__version__", "4.57.5")
+    with pytest.raises(M1ConfigError, match="installed Transformers version mismatch"):
+        fidelity.verify_runtime_version(config, contract)
 
 
 def test_file_identity_map_rejects_byte_tampering(tmp_path: Path) -> None:

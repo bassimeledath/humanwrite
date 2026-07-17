@@ -6,6 +6,11 @@ import pytest
 
 from backend.policy import (
     PolicyError,
+    REPLAY_GENERATION_CONTRACT_PATH,
+    REPLAY_GENERATION_CONTRACT_SHA256,
+    REPLAY_HISTORICAL_CONFIG_PATH,
+    REPLAY_HISTORICAL_CONFIG_SHA256,
+    REPLAY_TRANSFORMERS_VERSION,
     accrued_gpu_spend,
     append_event,
     authorized,
@@ -43,6 +48,20 @@ def payload(**compute_overrides):
     }
 
 
+def configure_replay(value):
+    value["config"]["workflow"] = {
+        "step": "replay_equivalence",
+        "protocol_version": "dftr.adapter_merge_replay.v1",
+        "generation_contract": REPLAY_GENERATION_CONTRACT_PATH,
+        "generation_contract_sha256": REPLAY_GENERATION_CONTRACT_SHA256,
+        "historical_sampling_config": REPLAY_HISTORICAL_CONFIG_PATH,
+        "historical_sampling_config_sha256": REPLAY_HISTORICAL_CONFIG_SHA256,
+    }
+    value["config"]["runtime"] = {
+        "transformers_version": REPLAY_TRANSFORMERS_VERSION,
+    }
+
+
 def test_valid_launch_reserves_conservative_cost():
     policy = validate_launch(payload())
     assert policy.gpu == "L4"
@@ -76,10 +95,7 @@ def test_hash_tampering_is_rejected():
 
 def test_replay_equivalence_requires_immutable_revision_and_public_runner():
     value = payload()
-    value["config"]["workflow"] = {
-        "step": "replay_equivalence",
-        "protocol_version": "dftr.adapter_merge_replay.v1",
-    }
+    configure_replay(value)
     value["config"]["model"]["revision"] = "__M1_RESOLVE_QWEN__"
     value["config_hash"] = canonical_hash(value["config"])
     with pytest.raises(PolicyError, match="resolved immutable"):
@@ -97,14 +113,27 @@ def test_replay_equivalence_requires_immutable_revision_and_public_runner():
 
 def test_replay_equivalence_policy_rejects_paid_or_hidden_surfaces():
     value = payload()
-    value["config"]["workflow"] = {
-        "step": "replay_equivalence",
-        "protocol_version": "dftr.adapter_merge_replay.v1",
-    }
+    configure_replay(value)
     value["config"]["model"]["revision"] = "a" * 40
     value["config"]["judge"] = {"model": "remote"}
     value["config_hash"] = canonical_hash(value["config"])
     with pytest.raises(PolicyError, match="paid or hidden"):
+        validate_launch(value)
+
+
+def test_replay_policy_rejects_runtime_or_canonical_binding_substitution():
+    value = payload()
+    configure_replay(value)
+    value["config"]["model"]["revision"] = "a" * 40
+    value["config"]["runtime"]["transformers_version"] = "4.57.5"
+    value["config_hash"] = canonical_hash(value["config"])
+    with pytest.raises(PolicyError, match="Transformers version"):
+        validate_launch(value)
+
+    value["config"]["runtime"]["transformers_version"] = REPLAY_TRANSFORMERS_VERSION
+    value["config"]["workflow"]["historical_sampling_config"] = "/tmp/substitute.yaml"
+    value["config_hash"] = canonical_hash(value["config"])
+    with pytest.raises(PolicyError, match="canonical frozen contract bindings"):
         validate_launch(value)
 
 

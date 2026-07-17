@@ -164,19 +164,11 @@ def test_scoped_rng_restores_global_state_and_is_transformers_order_group_invari
     assert torch.equal(torch.random.get_rng_state(), state_before)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="the replay worker allows a Transformers version range instead of an exact pin",
-)
 def test_replay_worker_exactly_pins_transformers() -> None:
     worker_source = (ROOT / "infra" / "backend" / "modal_app.py").read_text(encoding="utf-8")
     assert re.search(r'["\']transformers==\d+\.\d+\.\d+["\']', worker_source)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="the config can substitute its own hash-consistent historical binding file",
-)
 def test_historical_binding_path_and_hash_are_canonical(tmp_path: Path) -> None:
     config = _config()
     historical_path = ROOT / config["workflow"]["historical_sampling_config"]

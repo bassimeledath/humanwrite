@@ -23,6 +23,18 @@ from .contracts import (
 
 REPLAY_SCHEMA = "dftr.adapter_merge_replay.v1"
 CONTRACT_SCHEMA = "dftr.canonical_generation.v1"
+REPLAY_TRANSFORMERS_VERSION = "4.57.6"
+CANONICAL_GENERATION_CONTRACT_PATH = "configs/m2/canonical_full_brief_generation_v1.json"
+CANONICAL_GENERATION_CONTRACT_SHA256 = (
+    "db7c970440c451ffd21e634b53df3fa3d556b139e87257dfff7521442fe8f219"
+)
+CANONICAL_HISTORICAL_CONFIG_PATH = (
+    "configs/m1/m1_realdata_adherence_directional_qwen3_4b_three_seed_v1.yaml"
+)
+CANONICAL_HISTORICAL_CONFIG_SHA256 = (
+    "a02d893eda4c5e457864e1145e5cb4a4d238ab04037bc74e269a1ab20e52a72c"
+)
+FROZEN_SUBSET_HASH = "18a8031ed63cf72636523974000af05e1d8bdd16f351b4f5a13fbe3dcfefe9e3"
 EXACT_SAMPLING_SEEDS = [101, 202, 303]
 TOKENIZER_FILES = {
     "added_tokens.json",
@@ -137,10 +149,14 @@ def _require_sha(value: Any, field: str, *, length: int = 64) -> str:
 
 def load_generation_contract(config: dict[str, Any]) -> tuple[dict[str, Any], Path, str]:
     workflow = config.get("workflow") or {}
-    path = resolve_repo_path(str(workflow.get("generation_contract") or ""))
+    if str(workflow.get("generation_contract") or "") != CANONICAL_GENERATION_CONTRACT_PATH:
+        raise M1ConfigError("replay requires the canonical generation contract path")
+    if str(workflow.get("generation_contract_sha256") or "") != CANONICAL_GENERATION_CONTRACT_SHA256:
+        raise M1ConfigError("replay requires the canonical generation contract SHA-256")
+    path = resolve_repo_path(CANONICAL_GENERATION_CONTRACT_PATH)
     if not path.is_file():
         raise M1ConfigError("workflow.generation_contract is required")
-    expected = _require_sha(workflow.get("generation_contract_sha256"), "generation contract SHA-256")
+    expected = CANONICAL_GENERATION_CONTRACT_SHA256
     observed = file_sha256(path)
     if observed != expected:
         raise M1ConfigError("generation contract SHA-256 mismatch")
@@ -149,6 +165,7 @@ def load_generation_contract(config: dict[str, Any]) -> tuple[dict[str, Any], Pa
         raise M1ConfigError("unexpected generation contract schema")
     expected_shape = {
         "dtype": "bfloat16",
+        "transformers_version": REPLAY_TRANSFORMERS_VERSION,
         "prompt_schema": "dft.full-brief.v1",
         "prompt_format": "USER:\n{brief}\nASSISTANT:",
         "add_special_tokens": True,
@@ -160,6 +177,9 @@ def load_generation_contract(config: dict[str, Any]) -> tuple[dict[str, Any], Pa
     }
     observed_shape = {
         "dtype": contract.get("dtype"),
+        "transformers_version": (contract.get("runtime") or {}).get(
+            "transformers_version"
+        ),
         "prompt_schema": (contract.get("prompt") or {}).get("schema"),
         "prompt_format": (contract.get("prompt") or {}).get("format"),
         "add_special_tokens": (contract.get("tokenization") or {}).get("add_special_tokens"),
@@ -179,6 +199,10 @@ def validate_replay_spec(config: dict[str, Any]) -> tuple[list[str], list[int]]:
     workflow = config.get("workflow") or {}
     if workflow.get("step") != "replay_equivalence" or workflow.get("protocol_version") != REPLAY_SCHEMA:
         raise M1ConfigError("replay requires the exact replay workflow schema and step")
+    if str((config.get("runtime") or {}).get("transformers_version")) != REPLAY_TRANSFORMERS_VERSION:
+        raise M1ConfigError(
+            f"replay requires Transformers {REPLAY_TRANSFORMERS_VERSION} exactly"
+        )
     fingerprints = list((config.get("sampling") or {}).get("dev_subset_fingerprints") or [])
     if len(fingerprints) != 16 or len(set(fingerprints)) != 16:
         raise M1ConfigError("replay requires exactly 16 unique fingerprints")
@@ -190,15 +214,15 @@ def validate_replay_spec(config: dict[str, Any]) -> tuple[list[str], list[int]]:
     seeds = list((config.get("sampling") or {}).get("seeds") or [])
     if seeds != EXACT_SAMPLING_SEEDS:
         raise M1ConfigError("replay sampling seeds must be exactly [101, 202, 303]")
-    historical_path = resolve_repo_path(str(workflow.get("historical_sampling_config") or ""))
+    if str(workflow.get("historical_sampling_config") or "") != CANONICAL_HISTORICAL_CONFIG_PATH:
+        raise M1ConfigError("replay requires the canonical frozen historical config path")
+    if str(workflow.get("historical_sampling_config_sha256") or "") != CANONICAL_HISTORICAL_CONFIG_SHA256:
+        raise M1ConfigError("replay requires the canonical frozen historical config SHA-256")
+    historical_path = resolve_repo_path(CANONICAL_HISTORICAL_CONFIG_PATH)
     if not historical_path.is_file():
         raise M1ConfigError("historical sampling config is required to bind fingerprint order")
-    historical_sha = _require_sha(
-        workflow.get("historical_sampling_config_sha256"),
-        "historical sampling config SHA-256",
-    )
-    if file_sha256(historical_path) != historical_sha:
-        raise M1ConfigError("historical sampling config SHA-256 mismatch")
+    if file_sha256(historical_path) != CANONICAL_HISTORICAL_CONFIG_SHA256:
+        raise M1ConfigError("canonical frozen historical config SHA-256 mismatch")
     historical = read_structured(historical_path)
     historical_sampling = historical.get("sampling") or {}
     if fingerprints != list(historical_sampling.get("dev_subset_fingerprints") or []):
@@ -207,7 +231,7 @@ def validate_replay_spec(config: dict[str, Any]) -> tuple[list[str], list[int]]:
         raise M1ConfigError("replay seed order differs from the frozen historical config")
     if str((config.get("sampling") or {}).get("dev_subset_hash")) != str(
         historical_sampling.get("dev_subset_hash")
-    ):
+    ) or str((config.get("sampling") or {}).get("dev_subset_hash")) != FROZEN_SUBSET_HASH:
         raise M1ConfigError("replay subset identity differs from the frozen historical config")
     _require_sha(workflow.get("fixed_manifest_sha256"), "fixed manifest SHA-256")
     _require_sha((config.get("artifacts") or {}).get("adapter_manifest_sha256"), "adapter manifest SHA-256")
@@ -308,6 +332,22 @@ def _library_versions() -> dict[str, str]:
         "torch": str(torch.__version__),
         "transformers": str(transformers.__version__),
     }
+
+
+def verify_runtime_version(config: dict[str, Any], contract: dict[str, Any]) -> str:
+    import transformers
+
+    configured = str((config.get("runtime") or {}).get("transformers_version"))
+    contracted = str((contract.get("runtime") or {}).get("transformers_version"))
+    installed = str(transformers.__version__)
+    if configured != REPLAY_TRANSFORMERS_VERSION or contracted != REPLAY_TRANSFORMERS_VERSION:
+        raise M1ConfigError("replay Transformers version does not match the frozen contract")
+    if installed != REPLAY_TRANSFORMERS_VERSION:
+        raise M1ConfigError(
+            "installed Transformers version mismatch: "
+            f"expected {REPLAY_TRANSFORMERS_VERSION} but found {installed}"
+        )
+    return installed
 
 
 def _load_models(config: dict[str, Any], contract: dict[str, Any]) -> tuple[Any, Any, Any, Any]:
@@ -625,10 +665,11 @@ def replay_equivalence(
 ) -> dict[str, Any]:
     fingerprints, seeds = validate_replay_spec(config)
     contract, contract_path, contract_sha = load_generation_contract(config)
+    verify_runtime_version(config, contract)
     workflow = config["workflow"]
-    historical_config_path = resolve_repo_path(str(workflow["historical_sampling_config"]))
-    if file_sha256(historical_config_path) != str(workflow["historical_sampling_config_sha256"]):
-        raise M1ConfigError("historical sampling config SHA-256 mismatch")
+    historical_config_path = resolve_repo_path(CANONICAL_HISTORICAL_CONFIG_PATH)
+    if file_sha256(historical_config_path) != CANONICAL_HISTORICAL_CONFIG_SHA256:
+        raise M1ConfigError("canonical frozen historical config SHA-256 mismatch")
     fixed_path = resolve_repo_path(str(workflow["fixed_manifest"]))
     if file_sha256(fixed_path) != str(workflow["fixed_manifest_sha256"]):
         raise M1ConfigError("fixed manifest SHA-256 mismatch")

@@ -11,6 +11,8 @@ compute:
 model:
   base: Qwen/Qwen3-4B
   revision: 1cfa9a7208912126459214e8b04321603b3df60c
+runtime:
+  transformers_version: 4.57.6
 artifacts:
   adapter_path: /checkpoints/runs/dftr-1784216516-91130dd3/seed-29
   adapter_seed: 29
@@ -62,7 +64,7 @@ workflow:
   protocol_version: dftr.adapter_merge_replay.v1
   step: replay_equivalence
   generation_contract: configs/m2/canonical_full_brief_generation_v1.json
-  generation_contract_sha256: 26a68aa025b0fecb9e7d19a9056187883e0813740046325387fe02b9b88b049f
+  generation_contract_sha256: db7c970440c451ffd21e634b53df3fa3d556b139e87257dfff7521442fe8f219
   serializer_source: experiments/m1/workflow.py
   serializer_source_sha256: 2c11f10df683da87675bf02b5de383849033e153697833efa11440b10caeef82
   historical_sampling_config: configs/m1/m1_realdata_adherence_directional_qwen3_4b_three_seed_v1.yaml

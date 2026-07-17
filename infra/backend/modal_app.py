@@ -67,7 +67,7 @@ worker_image = (
         "pyyaml",
         "huggingface-hub>=0.33,<1",
         "torch>=2.7,<3",
-        "transformers>=4.53,<5",
+        "transformers==4.57.6",
         "datasets>=3.6,<5",
         "accelerate>=1.8,<2",
         "peft>=0.16,<1",
