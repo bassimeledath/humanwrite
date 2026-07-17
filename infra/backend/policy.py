@@ -52,6 +52,7 @@ REPLAY_PROTOCOLS = {
     "dftr.adapter_merge_replay.v3",
 }
 DFT_PROTOCOL = "dftr.m2.score_function_mmd.v1"
+DFT_GENERATION_PROTOCOL = "dftr.m2.adapter_native_generation.v1"
 PREPARE_DFT_PROTOCOL = "dftr.m2.prepare_training_bandwidths.v1"
 PREPARE_DFT_SUPPORTED_GPUS = {"L40S", "A100-80GB", "H100"}
 PREPARE_DFT_METHOD_KEYS = (
@@ -326,7 +327,7 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
         raise PolicyError("14B scale-up lacks human approval")
     if workflow_step in {
         "train_sft", "sample_sweep", "merge_adapter", "replay_equivalence", "train_dft",
-        "prepare_dft",
+        "prepare_dft", "generate_dft",
     } and revision_is_unresolved(
         (config.get("model") or {}).get("revision")
     ):
@@ -475,6 +476,19 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
             or not _is_checkpoint_volume_path(human_path)
         ):
             raise PolicyError("Modal prepare_dft inputs must use the checkpoint volume")
+    if workflow_step == "generate_dft":
+        checkpoint_path = Path(str((config.get("checkpoint") or {}).get("path") or ""))
+        prompt_path = Path(str((config.get("data") or {}).get("prompt_briefs_path") or ""))
+        if (
+            config.get("artifact_schema") != DFT_GENERATION_PROTOCOL
+            or (config.get("workflow") or {}).get("protocol_version") != DFT_GENERATION_PROTOCOL
+            or task_kind != "experiment"
+            or budget_class != "screen"
+            or backend != "modal"
+            or not _is_checkpoint_volume_path(checkpoint_path)
+            or not _is_checkpoint_volume_path(prompt_path)
+        ):
+            raise PolicyError("generate_dft requires the frozen Modal checkpoint-volume protocol")
     if workflow_step == "replay_equivalence":
         replay_workflow = config.get("workflow") or {}
         protocol_version = str(replay_workflow.get("protocol_version"))

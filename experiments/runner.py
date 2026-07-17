@@ -11,6 +11,11 @@ from typing import Any
 from data.pipeline import DEFAULT_OUTPUT as DEFAULT_DATA_OUTPUT
 from experiments.m1.workflow import run_m1
 from experiments.m2.dft import DFT_SCHEMA, DFT_STEP, run_dft
+from experiments.m2.generate_dft import (
+    GENERATION_SCHEMA,
+    GENERATION_STEP,
+    run_generate_dft,
+)
 from experiments.m2.prepare_dft import (
     PREPARE_DFT_SCHEMA,
     PREPARE_DFT_STEP,
@@ -160,10 +165,16 @@ def main(argv: list[str] | None = None) -> int:
         raise ValueError("prepare_dft requires the frozen training-bandwidth protocol")
     if step == DFT_STEP and protocol != DFT_SCHEMA:
         raise ValueError("train_dft requires the frozen M2 score-function MMD protocol")
+    if protocol == GENERATION_SCHEMA and step != GENERATION_STEP:
+        raise ValueError("adapter-native generation protocol requires generate_dft")
+    if step == GENERATION_STEP and protocol != GENERATION_SCHEMA:
+        raise ValueError("generate_dft requires the frozen adapter-native generation protocol")
     if protocol == PREPARE_DFT_SCHEMA:
         manifest = run_prepare_dft(config, args.run_id)
     elif protocol == DFT_SCHEMA:
         manifest = run_dft(config, args.run_id)
+    elif protocol == GENERATION_SCHEMA:
+        manifest = run_generate_dft(config, args.run_id)
     elif (
         str(workflow.get("protocol_version", "")).casefold().startswith("m1")
         or str(workflow.get("step", "")).casefold() == "replay_equivalence"

@@ -50,6 +50,7 @@ BUDGET = {
 }
 UNRESOLVED_REVISION_PREFIX = "__M1_RESOLVE_"
 DFT_PROTOCOL = "dftr.m2.score_function_mmd.v1"
+DFT_GENERATION_PROTOCOL = "dftr.m2.adapter_native_generation.v1"
 PREPARE_DFT_PROTOCOL = "dftr.m2.prepare_training_bandwidths.v1"
 PREPARE_DFT_SUPPORTED_GPUS = {"L40S", "A100-80GB", "H100"}
 PREPARE_DFT_METHOD_KEYS = (
@@ -217,7 +218,7 @@ def _validate_submit(config: dict, budget_class: str) -> tuple[str, dict]:
     revision = str((config.get("model") or {}).get("revision", "")).strip()
     if workflow_step in {
         "train_sft", "sample_sweep", "merge_adapter", "replay_equivalence", "train_dft",
-        "prepare_dft",
+        "prepare_dft", "generate_dft",
     } and (
         not revision or revision.startswith(UNRESOLVED_REVISION_PREFIX)
     ):
@@ -277,6 +278,16 @@ def _validate_submit(config: dict, budget_class: str) -> tuple[str, dict]:
             or not _is_checkpoint_volume_path(human_path)
         ):
             _die("REJECTED: Modal prepare_dft inputs must use the checkpoint volume")
+    if workflow_step == "generate_dft":
+        if (
+            config.get("artifact_schema") != DFT_GENERATION_PROTOCOL
+            or (config.get("workflow") or {}).get("protocol_version") != DFT_GENERATION_PROTOCOL
+            or str(run.get("task_kind")) != "experiment"
+            or budget_class != "screen"
+            or str((config.get("checkpoint") or {}).get("path") or "").startswith("/checkpoints/") is False
+            or str((config.get("data") or {}).get("prompt_briefs_path") or "").startswith("/checkpoints/") is False
+        ):
+            _die("REJECTED: generate_dft requires the frozen checkpoint-volume protocol")
     if workflow_step == "replay_equivalence":
         replay_workflow = config.get("workflow") or {}
         protocol_version = str(replay_workflow.get("protocol_version"))
