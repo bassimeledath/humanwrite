@@ -1,210 +1,254 @@
-# Measurement v2 independent blind test report
+# Measurement v2 independent retest report
 
-Date: 2026-07-16 (America/Los_Angeles; completed 2026-07-17T00:30:22Z)
+Date: 2026-07-16 (America/Los_Angeles; completed 2026-07-17 UTC)
 
-Evaluator commit: `21c15921782faeefa0d64097bc454da169579e00`
+Repair commit tested: `b71aaa00152f09a84a51c332bc986a39b1cefd77`
 
-Branch tested: `operator/measurement-v2`
+Prior independent-test commit: `099cc78`
 
-Disposition: **FAIL — not qualified for protocol transfer, attestation, prospective scoring, or promotion use**
+Branch: `operator/measurement-v2`
 
-This verdict was derived from `native_measurement_audit.md` and
-`native_phase1_redteam.md`. I did not read
-`measurement_v2_implementation_report.md` until after the tests below had run
-and the FAIL verdict was frozen. I did not use sealed/private fixtures, hidden
-data, provider services, paid calls, deployment, or merge operations. No
-implementation source was modified.
+Final disposition: **FAIL — not qualified for protocol transfer, attestation,
+prospective scoring, or promotion use**
 
-## Executive result
+## Outcome
 
-The additive v2 metric primitives repair several important v1 defects. The
-historical inventory is byte-exact, the explicit-loop MMD oracle agrees to
-`1e-12` including a negative unbiased result, bandwidth derivation is human
-only, core panel/cardinality checks reject duplicates and overlap, n=16
-repetition is non-promoting, same-n self-BLEU is implemented, and grouped AUC
-does refit the complete vectorizer/classifier pipeline.
+The repair genuinely closes all eleven qualification defects reported against
+`21c1592`. The prior tester pack now runs as thirteen ordinary passing tests:
+panel ID cardinality, calibration/baseline/signature requirements, bandwidth
+cross-hashes, post-hoc and underpowered promotion blocks, seed binding,
+selection structure/BLEU rejection, generated-side reference fingerprints,
+instrumented AUC fit counts, and Ed25519 signature requirements all pass.
 
-The commit nevertheless fails the blind qualification contract at its trust
-boundary. Protocol, report, and attestation validators accept self-asserted
-metadata that is not bound to the actual calibration, matched baseline,
-bandwidth, panel contents, power artifact, selected training seed, or operator
-signature. A post-hoc shadow report and an underpowered-authorship report can
-both set `promotion.eligible=true` and pass validation. These are promotion-
-critical fail-open paths, so passing primitive math is insufficient.
+The repaired boundary is materially stronger. It verifies Ed25519 signatures
+against an external trust map, confines artifact paths to the supplied root,
+hashes bound files, cross-binds protocol/report identities, requires nested
+seed cells, and keeps the checked-in unmaterialized candidate fail-closed.
 
-The checked-in `measurement_protocol_v2.candidate.json` itself does correctly
-return `fail_closed` while its fields are null/unmaterialized. That local
-sentinel is not enough: a caller can construct a nominally ready dictionary
-using arbitrary valid-looking SHA-256 strings and `"pass"` labels, without the
-real artifacts, and the public validators accept it.
+Qualification still fails because several signed hashes are accepted without
+checking whether the referenced bytes satisfy the claimed experiment. Six new
+public synthetic adversarial cases demonstrate that the validator accepts:
 
-## Blind-group manifest
+1. a matched baseline claiming 64 documents whose bound output JSONL contains
+   only one row;
+2. 192 per-item human `content_sha256` claims that do not match the 192 bound
+   human-content records;
+3. a power artifact containing six claimed rates but no simulation trials,
+   minimally important effects, required prompt-cluster/seed design, or
+   coverage-trial evidence;
+4. a bare caller-provided `{"status":"pass"}` as historical inventory proof;
+5. `hard_gates={"placeholder": true}` as the complete promotion hard-gate
+   intersection; and
+6. an eligible prospective report with no report/output signature.
 
-| Blind group | Result | Independent evidence |
+All six objects were internally hash-consistent and signed where the current
+API requests a signature. The failures therefore isolate missing semantic and
+output verification rather than ordinary byte tampering.
+
+## Blind qualification matrix
+
+| Blind group | Result | Retest evidence |
 | --- | --- | --- |
-| disjoint floor | PASS | Unique IDs are required within panels; overlap across the three human panels and unequal n are rejected. The implementation uses frozen panels rather than replacement floor draws. |
-| exact small-matrix oracle | PASS | Tester explicit loops match to `1e-12`; the independent fixture produces raw MMD-squared `-0.3645944636600923`, which remains negative. |
-| kernel freeze | FAIL | Human-only derivation is candidate-invariant, but `validate_report_v2` does not require `distribution.bandwidth_sha256 == hashes.bandwidths_sha256`; an arbitrary candidate-selected kernel hash passes. |
-| cardinality fail closed | FAIL | Metric primitives reject 16-vs-32/2-vs-32 and duplicate IDs, but `protocol_readiness` accepts panels claiming `document_count=64` with empty `document_ids`. |
-| matched control | FAIL | Prompt-set alignment and harmless row reordering pass in `common_kernel_report`; report validation does not bind the fixed checkpoint seed to `seeds.training`, full-brief bytes, a matched-baseline hash, or nested training/sampling seed cells. |
-| self-BLEU cardinality | PASS (primitive) | Same-n panels and exactly n-1 references are enforced; old 32-reference calibration cannot enter this helper. The report schema does not require the result, so this pass does not cure the end-to-end report failures. |
-| repetition resolution | PASS | n=16 returns `underpowered/not_promoting`; zero candidate events do not fail a lower bound; powered high repetition fails deterministically. |
-| prompt match | FAIL | Prompt ID, brief hash, unique human fingerprint, and split are checked, but the generated row may omit `reference_fingerprint`; an unrelated lookalike reference with copied prompt/brief metadata is accepted. |
-| AUC refit | FAIL | Full pipeline refits, grouped folds, signed AUC/separability, and small-n underpowering are present. Instrumentation observed 60 fitted pipelines while the report emitted `fit_count=12`, so the required fit-count audit trail is false. |
-| selection firewall | FAIL | `fixed_seed` passes with no seed; `all_preregistered_seeds` passes with an empty seed list; fixed seed 29 is not compared with report training seed 11; visible BLEU ranking is not rejected. |
-| cluster/power | FAIL | Cluster helpers count unique prompt IDs rather than repeated sampling rows. However, readiness trusts literal `"pass"` strings and an arbitrary power-plan hash; it does not verify a power artifact, its targets, type-I/coverage results, or multiplicity contract. |
-| historical immutability | PASS | All six inventory sets pass their canonical SHA-256 manifests, and the target commit changes no pre-existing v1 artifact path. |
-| no sealed imitation | PASS (visible scan) | Diff/source scan found no private embedder identifier, hidden fixture, hidden prompt, hidden per-item output, credential, or sealed implementation. References to the preserved public sealed aggregate and negative test split are expected public provenance. |
+| disjoint floor | FAIL end-to-end | Panel IDs and manifest fingerprints are globally unique, but fingerprints are not recomputed from the bound content bundle and the eligibility-attestation hash is not backed by a verified artifact. |
+| exact small-matrix oracle | PASS | Independent explicit loops match to `1e-12`, including the unchanged negative unbiased result. |
+| kernel freeze | PASS at public interface | Candidate-invariant human-only derivation and common value hash pass; bandwidth artifact/panel hashes are cross-bound. No real bandwidth is materialized in the checked-in candidate. |
+| cardinality fail closed | PASS for metric/report panels | 16-vs-32, 2-vs-32, missing counts, duplicate IDs, and empty panel IDs reject. Baseline-output cardinality remains a matched-control failure below. |
+| matched control | FAIL | Prompt/brief/sampling/seed/output file hashes are cross-bound, but the output file is never parsed. One output row satisfies a baseline claiming 64 documents. |
+| self-BLEU cardinality | PASS | Same n and n-1 references remain enforced. |
+| repetition resolution | PASS | n=16 is underpowered/non-promoting, zero events do not fail a lower bound, and high repetition fails. |
+| prompt match | PASS at metric interface | Prompt ID, brief hash, SHA-256 reference fingerprint, split, uniqueness, and row-order alignment pass the prior adversarial cases. |
+| AUC refit | PASS | Full vectorizer/classifier refits are instrumented; signed AUC/separability, successful refit seeds, actual `.fit()` count, and small-cluster underpowering pass. |
+| selection firewall | PASS | Fixed/all/hash/training rules are structurally checked; BLEU and earlier promotion endpoints reject; report training seeds and nested cells bind to protocol. |
+| cluster/power | FAIL | Effective prompt clusters are not inflated by sampling rows, but a six-number signed power assertion passes without prospective simulation design/trial evidence. Arbitrary hard-gate names also satisfy the promotion intersection. |
+| historical immutability | FAIL at attestation boundary | Direct SHA-256 inventory verification passes all six frozen sets, but `build_attestation` accepts a bare status boolean and emits `historical_inventory_verified=true` without binding the actual inventory-check artifact. |
+| no sealed imitation | PASS visible scan | No private embedder identifier, hidden fixture/prompt/per-item output, credential, or sealed evaluator implementation entered the visible repair. |
 
-Overall: **5 pass/pass-at-primitive-level, 8 fail. All 13 groups must pass, so
-attestation is prohibited.**
+Result: **9 groups pass and 4 fail. All 13 are required.** Report/output
+signature verification is an additional cross-cutting blocker.
 
 ## Promotion-critical findings
 
-### F1 — Critical: unbound protocol and unsigned attestation can self-qualify
+### F1 — Critical: matched-control output materialization is not verified
 
-`protocol_readiness` checks shapes, strings, and claimed statuses but does not
-require the real calibration or matched-control artifacts at all, does not
-require exactly n panel IDs when `document_count=n`, and does not bind the
-bandwidth values to the declared bandwidth hash. `build_attestation` accepts a
-manifest containing 13 caller-supplied `pass` rows and
-`no_sealed_imitation=true`; there is no signature field, signer identity/key,
-or signature verification.
+`_verify_artifact_bindings` hashes the output file and
+`_validate_bound_protocol_content` compares that digest with the matched
+baseline/protocol. It never parses the JSONL or verifies row count, unique
+prompt IDs, full-brief identity, training/sampling seed cells, decoding policy,
+or one output per expected cell. A signed one-row file passes a declared
+64-document baseline.
 
-This contradicts the required fail-closed state while real panels, bandwidth,
-power, calibration, matched baseline, and signature remain unmaterialized.
+Required repair: define and validate the output-manifest schema; require the
+exact prompt × training-seed × sampling-seed grid, unique row IDs, n rows per
+cell, and per-row prompt/brief/sampler/checkpoint bindings before readiness.
 
-### F2 — Critical: report validation does not enforce the intersection rule
+### F2 — Critical: promotion reports and output decisions are unsigned
 
-The validator accepts both:
+The frozen protocol and blind manifest are signed, but the report is not.
+`validate_report_v2` therefore accepts caller-authored MMD values, endpoint
+decisions, quality-linkage status, authorship fit count, and promotion state as
+long as their surrounding metadata matches the protocol. This does not meet
+the required operator signature over evaluator output.
 
-- `evidence_class="post_hoc_shadow"` with `promotion.eligible=true`; and
-- `authorship.status="underpowered"` with `promotion.eligible=true`.
+Required repair: content-address and verify an Ed25519-signed report/output
+payload, bound to the protocol, evaluator image/commit, input/output manifests,
+runtime, and analysis artifact.
 
-It also does not require pass decisions/power evidence for the distribution,
-quality, authorship, repetition, and hard safety/adherence endpoints as one
-intersection. Consequently a syntactically valid report can claim promotion
-eligibility despite an explicitly non-promoting evidence class or endpoint.
+### F3 — Critical: the hard-gate intersection accepts arbitrary names
 
-### F3 — High: hashes and matched-design identity are not cross-bound
+Promotion requires a nonempty mapping whose values are all `true`, but no
+frozen required gate set is defined. `{"placeholder": true}` passes. The
+instrument therefore does not prove factual, adherence, validity, collapse,
+or other prespecified hard gates were evaluated.
 
-The top-level bandwidth hash may disagree with the distribution hash. Fixed
-checkpoint seed 29 may accompany `seeds.training=[11]`. No calibration hash or
-matched-current-SFT-baseline hash is present in the protocol/report validator,
-and no candidate/control full-brief hash or nested seed grid is validated.
-Valid-looking but unrelated SHA-256 strings therefore satisfy the interface.
+Required repair: freeze the exact required gate names/versions in the protocol
+and require equality with the signed report gate set plus pass evidence for
+each gate.
 
-### F4 — High: prompt-linked quality can accept an unrelated reference
+### F4 — High: human content fingerprints are not tied to content bytes
 
-Human reference fingerprints must be present and unique, but the generated row
-is allowed to omit its declared reference fingerprint. An unrelated human row
-with the same public prompt ID and copied brief hash then passes alignment. The
-reference is not cryptographically bound one-to-one from both sides.
+The manifest and content bundle receive independent hashes, and the protocol
+is signed, but the per-document fingerprints are not recomputed from the
+bundle. The eligibility-attestation field is only checked for SHA-256 syntax;
+no eligibility artifact is bound or verified. Arbitrary unique fingerprints
+can therefore claim 3n disjoint humans even when unrelated to the content.
 
-### F5 — High: selection firewall is syntactic and incomplete
+Required repair: use a parseable content manifest/bundle contract and recompute
+every fingerprint, panel membership, and eligibility/exclusion proof—or bind a
+separately signed verifier result that performed those checks.
 
-Allowed rule names are not validated structurally. Missing/empty seed
-declarations pass, report seeds are not compared with the selection manifest,
-and a `ranking_metric="bleu"` endpoint passes the token blacklist. This does
-not establish deterministic preselection or all-seed aggregation.
+### F5 — High: power evidence remains aggregate self-assertion
 
-### F6 — Medium: AUC fit audit trail understates actual refits
+The validator checks numerical thresholds and a nonempty multiplicity method,
+but not simulation trial count, frozen minimally important effects, null and
+alternative generators, required n/prompt clusters/seed grid, interval method,
+blind coverage trials, or a content-addressed simulation output. A signed JSON
+with six favorable numbers passes.
 
-The estimator is genuinely rebuilt for every grouped fold and uncertainty
-replicate. However, `fit_count` counts complete OOF evaluations, not fitted
-pipelines. The independent instrument observed 60 `.fit()` calls for a case
-reported as 12. Fold-seed derivation for uncertainty refits is likewise not
-fully enumerated in the returned report.
+Required repair: define the prospective power schema and bind its assumptions,
+trial manifest/results, effect sizes, cluster/seed design, multiplicity rule,
+and analysis code. Recompute or independently verify the reported aggregates.
 
-## Checked-in fail-closed state
+### F6 — High: attestation trusts historical inventory status
 
-Direct CLI validation of the checked-in candidate returned exit code 2 and
-listed unavailable panels, null hashes, unfrozen bandwidths, unfinished power,
-unfrozen seeds, missing approval, and non-ready status. The unmaterialized
-panel, bandwidth, power, calibration, matched-control, and blind-manifest JSON
-files contain no real evidence. This is the correct current operational
-outcome: **no protocol transfer and no promotion use**.
+`build_attestation` checks only `inventory_check.status == "pass"`. It does not
+require the inventory-check schema, artifact-set rows, expected/observed
+digests, canonical inventory hash, or a verified signature. The returned
+attestation then asserts historical verification as true.
 
-The weakness is that the validator does not prove materialization; it trusts a
-caller changing those assertions to ready/pass. Operator approval and an exact
-candidate-file SHA bind only the supplied JSON bytes, not the existence or
-contents of all contract artifacts.
+Required repair: invoke the inventory verifier over the frozen inventory and
+repository root during attestation, or require and verify a signed,
+content-addressed inventory-check artifact bound to that inventory.
+
+## Candidate fail-closed verification
+
+The checked-in `measurement_protocol_v2.candidate.json` remains correctly
+unmaterialized and non-transferable. CLI validation exits 2 and reports null
+hashes, empty panels, unfrozen bandwidth/power/seeds, missing approval,
+missing trusted signature, invalid artifact evidence, non-ready state, and the
+candidate schema. The checked-in trust store is empty. No real panel,
+bandwidth, power, calibration, baseline, output, or signature was created by
+this retest.
+
+This operational fail-closed result must remain in force. The positive-path
+problem is that a signed, internally hash-consistent but semantically empty
+bundle can currently become `ready`.
 
 ## Test execution
 
-Authoritative locked harness environment:
+Prior qualification defects, now ordinary tests:
 
 ```text
-cd harness
-uv run --extra test pytest -q tests ../research_reviews/test_measurement_v2_independent_adversarial.py
-72 passed, 11 xfailed, 8 warnings in 5.20s
+uv run --extra test pytest -q \
+  ../research_reviews/test_measurement_v2_independent_adversarial.py
+13 passed
 ```
 
-The 11 strict xfails are executable qualification failures, not skipped
-coverage. They become strict XPASS failures when repaired, signaling that the
-tester markers should be removed and the cases promoted to ordinary passing
-tests.
+New semantic-binding falsification run, with strict-xfail markers overridden
+so every body executes as an ordinary requirement:
 
-Repository-wide component run with explicit package roots:
+```text
+uv run --extra test pytest -q --runxfail \
+  ../research_reviews/test_measurement_v2_retest_adversarial.py
+6 failed
+```
+
+The failures are the six findings above. Strict xfails keep the repository's
+normal suite usable while making each unresolved requirement executable; a
+repair will turn them into strict XPASS failures.
+
+Locked harness suite plus both tester packs:
+
+```text
+uv run --extra test pytest -q tests \
+  ../research_reviews/test_measurement_v2_independent_adversarial.py \
+  ../research_reviews/test_measurement_v2_retest_adversarial.py
+88 passed, 6 xfailed, 8 warnings
+```
+
+Repository-wide component suite:
 
 ```text
 PYTHONPATH=<repo>:<repo>/harness/src:<repo>/infra pytest -q \
   data/tests experiments/tests harness/tests infra/tests ledger/tests \
-  research_reviews/test_measurement_v2_independent_adversarial.py
-148 passed, 11 xfailed
+  research_reviews/test_measurement_v2_independent_adversarial.py \
+  research_reviews/test_measurement_v2_retest_adversarial.py
+164 passed, 6 xfailed
 ```
 
 Additional checks:
 
-- `git diff --check`: pass.
-- `python -m compileall -q harness/src/harness`: pass.
-- historical inventory CLI: all six artifact sets pass.
-- target-commit path diff: no existing v1 calibration, baseline, Tier-1,
-  selection, or sealed aggregate file changed.
-- checked-in candidate protocol CLI validation: fails closed with exit code 2.
-- visible source/diff scan for private/hidden identifiers and credentials: no
-  prohibited identifier found.
+- historical inventory CLI: all six frozen sets pass;
+- checked-in candidate protocol CLI: expected exit 2/fail-closed;
+- target repair path diff: no existing v1 historical artifact changed;
+- `git diff --check` and `compileall`: pass;
+- no paid/provider calls, data materialization, private access, deployment, or
+  merge operation occurred.
 
-The eight warnings are from the untouched v1 scikit-learn authorship path.
+The eight warnings remain in the untouched v1 scikit-learn authorship path.
 
-## Runtime and hashes
+## Runtime manifest
 
 ```json
 {
-  "evaluator_commit": "21c15921782faeefa0d64097bc454da169579e00",
-  "dependency_lock_sha256": "53edd1f047be6e745fab6c255bc2608d99c7c763e2b5d6bcf256f75f307e7142",
-  "tester_fixture_sha256": "dab2876560bd47820d3d1c2f45e20db78b7fc5313adc3d8bb1a1e0514e52c672",
+  "evaluator_commit": "b71aaa00152f09a84a51c332bc986a39b1cefd77",
+  "dependency_lock_sha256": "32f60b643dc4b1799a27ad165f6dc0b203523de1e6a0a81a25f3dc5e07c59dd8",
+  "prior_tester_fixture_sha256": "f441973bc12effc83d96a126251d0d46c684c90c4d1698ef94ada532c4cb45eb",
+  "retest_fixture_sha256": "a20e3959066854b26ae4887d10023b0cf24279164fbb195c0b44b697d73707fc",
   "python": "3.11.7",
   "numpy": "2.4.6",
   "scikit_learn": "1.9.0",
   "pytest": "9.1.1",
+  "cryptography": "49.0.0",
   "platform": "macOS-26.4.1-arm64-arm-64bit",
-  "tested_at": "2026-07-17T00:30:22Z",
-  "signature_status": "unavailable_unsigned_git_artifact"
+  "tested_at": "2026-07-17T00:53:08Z",
+  "signature_status": "tester_report_unsigned_git_artifact"
 }
 ```
 
-No private fixture-pack hash or signature can truthfully be supplied because
-no private fixture pack or signing key was available or used. The listed
-tester-fixture hash is for the public tester-only adversarial file.
+No private fixture-pack hash or signing key was available or used.
 
 ## Post-verdict comparison with the implementation report
 
-The implementation report correctly says the real-data state is fail-closed
-and historical bytes are preserved. Four claims overstate the implemented
-boundary:
+The implementation report accurately states that the checked-in real-data
+state is fail-closed and that all eleven prior tester cases are repaired. Its
+claim that the positive fixture proves “content contracts all verify” is too
+strong:
 
-1. “fingerprint linkage” is optional on generated rows;
-2. “other endpoint-driven selection” does not include plain BLEU and allowed
-   seed rules need not contain seeds;
-3. a “signed aggregate manifest” is described, but no signature is accepted or
-   verified; and
-4. AUC `fit_count` does not report the actual number of fitted pipelines.
+- its own positive fixture uses a one-line `control-outputs.jsonl` while
+  claiming 64 documents;
+- its human bundle strings and per-item `content_sha256` inputs are not the same
+  bytes, yet readiness passes;
+- it supplies `inventory_check={"status":"pass"}` directly to attestation;
+- its power artifact contains aggregate rates without a simulation manifest;
+  and
+- neither report signature nor a fixed hard-gate name set is validated.
+
+These discrepancies were evaluated only after the retest verdict was frozen.
 
 ## Required disposition
 
-Keep measurement v2 quarantined as diagnostic infrastructure. Do not issue a
-ready protocol, operator attestation, prospective report, or promotion claim
-from this commit. Repair the strict-xfail cases, bind and verify every real
-artifact and signature, rerun all 13 blind groups under an independently frozen
-fixture pack, and require zero failures before qualification.
+Keep v2 quarantined as diagnostic infrastructure. Do not issue a ready
+protocol, attestation, prospective report, or promotion claim from `b71aaa0`.
+Repair the six strict-xfail cases with semantic content verification and signed
+output evidence, then rerun all 13 blind groups with zero failures. The current
+unmaterialized candidate must remain fail-closed throughout.

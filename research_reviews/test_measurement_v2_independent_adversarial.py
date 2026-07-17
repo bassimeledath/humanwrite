@@ -1,9 +1,7 @@
 """Independent black-box adversarial tests for measurement v2.
 
-These tests are tester-owned.  Strict xfails record blind-contract failures
-without changing the implementation or making the repository's ordinary test
-suite unusable.  A conforming repair should make each xfail XPASS, at which
-point the marker can be removed by the independent tester.
+These tests are tester-owned.  They are ordinary assertions after the b71aaa0
+qualification-boundary repair; no implementation semantics are changed.
 """
 from __future__ import annotations
 
@@ -189,7 +187,6 @@ def test_human_only_bandwidth_does_not_depend_on_candidate() -> None:
     assert bandwidth_hash(first) == bandwidth_hash(second)
 
 
-@pytest.mark.xfail(strict=True, reason="protocol accepts claimed panels with no document IDs")
 def test_protocol_rejects_unmaterialized_panel_id_lists() -> None:
     protocol = ready_protocol()
     for panel in protocol["panels"].values():
@@ -197,13 +194,11 @@ def test_protocol_rejects_unmaterialized_panel_id_lists() -> None:
     assert protocol_readiness(protocol)["status"] == "fail_closed"
 
 
-@pytest.mark.xfail(strict=True, reason="protocol has no calibration, matched-baseline, or signature binding")
 def test_protocol_requires_calibration_baseline_and_operator_signature() -> None:
     protocol = ready_protocol()
     assert protocol_readiness(protocol)["status"] == "fail_closed"
 
 
-@pytest.mark.xfail(strict=True, reason="report-level and distribution bandwidth hashes are not cross-checked")
 def test_report_rejects_mismatched_frozen_bandwidth_hash() -> None:
     report = valid_report()
     report["distribution"]["bandwidth_sha256"] = sha("candidate-selected-kernel")
@@ -211,7 +206,6 @@ def test_report_rejects_mismatched_frozen_bandwidth_hash() -> None:
         validate_report_v2(report)
 
 
-@pytest.mark.xfail(strict=True, reason="post-hoc shadow reports can currently mark themselves promotion eligible")
 def test_post_hoc_shadow_report_can_never_promote() -> None:
     report = valid_report()
     report["evidence_class"] = "post_hoc_shadow"
@@ -220,7 +214,6 @@ def test_post_hoc_shadow_report_can_never_promote() -> None:
         validate_report_v2(report)
 
 
-@pytest.mark.xfail(strict=True, reason="underpowered authorship does not currently block promotion")
 def test_underpowered_authorship_report_can_never_promote() -> None:
     report = valid_report()
     report["authorship"]["status"] = "underpowered"
@@ -229,7 +222,6 @@ def test_underpowered_authorship_report_can_never_promote() -> None:
         validate_report_v2(report)
 
 
-@pytest.mark.xfail(strict=True, reason="report training seeds are not bound to fixed checkpoint selection")
 def test_report_rejects_fixed_seed_mismatch() -> None:
     report = valid_report()
     report["seeds"]["training"] = [11]
@@ -237,7 +229,6 @@ def test_report_rejects_fixed_seed_mismatch() -> None:
         validate_report_v2(report)
 
 
-@pytest.mark.xfail(strict=True, reason="fixed/all-seed firewall rules do not require actual seed declarations")
 def test_selection_firewall_requires_a_deterministic_seed_contract() -> None:
     with pytest.raises(MeasurementV2Error, match="seed"):
         validate_selection_firewall({"selection": {"rule_type": "fixed_seed"}})
@@ -245,7 +236,6 @@ def test_selection_firewall_requires_a_deterministic_seed_contract() -> None:
         validate_selection_firewall({"selection": {"rule_type": "all_preregistered_seeds", "seeds": []}})
 
 
-@pytest.mark.xfail(strict=True, reason="the endpoint token blacklist permits BLEU-based checkpoint selection")
 def test_selection_firewall_rejects_other_visible_promotion_metrics() -> None:
     with pytest.raises(MeasurementV2Error, match="promotion endpoints"):
         validate_selection_firewall(
@@ -253,7 +243,6 @@ def test_selection_firewall_rejects_other_visible_promotion_metrics() -> None:
         )
 
 
-@pytest.mark.xfail(strict=True, reason="generated rows need not bind the human reference fingerprint")
 def test_quality_rejects_unbound_lookalike_reference() -> None:
     generated = [{"prompt_id": "p1", "brief_sha256": sha("brief"), "text": "candidate"}]
     unrelated = [{
@@ -267,7 +256,6 @@ def test_quality_rejects_unbound_lookalike_reference() -> None:
         align_prompt_linked_references(generated, unrelated)
 
 
-@pytest.mark.xfail(strict=True, reason="reported AUC fit_count counts cross-fits, not fitted pipelines")
 def test_authorship_reports_the_instrumented_full_pipeline_fit_count(monkeypatch) -> None:
     original_factory = quality_v2._probe_pipeline
     observed = {"fits": 0}
@@ -302,7 +290,6 @@ def test_authorship_reports_the_instrumented_full_pipeline_fit_count(monkeypatch
     assert result["fit_count"] == observed["fits"]
 
 
-@pytest.mark.xfail(strict=True, reason="attestation accepts unsigned self-asserted aggregate evidence")
 def test_attestation_requires_a_verifiable_operator_signature() -> None:
     protocol = ready_protocol()
     manifest = {
