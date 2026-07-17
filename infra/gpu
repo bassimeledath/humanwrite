@@ -56,6 +56,7 @@ DFT_GENERATION_PROTOCOL = "dftr.m2.adapter_native_generation.v1"
 ESTIMATOR_AUDIT_PROTOCOL = "dftr.m2.frozen_estimator_audit.v1"
 PREPARE_DFT_PROTOCOL = "dftr.m2.prepare_training_bandwidths.v1"
 PREPARE_DFT_SUPPORTED_GPUS = {"L40S", "A100-80GB", "H100"}
+LOWER_VARIANCE_BRIEF_PROTOCOL = "dftr.lower_variance_briefs.two_provider.v1"
 PREPARE_DFT_METHOD_KEYS = (
     "artifact_schema", "run", "compute", "model", "initial_adapter", "data",
     "representation", "derivation", "runtime", "output",
@@ -338,21 +339,35 @@ def _validate_submit(config: dict, budget_class: str) -> tuple[str, dict]:
         input_sha = str(data.get("input_sha256", ""))
         if len(input_sha) != 64 or any(character not in "0123456789abcdef" for character in input_sha):
             _die(f"{task_kind} requires lowercase data.input_sha256")
-        if not str((config.get("api") or {}).get("model", "")):
-            _die(f"{task_kind} requires a frozen api.model")
         api = config.get("api") or {}
         if task_kind == "document_cleaning":
+            if not str(api.get("model", "")):
+                _die("document_cleaning requires a frozen api.model")
             if api.get("model") != "qwen/qwen3-32b":
                 _die("document_cleaning requires qwen/qwen3-32b")
             if data.get("input_uri") == data.get("output_uri"):
                 _die("document_cleaning input and output must be distinct")
+        elif api.get("protocol") == LOWER_VARIANCE_BRIEF_PROTOCOL:
+            if (
+                api.get("metadata_model") != "qwen/qwen3-32b"
+                or api.get("outline_model") != "openai/gpt-5-mini"
+            ):
+                _die("lower-variance brief provider models are frozen")
+            if data.get("input_uri") == data.get("output_uri"):
+                _die("lower-variance brief input and output URIs must be distinct")
+            if int(data.get("max_records", 0)) not in {128, 1024}:
+                _die("lower-variance brief corpus must contain 128 or 1024 records")
         elif api.get("prompt_repair_only") is True:
+            if not str(api.get("model", "")):
+                _die("brief_synthesis requires a frozen api.model")
             if api.get("force_empty_quotations") is True:
                 _die("prompt repair cannot also run quote-free recovery")
             if data.get("input_uri") == data.get("output_uri"):
                 _die("prompt repair input and output URIs must be distinct")
             if int(data.get("max_records", 0)) > 320:
                 _die("prompt repair is limited to the frozen 320-record corpus")
+        elif not str(api.get("model", "")):
+            _die("brief_synthesis requires a frozen api.model")
     elif task_kind == "source_materialization":
         data = config.get("data") or {}
         for field in ("train_output_uri", "dev_output_uri", "manifest_output_uri"):
