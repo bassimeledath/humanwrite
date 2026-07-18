@@ -5,6 +5,7 @@ import hashlib
 import pytest
 
 from data.lower_variance_briefs import (
+    MAX_TARGET_LENGTH_TOKENS,
     OUTLINE_MODEL,
     QWEN_MODEL,
     TARGET_LENGTH_UNIT,
@@ -92,6 +93,7 @@ def test_schema_separates_provider_responsibilities_and_token_unit():
     assert "outline" not in qwen["properties"]
     assert set(outline["properties"]) == {"document_fingerprint", "outline"}
     assert qwen["properties"]["target_length_unit"]["const"] == "tokens"
+    assert qwen["properties"]["target_length"]["maximum"] == MAX_TARGET_LENGTH_TOKENS
     assert outline["properties"]["outline"]["minItems"] == 1
     assert empty["properties"]["outline"]["maxItems"] == 0
 

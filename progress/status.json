@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-18T01:00:30Z",
+  "updated_at": "2026-07-18T01:10:30Z",
   "phase": "M2 — fresh-instrument and estimator rebuild",
-  "headline": "Evaluation is complete; 1,020/1,024 training briefs are validated",
-  "summary": "Evaluation cleaning completed 640/640. Two resumable recovery passes raised the training corpus from 1,007 to 1,020 unique validated briefs. Four persistent cases remain: two provider content filters and two strict grounding failures. The next recovery is isolated to those four and will not weaken the corpus validation contract.",
+  "headline": "Training and evaluation corpora are complete and tuning-ready",
+  "summary": "The training corpus now contains 1,024 unique provenance-validated briefs with exactly 25 percent empty outlines; evaluation contains 640 unique disjoint documents. A final audit caught unbounded provider token estimates before tuning. All target lengths were replaced with exact counts from the pinned Qwen3-4B tokenizer: 91 to 347 tokens, median 169. The immutable normalized training SHA is 419f927a and evaluation SHA is cc486a1a.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
@@ -25,6 +25,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "18:10",
+      "title": "Complete corpora passed final token-unit and provenance audit",
+      "detail": "Isolated recovery completed the final four briefs without weakening provider roles or exact-grounding checks. All 1,024 training briefs and 640 disjoint evaluation documents validate. Exact pinned-tokenizer normalization repaired provider length estimates, including four values above 4,096; normalized lengths are 91-347 tokens with median 169.",
+      "tone": "complete"
+    },
     {
       "at": "18:00",
       "title": "Ordinary retries exhausted with four persistent brief gaps",

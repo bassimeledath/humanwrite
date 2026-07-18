@@ -14,6 +14,7 @@ from typing import Any, Iterable, Mapping
 QWEN_MODEL = "qwen/qwen3-32b"
 OUTLINE_MODEL = "openai/gpt-5-mini"
 TARGET_LENGTH_UNIT = "tokens"
+MAX_TARGET_LENGTH_TOKENS = 4096
 EMPTY_OUTLINE_SEED = "dftr-m2-lower-variance-empty-outline-v1"
 
 _SHA256_RE = re.compile(r"[0-9a-f]{64}")
@@ -170,7 +171,11 @@ def qwen_metadata_response_schema() -> dict[str, Any]:
         "style_kind": {"type": "string"},
         "style": {"type": "string"},
         "detail_mode": {"type": "string", "enum": ["strict", "creative"]},
-        "target_length": {"type": "integer", "minimum": 1},
+        "target_length": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": MAX_TARGET_LENGTH_TOKENS,
+        },
         "target_length_unit": {"type": "string", "const": TARGET_LENGTH_UNIT},
         "em_dashes_allowed": {"type": "boolean"},
     }
@@ -264,8 +269,14 @@ def validate_qwen_metadata(
         raise LowerVarianceBriefError("detail_mode must be strict or creative")
     result["detail_mode"] = detail_mode
     target_length = result["target_length"]
-    if isinstance(target_length, bool) or not isinstance(target_length, int) or target_length <= 0:
-        raise LowerVarianceBriefError("target_length must be a positive integer")
+    if (
+        isinstance(target_length, bool)
+        or not isinstance(target_length, int)
+        or not 1 <= target_length <= MAX_TARGET_LENGTH_TOKENS
+    ):
+        raise LowerVarianceBriefError(
+            f"target_length must be an integer from 1 to {MAX_TARGET_LENGTH_TOKENS}"
+        )
     if result["target_length_unit"] != TARGET_LENGTH_UNIT:
         raise LowerVarianceBriefError("target_length_unit must be tokens")
     if not isinstance(result["em_dashes_allowed"], bool):
@@ -476,6 +487,7 @@ def assemble_briefs(
 __all__ = [
     "EMPTY_OUTLINE_SEED",
     "LowerVarianceBriefError",
+    "MAX_TARGET_LENGTH_TOKENS",
     "OUTLINE_MODEL",
     "QWEN_MODEL",
     "TARGET_LENGTH_UNIT",
