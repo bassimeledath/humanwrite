@@ -335,8 +335,7 @@ def test_confirmation_cleaning_support_is_exactly_scoped_to_v3_comparison():
     value["config_hash"] = canonical_hash(value["config"])
     assert validate_launch(value).task_kind == "document_cleaning"
 
-    value["config"]["run"]["comparison_id"] = "substitute"
-    value["preregistration"]["comparison"] = "substitute"
+    value["config"]["quality"] = {"min_word_count": 39, "max_word_count": 500}
     value["config_hash"] = canonical_hash(value["config"])
     with pytest.raises(PolicyError, match="frozen word-count bounds"):
         validate_launch(value)

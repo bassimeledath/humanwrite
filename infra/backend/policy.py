@@ -865,13 +865,11 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
             raise PolicyError("document_cleaning target_records must be within max_records")
         if api.get("model") != "qwen/qwen3-32b":
             raise PolicyError("document_cleaning requires qwen/qwen3-32b")
-        allowed_quality = {"min_word_count": 80, "max_word_count": 220}
-        confirmation_quality = {"min_word_count": 40, "max_word_count": 500}
-        comparison_id = str((config.get("run") or {}).get("comparison_id") or "")
-        if quality != allowed_quality and not (
-            comparison_id == "M2-mmd-witness-confirmation-clean-eval-v3"
-            and quality == confirmation_quality
-        ):
+        allowed_quality_bounds = (
+            {"min_word_count": 80, "max_word_count": 220},
+            {"min_word_count": 40, "max_word_count": 500},
+        )
+        if quality not in allowed_quality_bounds:
             raise PolicyError("document_cleaning requires frozen word-count bounds")
         api_reserved = float(api.get("max_cost_usd") or 0.0)
         if api_reserved <= 0 or api_reserved > MONTHLY_API_CAP_USD:
