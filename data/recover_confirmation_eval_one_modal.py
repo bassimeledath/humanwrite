@@ -98,7 +98,10 @@ def recover() -> dict:
             },
             timeout=180,
         )
-        response.raise_for_status()
+        if not response.ok:
+            raise RuntimeError(
+                f"{model} status={response.status_code}: {response.text[:500]}"
+            )
         body = response.json()
         choice = body["choices"][0]
         if choice.get("finish_reason") != "stop":
