@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-18T01:10:30Z",
+  "updated_at": "2026-07-18T01:30:00Z",
   "phase": "M2 — fresh-instrument and estimator rebuild",
-  "headline": "Training and evaluation corpora are complete and tuning-ready",
-  "summary": "The training corpus now contains 1,024 unique provenance-validated briefs with exactly 25 percent empty outlines; evaluation contains 640 unique disjoint documents. A final audit caught unbounded provider token estimates before tuning. All target lengths were replaced with exact counts from the pinned Qwen3-4B tokenizer: 91 to 347 tokens, median 169. The immutable normalized training SHA is 419f927a and evaluation SHA is cc486a1a.",
+  "headline": "Full 4B research cycle has started with fixed baseline generation",
+  "summary": "The normalized 1,024-brief training corpus and 640-document disjoint evaluation corpus are complete. Modal is now generating one frozen baseline output for every training brief from the seed-11 Qwen3-4B SFT adapter. This shared panel will define the one-round MMD witness before the matched SFT, token-moment, and witness-weighted tuning arms launch.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
@@ -25,6 +25,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "18:30",
+      "title": "Decision-grade lower-variance cycle started",
+      "detail": "Modal run ap-0wrGSlZT5guIFzJuVWqa21 is executing the frozen seed-11 Qwen3-4B adapter over all 1,024 normalized token-unit briefs. The output is training-only and shared by all three matched arms; no evaluation panel has been opened. A first image-build attempt was externally terminated before GPU work and was safely retried without changing code or inputs.",
+      "tone": "active"
+    },
     {
       "at": "18:10",
       "title": "Complete corpora passed final token-unit and provenance audit",
