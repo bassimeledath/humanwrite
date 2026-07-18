@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-18T05:35:53Z",
+  "updated_at": "2026-07-18T05:44:04Z",
   "phase": "M2 — fresh-instrument and estimator rebuild",
   "headline": "Stronger 4B MMD-witness confirmation is underway",
-  "summary": "Matched 4B confirmation training is complete: SFT and MMD-witness each ran 1,024 steps over 2,048 examples and 256,466 teacher-forced tokens. The fresh 640-document evaluation bank and both BGE-small and Nemotron-8B human embeddings are complete. Prompt-brief recovery added four rows and reached 127/128; the final persistent row is being isolated before candidate-blind protocol qualification, output generation, and scoring.",
+  "summary": "Matched 4B confirmation training is complete. The fresh evaluation bank, both human embedder families, and all 128 normalized prompt briefs are complete. Candidate-blind base-versus-initial-SFT positive controls are running before protocol freeze and candidate generation. A separately preregistered independent 4,096/16,384/46,080 scale ladder is ready, with a hard stop at 16,384 unless displacement, validity, quality non-regression, and directional distribution or human-style signal pass.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 200,
@@ -25,6 +25,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "22:44",
+      "title": "Measurement-v4 preparation completed; positive controls running",
+      "detail": "A harmless wind-warning row repeatedly triggered GPT-5-mini's content filter. An isolated, provenance-labeled Claude Haiku fallback recovered it under the unchanged exact-source validator. All 128 prompts now have normalized token-unit briefs with exactly 32 empty outlines. Base-model versus initial-SFT positive controls are running before candidate generation.",
+      "tone": "active"
+    },
     {
       "at": "22:35",
       "title": "Independent 4K/16K/46K scale ladder frozen",
