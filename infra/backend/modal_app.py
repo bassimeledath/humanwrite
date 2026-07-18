@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import base64
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 import hashlib
 import json
 import os
@@ -56,7 +56,7 @@ BRIEF_FALLBACK_MODEL = "anthropic/claude-haiku-4.5"
 CLEANING_MODEL = "qwen/qwen3-32b"
 LOWER_VARIANCE_BRIEF_PROTOCOL = "dftr.lower_variance_briefs.two_provider.v1"
 LOWER_VARIANCE_OUTLINE_MODEL = "openai/gpt-5-mini"
-LOWER_VARIANCE_BRIEF_CONCURRENCY = 6
+LOWER_VARIANCE_BRIEF_CONCURRENCY = 8
 
 state_volume = modal.Volume.from_name("humanwrite-gateway-state", create_if_missing=True)
 checkpoint_volume = modal.Volume.from_name("humanwrite-checkpoints", create_if_missing=True)
@@ -750,12 +750,18 @@ def lower_variance_brief_synthesis_worker(run_id: str, payload: dict) -> dict:
             output_path.open("a", encoding="utf-8") as sink,
             ThreadPoolExecutor(max_workers=LOWER_VARIANCE_BRIEF_CONCURRENCY) as pool,
         ):
-            for start in range(0, len(pending), LOWER_VARIANCE_BRIEF_CONCURRENCY):
-                if spent >= cost_cap:
+            source_iterator = iter(pending)
+            futures = {}
+            for _ in range(LOWER_VARIANCE_BRIEF_CONCURRENCY):
+                source = next(source_iterator, None)
+                if source is None:
                     break
-                chunk = pending[start : start + LOWER_VARIANCE_BRIEF_CONCURRENCY]
-                results = list(pool.map(synthesize_one, chunk))
-                for source, (emitted, last_error, record_spent) in zip(chunk, results):
+                futures[pool.submit(synthesize_one, source)] = source
+            while futures:
+                done, _ = wait(futures, return_when=FIRST_COMPLETED)
+                for future in done:
+                    source = futures.pop(future)
+                    emitted, last_error, record_spent = future.result()
                     fingerprint = str(source["fingerprint"])
                     spent += record_spent
                     if emitted is None:
@@ -766,11 +772,17 @@ def lower_variance_brief_synthesis_worker(run_id: str, payload: dict) -> dict:
                                 f"record failure id={fingerprint} "
                                 f"error={type(last_error).__name__} detail={detail}\n"
                             )
-                        continue
-                    sink.write(json.dumps(emitted, ensure_ascii=False, sort_keys=True) + "\n")
-                    sink.flush()
-                    completed.add(fingerprint)
-                    processed += 1
+                    else:
+                        sink.write(
+                            json.dumps(emitted, ensure_ascii=False, sort_keys=True) + "\n"
+                        )
+                        sink.flush()
+                        completed.add(fingerprint)
+                        processed += 1
+                    if spent < cost_cap:
+                        next_source = next(source_iterator, None)
+                        if next_source is not None:
+                            futures[pool.submit(synthesize_one, next_source)] = next_source
                 checkpoint_volume.commit()
                 if processed and (processed % 24 == 0 or spent - reported >= 0.02):
                     _record({
