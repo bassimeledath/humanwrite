@@ -505,7 +505,7 @@ def test_append_only_state_and_budget(tmp_path):
     events = [json.loads(line) for line in path.read_text().splitlines()]
     assert run_snapshot(events, "r1")["status"] == "running"
     budget = budget_snapshot(events, month="2026-07")
-    assert budget["gpu_remaining_usd"] == 188.0
+    assert budget["gpu_remaining_usd"] == 88.0
     assert budget["api_remaining_usd"] == 95.5
     assert has_capacity(events, 1.0) is True
 

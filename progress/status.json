@@ -1,11 +1,11 @@
 {
-  "updated_at": "2026-07-18T05:44:04Z",
+  "updated_at": "2026-07-18T06:10:06Z",
   "phase": "M2 — fresh-instrument and estimator rebuild",
   "headline": "Stronger 4B MMD-witness confirmation is underway",
   "summary": "Matched 4B confirmation training is complete. The fresh evaluation bank, both human embedder families, and all 128 normalized prompt briefs are complete. Candidate-blind base-versus-initial-SFT positive controls are running before protocol freeze and candidate generation. A separately preregistered independent 4,096/16,384/46,080 scale ladder is ready, with a hard stop at 16,384 unless displacement, validity, quality non-regression, and directional distribution or human-style signal pass.",
   "run_state": "active",
   "budget": {
-    "modal_cap_usd": 200,
+    "modal_cap_usd": 100,
     "modal_committed_usd": 4.890506,
     "openrouter_cap_usd": 100,
     "openrouter_spend_usd": 1.328778
@@ -26,6 +26,12 @@
   ],
   "events": [
     {
+      "at": "23:10",
+      "title": "Scale ladder converted to L40S-only execution",
+      "detail": "Observed 4B L40S training processed 140,196 tokens in 493.373 accelerator-seconds for 0.320890 dollars, essentially matching recent H100 token throughput at about half the cost per token. The ladder now shares cached witness artifacts across arms, forbids automatic H100 fallback, and restores the internal Modal cap to 100 dollars. Expected full-ladder Modal spend is 70-95 dollars; the hard 16K stop remains unchanged.",
+      "tone": "active"
+    },
+    {
       "at": "22:44",
       "title": "Measurement-v4 preparation completed; positive controls running",
       "detail": "A harmless wind-warning row repeatedly triggered GPT-5-mini's content filter. An isolated, provenance-labeled Claude Haiku fallback recovered it under the unchanged exact-source validator. All 128 prompts now have normalized token-unit briefs with exactly 32 empty outlines. Base-model versus initial-SFT positive controls are running before candidate generation.",
@@ -34,7 +40,7 @@
     {
       "at": "22:35",
       "title": "Independent 4K/16K/46K scale ladder frozen",
-      "detail": "The user approved a bounded data-scale extension. Each scale restarts from the same initial 4B adapter and uses its own nested corpus and witness, avoiding the exposure confound of one continuing checkpoint run. A hard 16,384-document gate blocks 46,080 unless validity, displacement, quality non-regression, and at least one dual-embedder or human-style signal pass. The internal Modal cap is now 200 dollars; OpenRouter remains capped at 100 dollars.",
+      "detail": "The user approved a bounded data-scale extension. Each scale restarts from the same initial 4B adapter and uses its own nested corpus and witness, avoiding the exposure confound of one continuing checkpoint run. A hard 16,384-document gate blocks 46,080 unless validity, displacement, quality non-regression, and at least one dual-embedder or human-style signal pass. The internal Modal cap was initially raised pending compute optimization; OpenRouter remains capped at 100 dollars.",
       "tone": "active"
     },
     {

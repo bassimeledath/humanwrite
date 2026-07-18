@@ -32,6 +32,7 @@ A single 46,080-document run checkpointed after 4,096 and 16,384 examples would 
 ## Matched arms at each scale
 
 - Model: pinned Qwen3-4B revision `1cfa9a7208912126459214e8b04321603b3df60c`.
+- Accelerator: L40S for baseline generation, witness materialization, both training arms, candidate generation, and embeddings. There is no automatic H100 fallback. The completed local benchmark processed 140,196 4B training tokens in 493.373 accelerator-seconds for $0.320890, while the recent H100 arms had nearly identical token throughput at approximately twice the cost per token.
 - Starting artifact: the same frozen seed-11 initial SFT adapter used by measurement v4.
 - Arms: uniform SFT and MMD-witness only.
 - Exposure: one complete seeded epoch, batch size 2, identical order and random streams.
@@ -41,6 +42,8 @@ A single 46,080-document run checkpointed after 4,096 and 16,384 examples would 
 - Each cell computes an exact witness from only that cell's human and baseline-generated distributions.
 
 The 46,080-scale witness must use a chunked exact RBF computation. Unit tests must prove equality with the existing dense implementation on small matrices, invariance to chunk size, correct leave-one-out diagonals, and bounded memory.
+
+Baseline generations, frozen human/base embeddings, and witness values are materialized once per nested corpus and shared by both matched arms. The SFT arm must not recompute MMD-only artifacts.
 
 ## Evaluation structure
 
@@ -90,10 +93,10 @@ The final panel should contain at least 400 prompts for blinded judgments. Autom
 
 ## Budget and time boundaries
 
-- Internal Modal monthly cap: $200.
+- Internal Modal monthly cap: $100.
 - Internal OpenRouter monthly cap: $100.
-- Expected stop-at-16,384 total: approximately $50-$80.
-- Expected full independent 4,096/16,384/46,080 ladder: approximately $160-$220 across Modal and OpenRouter.
+- Expected stop-at-16,384 total: approximately $40-$60 across Modal and OpenRouter.
+- Expected full independent 4,096/16,384/46,080 ladder: approximately $115-$160 across Modal and OpenRouter, with approximately $70-$95 attributable to Modal.
 - Each scale is resumable only at completed artifact or optimizer-step boundaries.
 - Data preparation may be pipelined, but 46,080 paid synthesis should not materially outrun the 16,384 decision.
 

@@ -10,7 +10,7 @@ Hugging Face, OpenRouter, and notification credentials stay in Modal secrets.
   single-GPU, command allowlist, and 14B approval rules.
 - The gateway serializes submissions and reserves worst-case cost before
   spawning a job.
-- The GPU pool has an internal monthly cap of $200 and the API pool has an
+- The GPU pool has an internal monthly cap of $100 and the API pool has an
   internal monthly cap of $100. The Modal
   dashboard workspace/environment budget is the authoritative hard cap.
 - The worker uses the HF token only to populate the model cache, removes all
