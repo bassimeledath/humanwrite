@@ -94,7 +94,7 @@ def materialize(
             )
             records.append({**identity, **common})
         manifest = {
-            "artifact_schema": "dftr.measurement.qualified_panel.v4",
+            "artifact_schema": "dftr.measurement.qualified_panel.v3",
             "status": "qualified",
             "frozen": True,
             "role": role,
