@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-18T19:35:00Z",
+  "updated_at": "2026-07-18T19:42:00Z",
   "phase": "M2 — 4B data-scale ladder through 16K",
-  "headline": "16K cleaning complete; immutable 4K/16K corpus freeze is running",
-  "summary": "The clean-train corpus reached exactly 16,384 accepted documents without weakening the frozen 80-220-word or provenance rules. Initial run `dftr-1784358360-4f83b039` committed 12,648 rows before its eight-hour timeout; bounded resume `dftr-1784387469-9e5b1936` added the remaining 3,736 and completed with output SHA-256 `ee8d6f35e11e4e7dbf4b7d11c1c5532b7426d46c42b0ac41867382127ef79626`. The exact existing train-prefix protocol is now preregistered and smoke run `dftr-1784403212-e147e7cb` is qualifying the complete artifact and freezing immutable nested 4,096/16,384 corpora. Scale-dev data and all 128 evaluation briefs remain complete. Fine-tuning has not started yet; training-brief synthesis is the next handoff after the freeze passes.",
+  "headline": "4K and 16K training briefs are now synthesizing in parallel",
+  "summary": "The clean-train corpus reached exactly 16,384 accepted documents without weakening the frozen 80-220-word or provenance rules. Qualification run `dftr-1784403212-e147e7cb` passed and froze immutable 4,096 and 16,384 corpora with SHA-256 values `3c1c4340...bf219eef` and `72df8b03...f041684d`. Faithful two-provider training-brief jobs are now running concurrently: `dftr-1784403322-896f3681` for 4,096 documents and `dftr-1784403322-b50767c0` for 16,384 documents. Each uses Qwen3-32B for prompt/use-case/style metadata and GPT-5-mini for outlines with exactly 25 percent empty outlines. Fine-tuning has not started yet; the 4K matched SFT and MMD-witness arms launch after the 4K briefs validate, without waiting for 16K brief completion.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 100,
@@ -25,6 +25,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "12:42",
+      "title": "Parallel 4K/16K training-brief synthesis launched",
+      "detail": "The prefix freeze completed for immutable 4,096/16,384 corpora. Two separately preregistered faithful brief jobs are now running concurrently: `dftr-1784403322-896f3681` at 4K and `dftr-1784403322-b50767c0` at 16K. The 4K fine-tuning handoff no longer waits for 16K brief synthesis.",
+      "tone": "active"
+    },
     {
       "at": "12:35",
       "title": "16K cleaning completed and corpus freeze launched",
