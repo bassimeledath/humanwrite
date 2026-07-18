@@ -45,7 +45,11 @@ from .cleaning_contract import (
     cleaning_response_format,
     numbered_cleaning_prompt,
 )
-from .volume_paths import checkpoint_volume_path, run_artifact_metadata
+from .volume_paths import (
+    checkpoint_volume_path,
+    missing_run_artifact_metadata,
+    run_artifact_metadata,
+)
 
 
 APP_NAME = "humanwrite-gpu-gateway"
@@ -1239,7 +1243,7 @@ def document_cleaning_worker(run_id: str, payload: dict) -> dict:
 @app.function(
     image=base_image,
     secrets=[gateway_secret, provider_secret],
-    volumes={"/state": state_volume},
+    volumes={"/state": state_volume, CHECKPOINT_PATH: checkpoint_volume},
     max_containers=1,
     timeout=120,
 )
@@ -1381,6 +1385,14 @@ def gateway():
                 "wrapper_receipt_path": receipt["path"],
                 "wrapper_receipt_sha256": receipt["sha256"],
             })
+            state = run_snapshot(_events(), run_id) or state
+        try:
+            checkpoint_volume.reload()
+        except Exception:
+            pass
+        metadata = missing_run_artifact_metadata(state, mount_path=CHECKPOINT_PATH)
+        if metadata:
+            _record({"kind": "run_update", "run_id": run_id, **metadata})
             state = run_snapshot(_events(), run_id) or state
         return {key: value for key, value in state.items() if key != "function_call_id"}
 

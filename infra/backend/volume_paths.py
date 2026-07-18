@@ -85,3 +85,32 @@ def run_artifact_metadata(
         if value is not None:
             metadata[key] = _maybe_uri(value, mount_path)
     return metadata
+
+
+def missing_run_artifact_metadata(
+    state: dict[str, Any],
+    *,
+    mount_path: str = "/checkpoints",
+) -> dict[str, Any]:
+    """Return sanctioned artifact metadata absent from an existing run snapshot."""
+
+    candidates: list[Path] = []
+    run_id = str(state.get("run_id") or "")
+    if run_id:
+        candidates.append(Path(mount_path) / "runs" / run_id)
+    artifact_dir = state.get("artifact_dir")
+    if artifact_dir:
+        candidates.append(Path(str(artifact_dir)))
+
+    metadata: dict[str, Any] = {}
+    for candidate in candidates:
+        metadata = run_artifact_metadata(candidate, mount_path=mount_path)
+        if metadata:
+            break
+    if not metadata:
+        return {}
+    return {
+        key: value
+        for key, value in metadata.items()
+        if value not in (None, "") and state.get(key) in (None, "")
+    }

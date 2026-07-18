@@ -2,7 +2,12 @@ from __future__ import annotations
 
 import pytest
 
-from backend.volume_paths import checkpoint_volume_path, checkpoint_volume_uri, run_artifact_metadata
+from backend.volume_paths import (
+    checkpoint_volume_path,
+    checkpoint_volume_uri,
+    missing_run_artifact_metadata,
+    run_artifact_metadata,
+)
 
 
 def test_checkpoint_volume_path_preserves_mount_alias_without_resolving():
@@ -63,6 +68,42 @@ def test_run_artifact_metadata_surfaces_scale_train_prefix_handoff(tmp_path):
     assert metadata["train_prefix_bundle_sha256"] == "a"
     assert metadata["clean_train_4096_sha256"] == "b"
     assert metadata["clean_train_16384_sha256"] == "c"
+
+
+def test_missing_run_artifact_metadata_backfills_terminal_snapshot(tmp_path):
+    artifact_dir = tmp_path / "runs" / "dftr-example"
+    artifact_dir.mkdir(parents=True)
+    (artifact_dir / "run_manifest.json").write_text(
+        (
+            "{"
+            "\"panel_bundle_path\":\"/checkpoints/data/scale/panel_bundle.json\","
+            "\"panel_bundle_sha256\":\"a\","
+            "\"prompt_sources_path\":\"/checkpoints/data/scale/prompt_sources.jsonl\","
+            "\"prompt_sources_sha256\":\"b\""
+            "}\n"
+        ),
+        encoding="utf-8",
+    )
+    state = {
+        "run_id": "dftr-example",
+        "status": "completed",
+        "artifact_dir": "/__modal/volumes/opaque/runs/dftr-example",
+        "panel_bundle_path": "",
+        "prompt_sources_path": None,
+    }
+    missing = missing_run_artifact_metadata(state, mount_path=str(tmp_path))
+    assert missing["metrics_ptr"] == (
+        "modal-volume://humanwrite-checkpoints/runs/dftr-example/run_manifest.json"
+    )
+    assert missing["panel_bundle_path"] == (
+        "modal-volume://humanwrite-checkpoints/data/scale/panel_bundle.json"
+    )
+    assert missing["panel_bundle_sha256"] == "a"
+    assert missing["prompt_sources_path"] == (
+        "modal-volume://humanwrite-checkpoints/data/scale/prompt_sources.jsonl"
+    )
+    assert missing["prompt_sources_sha256"] == "b"
+    assert missing["run_manifest_sha256"]
 
 
 @pytest.mark.parametrize(
