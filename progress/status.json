@@ -1,14 +1,14 @@
 {
-  "updated_at": "2026-07-18T06:48:20Z",
+  "updated_at": "2026-07-18T07:08:52Z",
   "phase": "M2 — 4B data-scale ladder through 16K",
-  "headline": "The preregistered 16K scale ladder is running",
-  "summary": "The prior 1,024-document MMD-witness result was directionally positive but inconclusive: 54.7% human-style wins, 53.1% overall-quality wins, improvements on both embedding families and Token L2, but insufficient significance and 78% identity with SFT. The newer measurement-v4 positive-control run stopped before candidate generation because one Nemotron manipulation check narrowly missed alpha (p=0.0525). The independent scale ladder has now launched source selection for nested 4,096 and 16,384 clean training cells; it remains hard-stopped at 16,384 pending the frozen safety and signal gates.",
+  "headline": "Scale-ladder Qwen cleaning is running",
+  "summary": "The prior 1,024-document MMD-witness result was directionally positive but inconclusive: 54.7% human-style wins, 53.1% overall-quality wins, improvements on both embedding families and Token L2, but insufficient significance and 78% identity with SFT. The preregistered nested source selection then completed and validated at 27,000 disjoint raw records: 26,000 training candidates plus a 1,000-document scale-development pool. Two preregistered Qwen3-32B cleaners are now running toward 16,384 clean train documents and a fresh 640-document scale-development panel, while measurement-v4 remains blocked because one Nemotron manipulation check narrowly missed alpha (p=0.0525).",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 100,
     "modal_committed_usd": 16.75756,
     "openrouter_cap_usd": 100,
-    "openrouter_spend_usd": 16.598985
+    "openrouter_spend_usd": 31.598985
   },
   "services": [
     {"name": "GPU gateway", "detail": "Constrained launch API", "status": "online"},
@@ -26,10 +26,16 @@
   ],
   "events": [
     {
-      "at": "23:48",
-      "title": "Nested 4K/16K source selection launched",
-      "detail": "Run dftr-1784357254-035e8d3c is selecting a prior-disjoint 27,000-document raw FineWeb pool from three new pinned shards, capped at one record per domain. The updated gateway and scale-size policy passed 121 focused tests. This feeds Qwen3-32B line cleaning, faithful brief synthesis, independent 4K training, then the gated 16K cell.",
+      "at": "00:06",
+      "title": "Validated 27K source pool; scale cleaners launched",
+      "detail": "Source run dftr-1784357254-035e8d3c completed with 26,000 train and 1,000 scale-development records and returned bound train/dev SHA-256 manifests. The scheduled audit found the downstream cleaner handoff missing, added fixed configs, and launched dftr-1784358360-4f83b039 toward 16,384 clean train docs plus dftr-1784358360-a40e0584 toward a 640-document scale-development panel.",
       "tone": "active"
+    },
+    {
+      "at": "23:48",
+      "title": "Nested 4K/16K source selection completed",
+      "detail": "Run dftr-1784357254-035e8d3c selected a prior-disjoint 27,000-document raw FineWeb pool from three pinned shards, capped at one record per domain, and returned SHA-bound 26,000-train and 1,000-dev artifacts for the bounded 4K/16K ladder.",
+      "tone": "complete"
     },
     {
       "at": "23:16",

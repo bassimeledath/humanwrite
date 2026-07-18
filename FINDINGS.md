@@ -2370,3 +2370,43 @@ runner/config wiring still remains; the pure objectives and decision metrics
 are implemented and independently testable.
 NEXT: Commit the foundations, finish cleaning/qualification, then bind one
 matched three-arm runner and freeze the measurement-v3 panel before outputs.
+
+## [2026-07-18] M2 / scale-ladder-source-validation-and-clean-launch
+HYPOTHESIS: The completed preregistered 27,000-document nested raw source
+pool is sufficient to advance the bounded 4K/16K scale ladder only if its
+returned counts and SHA-256 manifests validate against the frozen source
+contract, after which the next safe handoff is strict Qwen3-32B cleaning of
+the 26,000-train and 1,000-scale-dev partitions. This preserves the
+independent scale-development panel and does not outrun the user-unapproved
+46,080 cell.
+SETUP: Scheduled 90-minute safety audit on Saturday, July 18, 2026. Read-only
+validation used the completed gateway record for
+`dftr-1784357254-035e8d3c`, its worker log, and the frozen source config
+`configs/m2/m2_scale_ladder_source_pool_16k_v1.yaml`. The audit then added
+the missing downstream cleaner configs
+`configs/m2/m2_scale_ladder_clean_train_16k_v1.yaml` and
+`configs/m2/m2_scale_ladder_clean_dev_640_v1.yaml`, preregistered
+comparisons `M2-scale-ladder-clean-train-16k-v1` and
+`M2-scale-ladder-clean-dev-640-v1`, and launched them as
+`dftr-1784358360-4f83b039` and `dftr-1784358360-a40e0584`. Config hashes are
+`ad131251512f9b754a5be7be8f6d791cb17f2fb3eefc1497c82847ad328e94df` for the
+16,384-train cleaner and
+`1d7b8c9a9fd51760ae9f8cd249513217441defd8faed445b86805fb630851dec` for the
+640-document scale-development cleaner.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Source-pool terminal validation | PASS | Run `dftr-1784357254-035e8d3c` completed with `selected=27000`, `train=26000`, `dev=1000`; returned `train_sha256=1d346936dd3bb0e12d60b578d8cbcf2af32f3c02a093fcee5f23309e4b99b942` and `dev_sha256=a952f68933c301e967abeb0cf6cd2dcd3079e956e67ba3467ca18ac426194c94`. |
+| Safety-audit handoff check | FAIL | The repo had the source-materialization config only; no checked-in scale-ladder cleaning continuation existed, while `progress/status.json` still reported source selection as the active state after terminal completion. |
+| Fixed continuation repair | PASS | Added pinned cleaner configs using the returned SHA-256s and the existing frozen 80-220-word Qwen3-32B cleaning contract. |
+| Next safe async launches | PASS | Cleaner runs `dftr-1784358360-4f83b039` (target `16,384/26,000`, API reserve `$12`) and `dftr-1784358360-a40e0584` (target `640/1,000`, API reserve `$3`) are running. |
+| Budget boundary after launch | PASS | Gateway budget reports Modal committed `$16.75756/$100` and API spend/reserve `$31.598985/$100`, leaving `$83.24244` Modal and `$68.401015` API. |
+DECISION: Keep the bounded 4K/16K ladder active. The completed raw pool is
+valid, the missed handoff is repaired, and the correct next wake condition is
+cleaner completion rather than the already-handled source-selection run. Do
+not launch brief synthesis, 4,096 training, or any 46,080 artifact until the
+clean outputs are validated prospectively.
+NEXT: When either cleaner reaches a terminal state, verify acceptance counts,
+exact-source provenance, and disjointness; then freeze the scale-development
+panel shape and launch only the next data-preparation step supported by those
+validated clean artifacts.

@@ -1,0 +1,20 @@
+run:
+  comparison_id: M2-scale-ladder-clean-dev-640-v1
+  arm: clean-scale-development-panel
+  budget_class: promo
+  task_kind: document_cleaning
+compute:
+  gpus: 1
+  timeout_min: 480
+data:
+  input_uri: modal-volume://humanwrite-checkpoints/data/m2-scale-ladder-v1/raw-scale-dev-pool-1000.jsonl
+  output_uri: modal-volume://humanwrite-checkpoints/data/m2-scale-ladder-v1/clean-scale-dev-640.jsonl
+  input_sha256: a952f68933c301e967abeb0cf6cd2dcd3079e956e67ba3467ca18ac426194c94
+  max_records: 1000
+  target_records: 640
+api:
+  model: qwen/qwen3-32b
+  max_cost_usd: 3.0
+quality:
+  min_word_count: 80
+  max_word_count: 220
