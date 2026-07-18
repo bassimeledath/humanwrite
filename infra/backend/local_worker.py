@@ -10,6 +10,7 @@ import sys
 import time
 
 from .local_backend import _artifact_dir, _count_generated_tokens, _log_path, _pid_path, _record, _state_dir
+from .volume_paths import run_artifact_metadata
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -94,6 +95,7 @@ def run_worker(payload_path: Path) -> dict[str, object]:
                 "tokens": _count_generated_tokens(state, run_id),
                 "actual_cost_usd": round(actual, 6),
                 "artifact_dir": str(artifact_dir.resolve()),
+                **run_artifact_metadata(artifact_dir, mount_path=str(state / "artifacts")),
             },
         )
         if pid_path.exists():

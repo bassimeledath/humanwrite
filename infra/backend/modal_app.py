@@ -45,7 +45,7 @@ from .cleaning_contract import (
     cleaning_response_format,
     numbered_cleaning_prompt,
 )
-from .volume_paths import checkpoint_volume_path
+from .volume_paths import checkpoint_volume_path, run_artifact_metadata
 
 
 APP_NAME = "humanwrite-gpu-gateway"
@@ -402,6 +402,7 @@ def training_worker(run_id: str, payload: dict) -> dict:
             "actual_cost_usd": round(actual, 6),
             "artifact_dir": str(artifact_dir.resolve()),
         }
+        result_payload.update(run_artifact_metadata(artifact_dir, mount_path=CHECKPOINT_PATH))
         if log_path.is_file():
             (artifact_dir / "worker.log").write_bytes(log_path.read_bytes())
         # Volume commits on container shutdown are not sufficiently prompt for
@@ -413,6 +414,12 @@ def training_worker(run_id: str, payload: dict) -> dict:
 
 def _volume_path(uri: str) -> Path:
     return checkpoint_volume_path(uri, CHECKPOINT_PATH)
+
+
+def _volume_artifact(uri: str, path: Path, *, sha_key: str) -> dict[str, str]:
+    if not path.is_file():
+        return {}
+    return {sha_key: _file_sha256(path), "metrics_ptr": uri}
 
 
 @app.function(
@@ -501,13 +508,18 @@ def source_materialization_worker(run_id: str, payload: dict) -> dict:
             "status": status,
             "finished_at": time.time(),
             "records_processed": int(manifest["counts"]["corpus_size"]),
+            "metrics_ptr": str(data["manifest_output_uri"]),
+            "manifest_sha256": _file_sha256(manifest_path),
+            "train_uri": str(data["train_output_uri"]),
             "train_sha256": manifest["train"]["sha256"],
+            "dev_uri": str(data["dev_output_uri"]),
             "dev_sha256": manifest["dev"]["sha256"],
         })
         return {
             "run_id": run_id,
             "status": status,
             "records_processed": int(manifest["counts"]["corpus_size"]),
+            "metrics_ptr": str(data["manifest_output_uri"]),
         }
     except Exception as exc:
         with log_path.open("a", encoding="utf-8") as logs:
@@ -821,6 +833,8 @@ def lower_variance_brief_synthesis_worker(run_id: str, payload: dict) -> dict:
             "actual_api_cost_usd": round(spent, 6),
             "records_processed": processed,
             "records_failed": failed,
+            "output_uri": str(config["data"]["output_uri"]),
+            **_volume_artifact(str(config["data"]["output_uri"]), output_path, sha_key="output_sha256"),
         })
     return {
         "run_id": run_id,
@@ -1058,6 +1072,8 @@ def brief_synthesis_worker(run_id: str, payload: dict) -> dict:
             "actual_api_cost_usd": round(min(cost_cap, spent), 6),
             "records_processed": processed,
             "records_failed": failed_records,
+            "output_uri": str(data_config["output_uri"]),
+            **_volume_artifact(str(data_config["output_uri"]), output_path, sha_key="output_sha256"),
         })
     return {"run_id": run_id, "status": status, "records_processed": processed,
             "records_failed": failed_records,
@@ -1213,7 +1229,9 @@ def document_cleaning_worker(run_id: str, payload: dict) -> dict:
             _record({"kind": "api_cost", "run_id": run_id, "cost_usd": round(spent - reported, 6)})
         _record({"kind": "run_update", "run_id": run_id, "status": status,
                  "finished_at": time.time(), "actual_api_cost_usd": round(spent, 6),
-                 "records_processed": processed, "records_failed": failed})
+                 "records_processed": processed, "records_failed": failed,
+                 "output_uri": str(data["output_uri"]),
+                 **_volume_artifact(str(data["output_uri"]), output_path, sha_key="output_sha256")})
     return {"run_id": run_id, "status": status, "records_processed": processed,
             "records_failed": failed, "actual_api_cost_usd": round(spent, 6)}
 

@@ -2477,3 +2477,42 @@ strictness. In parallel scientific planning, the next data-preparation action
 remains prompt-brief synthesis from the frozen scale-dev prompt-source slice,
 but that launch now depends on a surfaced hash/path from the completed freeze
 artifact rather than on any further cleaning.
+
+## [2026-07-18] M2 / scale-ladder-handoff-surface-repair
+HYPOTHESIS: If the only remaining live job is a healthy 16,384-document train
+cleaner, the scheduled 90-minute audit should not launch speculative new work.
+The recoverable intervention is to repair the sanctioned gateway handoff
+surface so future terminal runs expose immutable manifest or output handles
+through approved status fields, reducing the risk of another stalled
+continuation after valid compute completes.
+SETUP: Scheduled 90-minute safety audit on Saturday, July 18, 2026. Read-only
+live validation used the coordinator's keychain-backed gateway access plus the
+approved `status`, `logs`, and `budget` surfaces for the only monitored run
+`dftr-1784358360-4f83b039`. The repo then inspected the gateway, local
+backend, and shared volume-path code, implemented a fixed metadata-surfacing
+repair in `infra/backend/modal_app.py`, `infra/backend/local_backend.py`,
+`infra/backend/local_worker.py`, and `infra/backend/volume_paths.py`, added
+focused tests, and redeployed the Modal gateway with
+`uv run --project infra modal deploy -m infra.backend.modal_app`. Targeted
+verification used `PYTHONPATH=. uv run --project infra pytest
+infra/tests/test_volume_paths.py infra/tests/test_local_backend.py`.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| 16K cleaner health check | PASS | The only live remote run remained `dftr-1784358360-4f83b039`; its latest approved worker-log snapshot reached `processed=2626 total_completed=2626 api_cost_usd=1.011754 concurrency=128`, so the ladder is making real progress rather than silently stalling. |
+| Live budget boundary | PASS | Gateway budget remained inside the frozen caps at Modal committed `$16.769555/$100` and OpenRouter spend `$28.838326/$100`, leaving `$83.230445` Modal and `$71.161674` API. |
+| Existing handoff surface | FAIL | Generic experiment completions surfaced only `artifact_dir`, and fixed-code cleaning/source/brief routes surfaced counts without immutable artifact pointers or SHA-bound output handles, recreating the same observability class that blocked prompt-brief synthesis after the completed scale-dev freeze run. |
+| Fixed sanctioned metadata surface | PASS | Terminal run updates now surface a small approved handoff payload: `metrics_ptr` plus `run_manifest_sha256` for run manifests, scale-dev `panel_bundle`/`prompt_sources` pointers when present, and `output_uri`/`output_sha256` or source-manifest URIs for fixed-code data routes. |
+| Local verification | PASS | Targeted tests passed `8/8` under the repo-managed infra environment. |
+| Production deployment | PASS | The repaired gateway was deployed successfully to `https://bassimfaizal--humanwrite-gpu-gateway-gateway.modal.run` during this audit. |
+| Additional async launch need | PASS | None. The live cleaner is healthy and remains the only correct wake target. Launching anything else now would be speculative. |
+DECISION: Keep autonomy enabled with only the 16K cleaner monitored. The
+pipeline is healthy, but the sanctioned handoff surface needed a real repair
+and now has one. No new scientific job is justified until the cleaner reaches
+its next terminal transition.
+NEXT: When `dftr-1784358360-4f83b039` turns terminal, inspect its approved
+status surface first for `output_uri` and `output_sha256`. If those fields are
+present, use them for the next clean-train qualification handoff. If they are
+absent, treat that as a non-retroactive deployment limitation for this
+already-running job and launch only an explicit qualification/freeze validator
+from the known frozen config before any 4,096-document training step.

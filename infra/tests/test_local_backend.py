@@ -41,6 +41,10 @@ def test_local_backend_submit_status_logs_and_cancel(monkeypatch, tmp_path):
     assert status["status"] == "running"
     log_path = Path(status["log_path"])
     log_path.write_text("line1\nline2\n", encoding="utf-8")
+    artifact_dir = tmp_path / "artifacts" / "dftr-local-test"
+    artifact_dir.mkdir(parents=True, exist_ok=True)
+    manifest_path = artifact_dir / "run_manifest.json"
+    manifest_path.write_text("{\"status\":\"partial\"}\n", encoding="utf-8")
     assert "line2" in logs_local("dftr-local-test", state_dir=tmp_path)["logs"]
     cancelled = cancel_local("dftr-local-test", state_dir=tmp_path)
     assert cancelled["status"] == "cancelled"
@@ -50,6 +54,8 @@ def test_local_backend_submit_status_logs_and_cancel(monkeypatch, tmp_path):
     assert terminal["accel_seconds"] >= 0.0
     assert terminal["actual_cost_usd"] >= 0.0
     assert "finished_at" in terminal
+    assert terminal["metrics_ptr"] == "modal-volume://humanwrite-checkpoints/dftr-local-test/run_manifest.json"
+    assert terminal["run_manifest_sha256"]
     budget = budget_local(state_dir=tmp_path)
     assert budget["gpu_committed_usd"] == terminal["actual_cost_usd"]
     assert budget["gpu_remaining_usd"] == round(budget["gpu_cap_usd"] - terminal["actual_cost_usd"], 6)

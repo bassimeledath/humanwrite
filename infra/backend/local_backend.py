@@ -19,6 +19,7 @@ from .policy import (
     run_snapshot,
     validate_launch,
 )
+from .volume_paths import run_artifact_metadata
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -213,6 +214,7 @@ def cancel_local(run_id: str, state_dir: str | Path | None = None) -> dict[str, 
             "tokens": _count_generated_tokens(state, run_id),
             "actual_cost_usd": round(actual, 6),
             "artifact_dir": str(_artifact_dir(state, run_id).resolve()),
+            **run_artifact_metadata(_artifact_dir(state, run_id), mount_path=str(state / "artifacts")),
         },
     )
     return {"run_id": run_id, "status": "cancelled"}
