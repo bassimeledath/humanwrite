@@ -16,6 +16,7 @@ from experiments.m2.lower_variance_train import (
     LOWER_VARIANCE_STEP,
     LowerVarianceTrainError,
     component_gradient_norm,
+    deterministic_epoch_batches,
     eos_aware_completion_ids,
     matched_exposure_payload,
     method_contract_payload,
@@ -191,6 +192,23 @@ def test_eos_contract_stops_at_first_eos_or_reserves_terminal_eos():
     assert eos_aware_completion_ids([4, 9, 5, 6], eos_token_id=9, max_new_tokens=4) == [4, 9]
     assert eos_aware_completion_ids([4, 5, 6, 7], eos_token_id=9, max_new_tokens=3) == [4, 5, 9]
     assert eos_aware_completion_ids([], eos_token_id=9, max_new_tokens=1) == [9]
+
+
+def test_epoch_schedule_exposes_every_record_exactly_once_per_epoch():
+    batches = deterministic_epoch_batches(size=12, batch_size=3, steps=8, seed=11)
+    first_epoch = [index for batch in batches[:4] for index in batch]
+    second_epoch = [index for batch in batches[4:] for index in batch]
+    assert sorted(first_epoch) == list(range(12))
+    assert sorted(second_epoch) == list(range(12))
+    assert first_epoch != second_epoch
+    assert batches == deterministic_epoch_batches(12, 3, 8, 11)
+
+
+def test_epoch_schedule_rejects_partial_epochs_and_ragged_batches():
+    with pytest.raises(LowerVarianceTrainError, match="complete equal-sized epochs"):
+        deterministic_epoch_batches(size=10, batch_size=3, steps=4, seed=11)
+    with pytest.raises(LowerVarianceTrainError, match="complete equal-sized epochs"):
+        deterministic_epoch_batches(size=12, batch_size=3, steps=5, seed=11)
 
 
 class FakeTokenizer:

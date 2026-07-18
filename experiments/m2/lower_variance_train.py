@@ -37,6 +37,7 @@ BASE_REVISION = "1cfa9a7208912126459214e8b04321603b3df60c"
 ARM_IDS = ("SFT", "TOKEN_MOMENT", "MMD_WITNESS")
 SAFE_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 FULL_BRIEF_SCHEMA = "dft.full-brief.tokens.v1"
+EPOCH_SCHEDULE = "python_random_epoch_shuffle.v1"
 FULL_BRIEF_SERIALIZER_SHA256 = canonical_hash(
     {
         "schema": FULL_BRIEF_SCHEMA,
@@ -364,7 +365,8 @@ def validate_lower_variance_config(config: dict[str, Any]) -> dict[str, Any]:
     _positive(training.get("weight_decay"), "training.weight_decay", allow_zero=True)
     if (
         training["steps"] % training["checkpoint_every"] != 0
-        or training.get("schedule") != "python_random_sample_without_replacement.v1"
+        or training.get("schedule")
+        not in {"python_random_sample_without_replacement.v1", EPOCH_SCHEDULE}
     ):
         raise LowerVarianceTrainError("training must end on exact checkpoint boundaries")
     arms = config.get("arms")
@@ -632,6 +634,39 @@ def component_gradient_norm(loss: Any, parameters: Sequence[Any]) -> float:
     return norm
 
 
+def deterministic_epoch_batches(
+    size: int, batch_size: int, steps: int, seed: int
+) -> list[list[int]]:
+    """Return complete seeded epochs with no omitted or duplicated examples."""
+
+    if (
+        type(size) is not int
+        or type(batch_size) is not int
+        or type(steps) is not int
+        or size <= 0
+        or batch_size <= 0
+        or steps <= 0
+        or size % batch_size
+        or (steps * batch_size) % size
+    ):
+        raise LowerVarianceTrainError(
+            "epoch schedule requires complete equal-sized epochs"
+        )
+    generator = random.Random(int(seed))
+    batches: list[list[int]] = []
+    epoch_count = (steps * batch_size) // size
+    for _epoch in range(epoch_count):
+        order = list(range(size))
+        generator.shuffle(order)
+        batches.extend(
+            order[start : start + batch_size]
+            for start in range(0, size, batch_size)
+        )
+    if len(batches) != steps:
+        raise LowerVarianceTrainError("epoch schedule produced the wrong step count")
+    return batches
+
+
 def matched_exposure_payload(config: dict[str, Any]) -> dict[str, Any]:
     training = config["training"]
     per_arm = {
@@ -889,7 +924,11 @@ def _run_arm(
     torch.backends.cuda.matmul.allow_tf32 = False
     steps = int(config["training"]["steps"])
     batch_size = int(config["training"]["batch_size"])
-    schedule = deterministic_batches(len(anchors), batch_size, steps, seed)
+    schedule = (
+        deterministic_epoch_batches(len(anchors), batch_size, steps, seed)
+        if config["training"]["schedule"] == EPOCH_SCHEDULE
+        else deterministic_batches(len(anchors), batch_size, steps, seed)
+    )
     schedule_sha256 = canonical_hash(schedule)
     resume_descriptor = config["resume"][arm_id]
     policy, tokenizer = load_source_peft_and_tokenizer(
@@ -1109,11 +1148,13 @@ def run_lower_variance(config: dict[str, Any], run_id: str) -> dict[str, Any]:
 
 __all__ = [
     "ARM_IDS",
+    "EPOCH_SCHEDULE",
     "GENERATION_CONTRACT",
     "LOWER_VARIANCE_SCHEMA",
     "LOWER_VARIANCE_STEP",
     "LowerVarianceTrainError",
     "component_gradient_norm",
+    "deterministic_epoch_batches",
     "eos_aware_completion_ids",
     "matched_exposure_payload",
     "method_contract_payload",
