@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-07-18T01:30:00Z",
+  "updated_at": "2026-07-18T01:40:00Z",
   "phase": "M2 — fresh-instrument and estimator rebuild",
   "headline": "Full 4B research cycle has started with fixed baseline generation",
   "summary": "The normalized 1,024-brief training corpus and 640-document disjoint evaluation corpus are complete. Modal is now generating one frozen baseline output for every training brief from the seed-11 Qwen3-4B SFT adapter. This shared panel will define the one-round MMD witness before the matched SFT, token-moment, and witness-weighted tuning arms launch.",
@@ -25,6 +25,18 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "18:40",
+      "title": "Blind evaluation preparation is running concurrently",
+      "detail": "The untouched 640-document evaluation corpus is now hash-partitioned into 128 prompt sources, 256 semantic references, and two disjoint 128-document human floors. Run dftr-evalbriefs-1784338437 is synthesizing only the 128 prompt briefs, while pinned BGE-small and Llama-Embed-Nemotron-8B jobs materialize human-only embeddings. No tuned candidate output has been generated or inspected.",
+      "tone": "active"
+    },
+    {
+      "at": "18:36",
+      "title": "Full tuning schedule repaired before spend",
+      "detail": "The prior batch sampler prevented duplicates only within each two-example batch and did not guarantee full-corpus exposure. The full screen now uses a tested seeded epoch shuffle: each arm will consume every one of the 1,024 briefs exactly once, in 512 matched optimizer steps.",
+      "tone": "complete"
+    },
     {
       "at": "18:30",
       "title": "Decision-grade lower-variance cycle started",
