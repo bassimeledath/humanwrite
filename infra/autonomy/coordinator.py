@@ -29,7 +29,7 @@ LOCK_PATH = STATE_DIR / "codex.lock"
 GATEWAY_URL = "https://bassimfaizal--humanwrite-gpu-gateway-gateway.modal.run"
 KEYCHAIN_SERVICE = "humanwrite-gateway-token"
 TERMINAL = {"completed", "failed", "cancelled", "reaped", "launch_failed"}
-CODEX = Path("/opt/homebrew/bin/codex")
+CODEX = Path("/Applications/Codex.app/Contents/Resources/codex")
 
 
 def _read_json(path: Path, default: Any) -> Any:
@@ -141,7 +141,7 @@ def should_run_scheduled_audit(
     successful_wakes = [
         float(item.get("started_at"))
         for item in runtime.get("wake_history", [])
-        if item.get("return_code") == 0 and item.get("started_at") is not None
+        if item.get("succeeded") is True and item.get("started_at") is not None
     ]
     if successful_wakes and now - max(successful_wakes) < recent_guard:
         return False, "recent_continuation_already_checked_pipeline"
@@ -215,10 +215,6 @@ def _invoke_codex(
         "danger-full-access",
         "-c",
         'approval_policy="never"',
-        "-c",
-        'mcp_servers.braintrust.command="true"',
-        "-c",
-        'mcp_servers.openaiDeveloperDocs.command="true"',
         _continuation_prompt(control, statuses, invocation=invocation),
     ]
     environment = dict(os.environ)
@@ -235,10 +231,16 @@ def _invoke_codex(
             timeout=int(control.get("codex_timeout_seconds", 7200)),
             check=False,
         )
+    succeeded = (
+        result.returncode == 0
+        and last_message.is_file()
+        and bool(last_message.read_text(encoding="utf-8").strip())
+    )
     return {
         "started_at": started,
         "finished_at": time.time(),
         "return_code": result.returncode,
+        "succeeded": succeeded,
         "event_log": str(event_log),
         "last_message": str(last_message),
     }
@@ -301,11 +303,15 @@ def tick(*, dry_run: bool = False) -> dict[str, Any]:
         _atomic_json(RUNTIME_PATH, runtime)
         result = _invoke_codex(control, statuses)
         runtime = _read_json(RUNTIME_PATH, runtime)
-        if result["return_code"] == 0:
+        if result["succeeded"]:
             runtime.setdefault("handled_signatures", []).append(signature)
         runtime.setdefault("wake_history", []).append({"signature": signature, **result})
         _atomic_json(RUNTIME_PATH, runtime)
-        live["decision"] = "codex_continuation_finished"
+        live["decision"] = (
+            "codex_continuation_finished"
+            if result["succeeded"]
+            else "codex_continuation_failed"
+        )
         live["codex_result"] = result
         _atomic_json(LIVE_PATH, live)
         return live
@@ -376,13 +382,17 @@ def audit(*, dry_run: bool = False) -> dict[str, Any]:
             control, statuses, invocation="scheduled_90m_safety_audit"
         )
         runtime = _read_json(RUNTIME_PATH, runtime)
-        if current_signature is not None and result["return_code"] == 0:
+        if current_signature is not None and result["succeeded"]:
             runtime.setdefault("handled_signatures", []).append(current_signature)
         runtime.setdefault("wake_history", []).append(
             {"signature": f"scheduled-audit-{int(now)}", **result}
         )
         _atomic_json(RUNTIME_PATH, runtime)
-        report["decision"] = "scheduled_audit_finished"
+        report["decision"] = (
+            "scheduled_audit_finished"
+            if result["succeeded"]
+            else "scheduled_audit_failed"
+        )
         report["codex_result"] = result
         _atomic_json(AUDIT_PATH, report)
         return report

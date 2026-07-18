@@ -102,7 +102,7 @@ def test_scheduled_audit_skips_recent_or_over_budget_continuation():
         control=control(audit_recent_continuation_seconds=3600),
         runtime={
             "codex_wake_times": [4500.0],
-            "wake_history": [{"started_at": 4500.0, "return_code": 0}],
+            "wake_history": [{"started_at": 4500.0, "return_code": 0, "succeeded": True}],
         },
         now=5000.0,
     )
@@ -123,7 +123,7 @@ def test_failed_launch_does_not_suppress_scheduled_audit():
         control=control(audit_recent_continuation_seconds=3600),
         runtime={
             "codex_wake_times": [4500.0],
-            "wake_history": [{"started_at": 4500.0, "return_code": 1}],
+            "wake_history": [{"started_at": 4500.0, "return_code": 1, "succeeded": False}],
         },
         now=5000.0,
     )
