@@ -1,0 +1,49 @@
+{
+  "artifact_schema": "dftr.measurement.quality_judge_contract.v3",
+  "candidate_outputs_opened": true,
+  "status": "frozen_operational_amendment",
+  "model": "openai/gpt-5.4-mini",
+  "amendment": {
+    "scope": "operational_only",
+    "prior_contract_path": "configs/m2/m2_measurement_v3_judge_contract_v1.json",
+    "prior_contract_sha256": "51ea7d9809a72cb8867082403f6c9129e2fea79e5d277d9a79d4e9191c10038a",
+    "reason": "The frozen eight-token completion limit produced content=null with finish_reason=length because reasoning tokens exhausted the budget. Increase only the output budget so the already-frozen single-A-or-B response can be emitted.",
+    "observed_failure": {
+      "content": null,
+      "finish_reason": "length",
+      "max_completion_tokens": 8
+    },
+    "analytic_changes": false
+  },
+  "dimensions": {
+    "overall_quality": "Choose the response with better writing quality while following the assignment. Favor clear, coherent, specific, engaging prose over generic, repetitive, awkward, or unsupported writing.",
+    "human_style": "Choose the response that reads more like careful human-authored prose. Favor natural variation, specific development, and context-appropriate phrasing; penalize formulaic structure, canned transitions, repetition, and conspicuous model-like artifacts.",
+    "creativity": "Choose the more creative response: fresher ideas, more distinctive phrasing, and meaningful concrete detail while still fitting the assignment.",
+    "depth": "Choose the response with more depth: it develops ideas with substance and meaningful detail instead of remaining generic or surface-level."
+  },
+  "comparison_arms": [
+    "TOKEN_MOMENT_vs_SFT",
+    "MMD_WITNESS_vs_SFT"
+  ],
+  "prompt_count": 128,
+  "randomization": {
+    "algorithm": "sha256(master_seed:treatment:dimension:prompt_id).parity.v1",
+    "master_seed": 98001
+  },
+  "request": {
+    "temperature": 0.0,
+    "max_completion_tokens": 64,
+    "response_contract": "single uppercase A or B"
+  },
+  "execution": {
+    "concurrency": 8,
+    "cost_cap_usd": 10.0,
+    "retry_attempts": 3
+  },
+  "decision": {
+    "primary_dimension": "human_style",
+    "minimum_win_rate": 0.55,
+    "one_sided_alpha": 0.05,
+    "overall_quality_must_not_be_significantly_worse": true
+  }
+}

@@ -28,7 +28,7 @@ checkpoint_volume = modal.Volume.from_name("humanwrite-checkpoints")
 provider_secret = modal.Secret.from_name("the-other-ones")
 contract_path = (
     Path(__file__).resolve().parents[1]
-    / "configs/m2/m2_measurement_v3_judge_contract_v1.json"
+    / "configs/m2/m2_measurement_v3_judge_contract_v2.json"
 )
 image = (
     modal.Image.debian_slim(python_version="3.11")
@@ -107,8 +107,10 @@ def judge() -> dict:
     if (
         contract.get("artifact_schema")
         != "dftr.measurement.quality_judge_contract.v3"
-        or contract.get("status") != "frozen"
-        or contract.get("candidate_outputs_opened") is not False
+        or contract.get("status") != "frozen_operational_amendment"
+        or contract.get("candidate_outputs_opened") is not True
+        or contract.get("amendment", {}).get("scope") != "operational_only"
+        or contract.get("amendment", {}).get("analytic_changes") is not False
         or model != contract.get("model")
     ):
         raise RuntimeError("quality judge does not match its frozen contract")
