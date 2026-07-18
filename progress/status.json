@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-18T03:20:00Z",
+  "updated_at": "2026-07-18T03:31:00Z",
   "phase": "M2 — fresh-instrument and estimator rebuild",
   "headline": "Stronger 4B MMD-witness confirmation is underway",
-  "summary": "The confirmation is frozen before outputs: two matched 4B arms, two full training epochs, 128-token targets and evaluation, and witness temperature 0.035. SFT run dftr-1784344275-4ca9ff0b and MMD-witness run dftr-1784344283-61883086 have both passed 512/1,024 steps; the MMD arm passed its preregistered first-64 displacement gate. Fresh evaluation cleaning continues concurrently with 32 bounded requests in flight.",
+  "summary": "Matched 4B confirmation training is complete: SFT and MMD-witness each ran 1,024 steps over 2,048 examples and 256,466 teacher-forced tokens. The MMD arm passed its mechanism gate with a first-64 median witness-gradient ratio of 0.0968. Total H100 cost was $2.36196. A broadened, still-disjoint 2,000-document source bank is now being cleaned for the fresh blinded evaluation panel.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
@@ -25,6 +25,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "20:31",
+      "title": "Matched 4B training completed successfully",
+      "detail": "SFT and MMD-witness each completed 1,024 steps, 2,048 optimizer examples, and 256,466 completion tokens. The treatment's first-64 median witness-to-uniform gradient ratio was 0.096835, inside the frozen 0.05-0.30 gate; its all-step median was 0.080187. Combined H100 cost was $2.36196. No candidate outputs have been opened. Evaluation cleaning was re-scoped before panel freeze to 2,000 mutually disjoint sources because the initial 80-220-word pool could not yield 640 line-cleaned documents without selection failure.",
+      "tone": "complete"
+    },
     {
       "at": "20:20",
       "title": "Training reached halfway; evaluation bottleneck widened",
