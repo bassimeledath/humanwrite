@@ -11,7 +11,9 @@ from experiments import runner
 from experiments.m1.contracts import file_sha256
 from experiments.m2 import lower_variance_train as train
 from experiments.m2.lower_variance_train import (
+    CONFIRMATION_GENERATION_CONTRACT,
     GENERATION_CONTRACT,
+    LOWER_VARIANCE_CONFIRMATION_SCHEMA,
     LOWER_VARIANCE_SCHEMA,
     LOWER_VARIANCE_STEP,
     LowerVarianceTrainError,
@@ -142,6 +144,33 @@ def _rehash(config: dict) -> None:
     )
 
 
+def confirmation_config() -> dict:
+    config = valid_config()
+    config["artifact_schema"] = LOWER_VARIANCE_CONFIRMATION_SCHEMA
+    config["run"].update(
+        comparison_id="M2-mmd-witness-4b-confirmation-v1",
+        arm="SFT-vs-MMD_WITNESS",
+    )
+    config["data"]["witness_generation_contract_sha256"] = canonical_hash(
+        CONFIRMATION_GENERATION_CONTRACT
+    )
+    config["representation"]["role"] = (
+        "lower_variance_training_only_not_measurement_v4"
+    )
+    config["objectives"]["mmd_witness"]["temperature"] = 0.035
+    config["generation"] = copy.deepcopy(CONFIRMATION_GENERATION_CONTRACT)
+    config["training"].update(
+        steps=8,
+        checkpoint_every=4,
+        schedule=train.EPOCH_SCHEDULE,
+    )
+    config["arms"] = [config["arms"][0], config["arms"][2]]
+    config["resume"] = {"SFT": None, "MMD_WITNESS": None}
+    config["workflow"]["protocol_version"] = LOWER_VARIANCE_CONFIRMATION_SCHEMA
+    _rehash(config)
+    return config
+
+
 def record(completion: str = "human completion") -> dict:
     return {
         "user_prompt": "Write a short article",
@@ -185,6 +214,26 @@ def test_config_is_exact_hash_bound_and_freezes_all_three_arms():
     changed["objectives"]["token_moments"]["coefficient"] = 0.3
     changed["arms"][1]["token_moment_coefficient"] = 0.3
     with pytest.raises(LowerVarianceTrainError, match="hash"):
+        validate_lower_variance_config(changed)
+
+
+def test_confirmation_contract_freezes_two_arms_and_128_token_horizon():
+    config = confirmation_config()
+    assert validate_lower_variance_config(config) is config
+    exposure = matched_exposure_payload(config)
+    assert set(exposure["arms"]) == {"SFT", "MMD_WITNESS"}
+    assert exposure["generation"]["max_new_tokens"] == 128
+    changed = confirmation_config()
+    changed["arms"].append(
+        {
+            "id": "TOKEN_MOMENT",
+            "sft_weighting": "uniform",
+            "token_moment_coefficient": 0.2,
+        }
+    )
+    changed["resume"]["TOKEN_MOMENT"] = None
+    _rehash(changed)
+    with pytest.raises(LowerVarianceTrainError, match="confirmation"):
         validate_lower_variance_config(changed)
 
 

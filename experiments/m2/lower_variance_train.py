@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import random
 import re
+import statistics
 from typing import Any, Sequence
 
 from experiments.m1.contracts import build_run_paths, git_sha, write_json, write_jsonl
@@ -31,6 +32,7 @@ from experiments.m2.representation import (
 
 
 LOWER_VARIANCE_SCHEMA = "dftr.m2.lower_variance_three_arm.v1"
+LOWER_VARIANCE_CONFIRMATION_SCHEMA = "dftr.m2.lower_variance_confirmation.v2"
 LOWER_VARIANCE_STEP = "train_lower_variance"
 BASE_MODEL = "Qwen/Qwen3-4B"
 BASE_REVISION = "1cfa9a7208912126459214e8b04321603b3df60c"
@@ -74,6 +76,10 @@ GENERATION_CONTRACT = {
     "stop_on_eos": True,
     "post_eos_behavior": "pad_and_mask",
     "teacher_forced_eos": "append_if_absent_after_truncation",
+}
+CONFIRMATION_GENERATION_CONTRACT = {
+    **GENERATION_CONTRACT,
+    "max_new_tokens": 128,
 }
 METHOD_KEYS = (
     "artifact_schema",
@@ -127,6 +133,18 @@ def method_contract_payload(config: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _arm_ids(config: dict[str, Any]) -> tuple[str, ...]:
+    if config.get("artifact_schema") == LOWER_VARIANCE_CONFIRMATION_SCHEMA:
+        return ("SFT", "MMD_WITNESS")
+    return ARM_IDS
+
+
+def _generation_contract(config: dict[str, Any]) -> dict[str, Any]:
+    if config.get("artifact_schema") == LOWER_VARIANCE_CONFIRMATION_SCHEMA:
+        return CONFIRMATION_GENERATION_CONTRACT
+    return GENERATION_CONTRACT
+
+
 def _validate_resume_descriptor(value: Any, arm_id: str) -> None:
     if value is None:
         return
@@ -156,8 +174,12 @@ def _validate_resume_descriptor(value: Any, arm_id: str) -> None:
 
 def validate_lower_variance_config(config: dict[str, Any]) -> dict[str, Any]:
     _exact(config, TOP_LEVEL_KEYS, "lower-variance config")
-    if config.get("artifact_schema") != LOWER_VARIANCE_SCHEMA:
+    schema = config.get("artifact_schema")
+    if schema not in {LOWER_VARIANCE_SCHEMA, LOWER_VARIANCE_CONFIRMATION_SCHEMA}:
         raise LowerVarianceTrainError("unexpected lower-variance config schema")
+    confirmation = schema == LOWER_VARIANCE_CONFIRMATION_SCHEMA
+    arm_ids = _arm_ids(config)
+    generation_contract = _generation_contract(config)
     run = _exact(
         config.get("run"),
         {"comparison_id", "arm", "budget_class", "task_kind", "command", "seed"},
@@ -165,7 +187,8 @@ def validate_lower_variance_config(config: dict[str, Any]) -> dict[str, Any]:
     )
     if (
         not SAFE_ID_RE.fullmatch(str(run.get("comparison_id") or ""))
-        or run.get("arm") != "SFT-vs-TOKEN_MOMENT-vs-MMD_WITNESS"
+        or run.get("arm")
+        != ("SFT-vs-MMD_WITNESS" if confirmation else "SFT-vs-TOKEN_MOMENT-vs-MMD_WITNESS")
         or run.get("budget_class") not in {"smoke", "screen"}
         or run.get("task_kind") != "experiment"
         or run.get("command") != ["python", "-m", "experiments.runner"]
@@ -230,7 +253,7 @@ def validate_lower_variance_config(config: dict[str, Any]) -> dict[str, Any]:
         or not isinstance(data.get("generated_text_field"), str)
         or not data["generated_text_field"]
         or data.get("witness_generation_contract_sha256")
-        != canonical_hash(GENERATION_CONTRACT)
+        != canonical_hash(generation_contract)
         or data.get("prompt_format") != "USER:\n{brief}\nASSISTANT:"
         or data.get("prompt_schema_version") != FULL_BRIEF_SCHEMA
         or data.get("prompt_serializer_sha256") != FULL_BRIEF_SERIALIZER_SHA256
@@ -247,7 +270,12 @@ def validate_lower_variance_config(config: dict[str, Any]) -> dict[str, Any]:
         or representation.get("layer") != -1
         or representation.get("pooling") != "attention_masked_mean"
         or representation.get("normalize") is not True
-        or representation.get("role") != "lower_variance_training_only_not_measurement_v3"
+        or representation.get("role")
+        != (
+            "lower_variance_training_only_not_measurement_v4"
+            if confirmation
+            else "lower_variance_training_only_not_measurement_v3"
+        )
     ):
         raise LowerVarianceTrainError("representation must be the frozen training-only base embedding")
     for field in ("batch_size", "max_tokens"):
@@ -304,7 +332,7 @@ def validate_lower_variance_config(config: dict[str, Any]) -> dict[str, Any]:
     ):
         raise LowerVarianceTrainError("MMD witness contract is not frozen")
     generation = _exact(
-        config.get("generation"), set(GENERATION_CONTRACT), "generation"
+        config.get("generation"), set(generation_contract), "generation"
     )
     if (
         type(generation.get("temperature")) is not float
@@ -316,7 +344,7 @@ def validate_lower_variance_config(config: dict[str, Any]) -> dict[str, Any]:
         or not isinstance(generation.get("sampling_distribution"), str)
         or not isinstance(generation.get("post_eos_behavior"), str)
         or not isinstance(generation.get("teacher_forced_eos"), str)
-        or generation != GENERATION_CONTRACT
+        or generation != generation_contract
     ):
         raise LowerVarianceTrainError("generation must use the frozen EOS-aware contract")
     runtime = _exact(
@@ -370,8 +398,12 @@ def validate_lower_variance_config(config: dict[str, Any]) -> dict[str, Any]:
     ):
         raise LowerVarianceTrainError("training must end on exact checkpoint boundaries")
     arms = config.get("arms")
-    if not isinstance(arms, list) or len(arms) != len(ARM_IDS):
-        raise LowerVarianceTrainError("arms must be the exact matched three-arm objective set")
+    if not isinstance(arms, list) or len(arms) != len(arm_ids):
+        raise LowerVarianceTrainError(
+            "arms must be the exact matched confirmation set"
+            if confirmation
+            else "arms must be the exact matched three-arm objective set"
+        )
     for index, arm in enumerate(arms):
         _exact(
             arm,
@@ -390,20 +422,28 @@ def validate_lower_variance_config(config: dict[str, Any]) -> dict[str, Any]:
         )
     expected_arms = [
         {"id": "SFT", "sft_weighting": "uniform", "token_moment_coefficient": 0.0},
-        {
-            "id": "TOKEN_MOMENT",
-            "sft_weighting": "uniform",
-            "token_moment_coefficient": float(token_moments["coefficient"]),
-        },
         {"id": "MMD_WITNESS", "sft_weighting": "mmd_witness", "token_moment_coefficient": 0.0},
     ]
+    if not confirmation:
+        expected_arms.insert(
+            1,
+            {
+                "id": "TOKEN_MOMENT",
+                "sft_weighting": "uniform",
+                "token_moment_coefficient": float(token_moments["coefficient"]),
+            },
+        )
     if arms != expected_arms:
-        raise LowerVarianceTrainError("arms must be the exact matched three-arm objective set")
-    resume = _exact(config.get("resume"), set(ARM_IDS), "resume")
-    for arm_id in ARM_IDS:
+        raise LowerVarianceTrainError(
+            "arms must be the exact matched confirmation set"
+            if confirmation
+            else "arms must be the exact matched three-arm objective set"
+        )
+    resume = _exact(config.get("resume"), set(arm_ids), "resume")
+    for arm_id in arm_ids:
         _validate_resume_descriptor(resume[arm_id], arm_id)
     execution = _exact(config.get("execution"), {"arm"}, "execution")
-    if execution.get("arm") not in ARM_IDS:
+    if execution.get("arm") not in arm_ids:
         raise LowerVarianceTrainError("execution.arm must select one frozen arm")
     workflow = _exact(
         config.get("workflow"),
@@ -411,7 +451,7 @@ def validate_lower_variance_config(config: dict[str, Any]) -> dict[str, Any]:
         "workflow",
     )
     if (
-        workflow.get("protocol_version") != LOWER_VARIANCE_SCHEMA
+        workflow.get("protocol_version") != schema
         or workflow.get("step") != LOWER_VARIANCE_STEP
         or canonical_hash(method_contract_payload(config))
         != _sha(workflow.get("method_contract_sha256"), "workflow.method_contract_sha256")
@@ -675,7 +715,7 @@ def matched_exposure_payload(config: dict[str, Any]) -> dict[str, Any]:
             "batch_size": int(training["batch_size"]),
             "optimizer_updates": int(training["steps"]),
         }
-        for arm_id in ARM_IDS
+        for arm_id in _arm_ids(config)
     }
     return {
         "artifact_schema": "dftr.m2.lower_variance_matched_exposure.v1",
@@ -1050,6 +1090,21 @@ def _run_arm(
                 "batch_weight_mean": float(batch_weights.mean()),
             }
         )
+        if config["artifact_schema"] == LOWER_VARIANCE_CONFIRMATION_SCHEMA and (
+            step + 1
+        ) % 64 == 0:
+            if arm_id == "MMD_WITNESS":
+                ratios = [
+                    float(row["component_gradient_norms"]["witness_delta"])
+                    / max(float(row["component_gradient_norms"]["uniform_sft"]), 1e-12)
+                    for row in logs[:64]
+                ]
+                median_ratio = statistics.median(ratios)
+                if not 0.05 <= median_ratio <= 0.30:
+                    raise LowerVarianceTrainError(
+                        "confirmation stop: first-64 witness gradient ratio outside [0.05, 0.30]: "
+                        f"{median_ratio:.6f}"
+                    )
         if (step + 1) % int(config["training"]["checkpoint_every"]) == 0:
             _save_training_checkpoint(
                 policy,
@@ -1069,7 +1124,11 @@ def _run_arm(
     write_jsonl(arm_dir / "training_steps.jsonl", logs)
     file_map = _directory_file_map(arm_dir, f"{arm_id} lower-variance output")
     manifest = {
-        "artifact_schema": "dftr.m2.lower_variance_adapter_checkpoint.v1",
+        "artifact_schema": (
+            "dftr.m2.lower_variance_adapter_checkpoint.v2"
+            if config["artifact_schema"] == LOWER_VARIANCE_CONFIRMATION_SCHEMA
+            else "dftr.m2.lower_variance_adapter_checkpoint.v1"
+        ),
         "arm": arm_id,
         "status": "completed",
         "adapter_native": True,
@@ -1121,7 +1180,11 @@ def run_lower_variance(config: dict[str, Any], run_id: str) -> dict[str, Any]:
     arm_manifest = _run_arm(config, checkpoint_dir, anchors, generated)
     exposure = matched_exposure_payload(config)
     result = {
-        "artifact_schema": "dftr.m2.lower_variance_three_arm_result.v1",
+        "artifact_schema": (
+            "dftr.m2.lower_variance_confirmation_result.v2"
+            if config["artifact_schema"] == LOWER_VARIANCE_CONFIRMATION_SCHEMA
+            else "dftr.m2.lower_variance_three_arm_result.v1"
+        ),
         "run_id": run_id,
         "comparison_id": config["run"]["comparison_id"],
         "status": "completed",
@@ -1148,9 +1211,11 @@ def run_lower_variance(config: dict[str, Any], run_id: str) -> dict[str, Any]:
 
 __all__ = [
     "ARM_IDS",
+    "CONFIRMATION_GENERATION_CONTRACT",
     "EPOCH_SCHEDULE",
     "GENERATION_CONTRACT",
     "LOWER_VARIANCE_SCHEMA",
+    "LOWER_VARIANCE_CONFIRMATION_SCHEMA",
     "LOWER_VARIANCE_STEP",
     "LowerVarianceTrainError",
     "component_gradient_norm",

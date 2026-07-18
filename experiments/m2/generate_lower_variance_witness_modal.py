@@ -20,9 +20,8 @@ APP_NAME = "humanwrite-lower-variance-witness"
 CHECKPOINT_ROOT = Path("/checkpoints")
 ADAPTER_PATH = CHECKPOINT_ROOT / "runs/dftr-1784216516-91130dd3/seed-11"
 BRIEFS_PATH = CHECKPOINT_ROOT / "data/m2-lower-variance-v1/train-briefs-1024.jsonl"
-OUTPUT_DIR = CHECKPOINT_ROOT / "data/m2-lower-variance-v1/witness-v1"
-OUTPUT_PATH = OUTPUT_DIR / "baseline-generated-1024.jsonl"
-MANIFEST_PATH = OUTPUT_DIR / "baseline-generated-1024.manifest.json"
+LEGACY_OUTPUT_DIR = CHECKPOINT_ROOT / "data/m2-lower-variance-v1/witness-v1"
+CONFIRMATION_OUTPUT_DIR = CHECKPOINT_ROOT / "data/m2-confirmation-v1/witness-128-v1"
 
 MODEL_ID = "Qwen/Qwen3-4B"
 MODEL_REVISION = "1cfa9a7208912126459214e8b04321603b3df60c"
@@ -106,12 +105,19 @@ def _prompt(record: dict) -> str:
     secrets=[provider_secret],
     volumes={str(CHECKPOINT_ROOT): checkpoint_volume},
 )
-def generate(git_sha: str) -> dict:
+def generate(git_sha: str, horizon: int = 64) -> dict:
     import torch
     from peft import PeftModel
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
     checkpoint_volume.reload()
+    if horizon not in {64, 128}:
+        raise ValueError("witness horizon must be 64 or 128")
+    output_dir = LEGACY_OUTPUT_DIR if horizon == 64 else CONFIRMATION_OUTPUT_DIR
+    output_path = output_dir / "baseline-generated-1024.jsonl"
+    manifest_path = output_dir / "baseline-generated-1024.manifest.json"
+    generation_contract = {**GENERATION_CONTRACT, "max_new_tokens": horizon}
+    sampling_seed = SAMPLING_SEED if horizon == 64 else 42001
     for path in (ADAPTER_PATH, BRIEFS_PATH):
         if not path.exists():
             raise FileNotFoundError(path)
@@ -132,8 +138,8 @@ def generate(git_sha: str) -> dict:
     os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
     torch.use_deterministic_algorithms(True)
     torch.backends.cuda.matmul.allow_tf32 = False
-    torch.manual_seed(SAMPLING_SEED)
-    torch.cuda.manual_seed_all(SAMPLING_SEED)
+    torch.manual_seed(sampling_seed)
+    torch.cuda.manual_seed_all(sampling_seed)
 
     tokenizer = AutoTokenizer.from_pretrained(
         ADAPTER_PATH, local_files_only=True, trust_remote_code=True
@@ -171,7 +177,7 @@ def generate(git_sha: str) -> dict:
                 temperature=1.0,
                 top_p=1.0,
                 top_k=0,
-                max_new_tokens=64,
+                max_new_tokens=horizon,
                 eos_token_id=tokenizer.eos_token_id,
                 pad_token_id=tokenizer.pad_token_id,
                 use_cache=True,
@@ -186,7 +192,7 @@ def generate(git_sha: str) -> dict:
                     {
                         "prompt_id": prompt_ids[start + offset],
                         "generated_completion": text,
-                        "sampling_seed": SAMPLING_SEED,
+                        "sampling_seed": sampling_seed,
                         "batch_index": start // BATCH_SIZE,
                         "source_fingerprint": str(
                             row.get("source_fingerprint") or row.get("fingerprint")
@@ -200,7 +206,11 @@ def generate(git_sha: str) -> dict:
     )
     output_sha256 = hashlib.sha256(output_payload.encode("utf-8")).hexdigest()
     manifest = {
-        "artifact_schema": "dftr.m2.lower_variance_baseline_witness.v1",
+        "artifact_schema": (
+            "dftr.m2.lower_variance_baseline_witness.v1"
+            if horizon == 64
+            else "dftr.m2.lower_variance_baseline_witness.v2"
+        ),
         "scientific_role": "training_only_not_evaluation",
         "git_sha": git_sha,
         "model": MODEL_ID,
@@ -211,17 +221,17 @@ def generate(git_sha: str) -> dict:
         "briefs_path": str(BRIEFS_PATH),
         "briefs_sha256": BRIEFS_SHA256,
         "prompt_serializer_sha256": PROMPT_SERIALIZER_SHA256,
-        "generation_contract": GENERATION_CONTRACT,
-        "generation_contract_sha256": _canonical_hash(GENERATION_CONTRACT),
-        "sampling_seed": SAMPLING_SEED,
+        "generation_contract": generation_contract,
+        "generation_contract_sha256": _canonical_hash(generation_contract),
+        "sampling_seed": sampling_seed,
         "batch_size": BATCH_SIZE,
         "documents": len(generated_rows),
-        "output_path": str(OUTPUT_PATH),
+        "output_path": str(output_path),
         "output_sha256": output_sha256,
     }
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    OUTPUT_PATH.write_text(output_payload, encoding="utf-8")
-    MANIFEST_PATH.write_text(
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(output_payload, encoding="utf-8")
+    manifest_path.write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
@@ -230,9 +240,9 @@ def generate(git_sha: str) -> dict:
 
 
 @app.local_entrypoint()
-def main() -> None:
+def main(horizon: int = 64) -> None:
     root = Path(__file__).resolve().parents[2]
     git_sha = subprocess.check_output(
         ["git", "-C", str(root), "rev-parse", "HEAD"], text=True
     ).strip()
-    print(json.dumps(generate.remote(git_sha), indent=2, sort_keys=True))
+    print(json.dumps(generate.remote(git_sha, horizon), indent=2, sort_keys=True))

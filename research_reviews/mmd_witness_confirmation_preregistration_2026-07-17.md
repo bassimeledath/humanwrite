@@ -34,9 +34,10 @@ Using the already-frozen witness values, temperature 0.035 deterministically imp
 Stop the treatment before evaluation if any occur:
 
 - non-finite loss or gradient;
-- more than 25% of steps are gradient-clipped;
 - witness-delta/uniform-SFT gradient-norm ratio has median below 0.05 or above 0.30 after the first 64 steps;
 - completed artifact or input hashes do not match the frozen contract.
+
+Pre-training correction recorded at implementation audit: the proposed 25% clipping stop was removed before either confirmation arm launched because the already-completed matched run used the same clip threshold and clipped 71.3% of otherwise finite, stable steps. Clipping incidence is retained as a logged diagnostic; non-finite loss or gradient remains a hard stop. No candidate output or confirmation metric existed when this correction was made.
 
 The control and treatment must share the exact prompt order, optimizer exposure, seed, runtime, and starting adapter.
 
