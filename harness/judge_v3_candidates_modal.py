@@ -28,7 +28,7 @@ checkpoint_volume = modal.Volume.from_name("humanwrite-checkpoints")
 provider_secret = modal.Secret.from_name("the-other-ones")
 contract_path = (
     Path(__file__).resolve().parents[1]
-    / "configs/m2/m2_measurement_v3_judge_contract_v2.json"
+    / "configs/m2/m2_measurement_v3_judge_contract_v3.json"
 )
 image = (
     modal.Image.debian_slim(python_version="3.11")
