@@ -57,7 +57,7 @@ CLEANING_MODEL = "qwen/qwen3-32b"
 LOWER_VARIANCE_BRIEF_PROTOCOL = "dftr.lower_variance_briefs.two_provider.v1"
 LOWER_VARIANCE_OUTLINE_MODEL = "openai/gpt-5-mini"
 LOWER_VARIANCE_BRIEF_CONCURRENCY = 8
-DOCUMENT_CLEANING_CONCURRENCY = 64
+DOCUMENT_CLEANING_CONCURRENCY = 128
 
 state_volume = modal.Volume.from_name("humanwrite-gateway-state", create_if_missing=True)
 checkpoint_volume = modal.Volume.from_name("humanwrite-checkpoints", create_if_missing=True)
