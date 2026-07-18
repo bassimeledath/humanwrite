@@ -213,11 +213,18 @@ def judge() -> dict:
                 )
                 response.raise_for_status()
                 body = response.json()
-                cost = (body.get("usage") or {}).get("cost")
+                usage = body.get("usage") or {}
+                cost = usage.get("cost")
                 content = str(body["choices"][0]["message"]["content"]).strip()
                 match = re.fullmatch(r"[AB]", content)
                 if cost is None or match is None:
-                    raise RuntimeError("judge response violated cost or choice contract")
+                    choice = body["choices"][0]
+                    raise RuntimeError(
+                        "judge response violated cost or choice contract: "
+                        f"content={content!r}, cost={cost!r}, "
+                        f"finish_reason={choice.get('finish_reason')!r}, "
+                        f"usage_keys={sorted(usage)}"
+                    )
                 return {
                     "treatment": task["treatment"],
                     "dimension": task["dimension"],
