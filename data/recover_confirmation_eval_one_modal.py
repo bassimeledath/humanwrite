@@ -131,7 +131,6 @@ def recover() -> dict:
             outline_schema = outline_response_schema(force_empty_outline=False)
             props = outline_schema["properties"]["outline"]["items"]["properties"]
             props["supported_facts"]["items"] = {"type": "string", "enum": exact_facts}
-            props["quotations"]["maxItems"] = 0
             metadata, spent = provider_json(
                 QWEN_MODEL,
                 metadata_prompt,
@@ -146,6 +145,8 @@ def recover() -> dict:
                 outline_schema,
             )
             cost += spent
+            if any(item.get("quotations") for item in outline.get("outline", [])):
+                raise RuntimeError("fallback outline returned a nonempty quotations list")
             recovered = merge_brief(
                 source=source,
                 qwen_metadata=metadata,
