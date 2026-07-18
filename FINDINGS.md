@@ -2410,3 +2410,70 @@ NEXT: When either cleaner reaches a terminal state, verify acceptance counts,
 exact-source provenance, and disjointness; then freeze the scale-development
 panel shape and launch only the next data-preparation step supported by those
 validated clean artifacts.
+
+## [2026-07-18] M2 / scale-ladder-dev-freeze-launch
+HYPOTHESIS: The completed 640-document scale-development cleaner can be
+validated prospectively against the raw 1,000-document dev pool, shown
+disjoint from the 26,000-document raw train pool, and frozen into a
+deterministic 128/256/128/128 bundle without waiting for the 16,384-train
+cleaner to finish. If that succeeds, the next safe async handoff is prompt
+brief synthesis over only the frozen prompt-source slice.
+SETUP: Terminal-transition continuation on Saturday, July 18, 2026 after
+`dftr-1784358360-a40e0584` reached `completed`. Read-only validation used the
+gateway status/log endpoints plus the fixed document-cleaning worker contract.
+That confirmed terminal acceptance counts and spend for the 640-document
+scale-dev cleaner while the 16,384-train cleaner `dftr-1784358360-4f83b039`
+remained active. The repo then added a new frozen validation workflow at
+commit `b6a8602d970032c5e3df23cc58520f106ee77ea1`:
+`data/materialize_scale_ladder_dev_panels.py`,
+`experiments/m2/scale_ladder_dev_panel.py`,
+`configs/m2/m2_scale_ladder_freeze_dev_panel_v1.yaml`, and focused tests. The
+new comparison `M2-scale-ladder-freeze-dev-panel-v1` was preregistered and
+launched as smoke run `dftr-1784360648-7505beeb` with config hash
+`6eff35fe4e03810ff70f9e34794f681d7f3282fe4599569d6eb2abd8aaed86ac`.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Scale-dev cleaner terminal validation | PASS | Run `dftr-1784358360-a40e0584` finished at `2026-07-18T06:37:26Z` with `records_processed=640`, `records_failed=342`, and `actual_api_cost_usd=$0.239342`. The fixed worker can only emit `completed` after 640 accepted rows are written and committed. |
+| Scale-dev artifact evidence standard | FAIL | The current document-cleaning route records counts and logs, but not a hash-bound output manifest analogous to source materialization. This left the finished 640-document artifact insufficiently frozen for the next handoff even though the terminal counters were sound. |
+| Fixed validation/freeze workflow | PASS | Added a gateway-compatible smoke experiment that reads the clean dev artifact plus its raw train/dev parents from the checkpoint volume, verifies exact ordered-line provenance and train/dev disjointness, and writes a deterministic prompt/reference/floor bundle. Focused test `data/tests/test_scale_ladder_dev_panels.py` passed. |
+| Next safe async launch | PASS | Run `dftr-1784360648-7505beeb` is running with workflow step `freeze_scale_dev_panel`; it is the correct next wake target alongside the still-running 16K cleaner. |
+| 16K cleaner live progress snapshot | PASS | At `2026-07-18T07:44:47Z`, run `dftr-1784358360-4f83b039` remained active with the latest worker log showing `processed=922 total_completed=922 api_cost_usd=0.366849`. |
+| Budget boundary after freeze launch | PASS | Gateway budget reports Modal committed `$17.53804/$100` and API spend `$28.838326/$100`, leaving `$82.46196` Modal and `$71.161674` API. |
+DECISION: Keep the bounded 4K/16K ladder active. The completed 640-document
+scale-dev cleaner is terminally sound, but the prospective scientific artifact
+still needed an explicit freeze step; that gap is now repaired via a launched
+validator rather than by assuming success from counters alone.
+NEXT: When `dftr-1784360648-7505beeb` completes, extract the frozen
+`prompt_sources` hash/path from its manifest/logs and launch the faithful
+two-provider prompt-brief synthesis job. Separately, when
+`dftr-1784358360-4f83b039` reaches a terminal state, run the analogous clean
+train qualification before any 4,096-document training launch.
+
+## [2026-07-18] M2 / scale-ladder-dev-freeze-complete
+HYPOTHESIS: The dedicated scale-dev freeze validator can complete quickly
+enough to replace the finished 640-document cleaner as the monitored handoff,
+materializing a deterministic prompt/reference/floor bundle before the 16K
+cleaner finishes.
+SETUP: Same-day follow-up after launching smoke run
+`dftr-1784360648-7505beeb` from commit
+`b6a8602d970032c5e3df23cc58520f106ee77ea1`. Evidence was limited to the
+approved gateway `status`, `logs`, and `budget` surfaces plus the known fixed
+config `configs/m2/m2_scale_ladder_freeze_dev_panel_v1.yaml`; no direct Modal
+volume access or unapproved data route was used.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Scale-dev freeze validator completion | PASS | Run `dftr-1784360648-7505beeb` completed at `2026-07-18T07:44:56Z` with `return_code=0`, `accel_seconds=18.443`, `actual_cost_usd=$0.011995`, and workflow step `freeze_scale_dev_panel`. |
+| Active monitor set reduction | PASS | With the smoke validator terminally complete, the only remaining active asynchronous run is the 16,384-train cleaner `dftr-1784358360-4f83b039`. |
+| Prompt-source handoff surface | FAIL | The approved gateway status surface exposes only the validator's generic experiment metadata (`artifact_dir`, return code, cost) and the gateway log surface is empty for this run, so the frozen `prompt_sources` SHA/path needed for `brief_synthesis` is not retrievable through the approved surfaces in this turn. |
+| 16K cleaner live snapshot after validator completion | PASS | Gateway status still shows `dftr-1784358360-4f83b039` running; the latest earlier worker log remains `processed=922 total_completed=922 api_cost_usd=0.366849`, and the updated monthly budget is Modal committed `$16.769555/$100`, API spend `$28.838326/$100`. |
+DECISION: Keep autonomy enabled for the still-running 16K cleaner, but treat
+the missing prompt-source metadata surfacing as a real pipeline observability
+gap. Do not guess the prompt-source hash or bypass the approved gateway/data
+route to launch brief synthesis.
+NEXT: When the 16K cleaner reaches a terminal state, validate it with the same
+strictness. In parallel scientific planning, the next data-preparation action
+remains prompt-brief synthesis from the frozen scale-dev prompt-source slice,
+but that launch now depends on a surfaced hash/path from the completed freeze
+artifact rather than on any further cleaning.

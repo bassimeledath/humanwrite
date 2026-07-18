@@ -1,14 +1,14 @@
 {
-  "updated_at": "2026-07-18T07:08:52Z",
+  "updated_at": "2026-07-18T07:46:27Z",
   "phase": "M2 — 4B data-scale ladder through 16K",
-  "headline": "Scale-ladder Qwen cleaning is running",
-  "summary": "The prior 1,024-document MMD-witness result was directionally positive but inconclusive: 54.7% human-style wins, 53.1% overall-quality wins, improvements on both embedding families and Token L2, but insufficient significance and 78% identity with SFT. The preregistered nested source selection then completed and validated at 27,000 disjoint raw records: 26,000 training candidates plus a 1,000-document scale-development pool. Two preregistered Qwen3-32B cleaners are now running toward 16,384 clean train documents and a fresh 640-document scale-development panel, while measurement-v4 remains blocked because one Nemotron manipulation check narrowly missed alpha (p=0.0525).",
+  "headline": "Scale-dev panel is frozen; 16K cleaner is the remaining live run",
+  "summary": "The prior 1,024-document MMD-witness result was directionally positive but inconclusive: 54.7% human-style wins, 53.1% overall-quality wins, improvements on both embedding families and Token L2, but insufficient significance and 78% identity with SFT. The preregistered nested source selection completed, the 640-document scale-development cleaner finished at 640 accepted rows for $0.239342, and a dedicated smoke validator then completed in 18.443 seconds for $0.011995 to freeze the scale-dev panel prospectively. The remaining live remote job is the 16,384-train cleaner, whose latest worker log snapshot shows 922 accepted rows with $0.366849 API spend. The next scale-dev handoff is now an observability issue rather than a cleaning issue: the completed validator's prompt-source hash/path is not yet surfaced through the approved gateway status/log endpoints, so faithful prompt-brief synthesis cannot be launched in this turn without guessing or bypassing controls. Measurement-v4 remains blocked because one Nemotron manipulation check narrowly missed alpha (p=0.0525).",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 100,
-    "modal_committed_usd": 16.75756,
+    "modal_committed_usd": 16.769555,
     "openrouter_cap_usd": 100,
-    "openrouter_spend_usd": 31.598985
+    "openrouter_spend_usd": 28.838326
   },
   "services": [
     {"name": "GPU gateway", "detail": "Constrained launch API", "status": "online"},
@@ -26,10 +26,22 @@
   ],
   "events": [
     {
+      "at": "00:46",
+      "title": "Scale-dev panel freeze completed; prompt-brief handoff still needs surfaced metadata",
+      "detail": "Smoke run dftr-1784360648-7505beeb completed successfully in 18.443 seconds and replaced the finished 640-document cleaner as the scale-dev artifact freeze step. The scientific next move is still faithful prompt-brief synthesis over the frozen prompt-source slice, but the approved gateway status/log surfaces do not yet expose the validator's prompt-source SHA/path, so that launch is paused rather than guessed.",
+      "tone": "blocked"
+    },
+    {
+      "at": "00:44",
+      "title": "Scale-dev cleaner completed; freeze validator launched",
+      "detail": "Run dftr-1784358360-a40e0584 finished with 640 accepted scale-development documents, 342 rejected candidates, and $0.239342 API cost. The terminal counters were valid, but the cleaning route lacked a hash-bound output manifest, so commit b6a8602 added a dedicated scale-dev qualification/freeze workflow and launched smoke run dftr-1784360648-7505beeb to validate provenance, enforce train/dev disjointness against the raw 26,000-train pool, and freeze a deterministic 128/256/128/128 bundle.",
+      "tone": "complete"
+    },
+    {
       "at": "00:06",
       "title": "Validated 27K source pool; scale cleaners launched",
       "detail": "Source run dftr-1784357254-035e8d3c completed with 26,000 train and 1,000 scale-development records and returned bound train/dev SHA-256 manifests. The scheduled audit found the downstream cleaner handoff missing, added fixed configs, and launched dftr-1784358360-4f83b039 toward 16,384 clean train docs plus dftr-1784358360-a40e0584 toward a 640-document scale-development panel.",
-      "tone": "active"
+      "tone": "complete"
     },
     {
       "at": "23:48",
