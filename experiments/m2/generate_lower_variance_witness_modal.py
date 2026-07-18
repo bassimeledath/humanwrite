@@ -45,7 +45,7 @@ BATCH_SIZE = 8
 
 
 checkpoint_volume = modal.Volume.from_name("humanwrite-checkpoints")
-provider_secret = modal.Secret.from_name("humanwrite-provider-secrets")
+provider_secret = modal.Secret.from_name("the-other-ones")
 image = modal.Image.debian_slim(python_version="3.11").pip_install(
     "torch==2.13.0",
     "transformers==4.57.6",
