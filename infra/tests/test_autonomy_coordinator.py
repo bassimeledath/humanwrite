@@ -1,6 +1,11 @@
 from __future__ import annotations
 
-from infra.autonomy.coordinator import should_wake, terminal_signature, within_wake_budget
+from infra.autonomy.coordinator import (
+    should_run_scheduled_audit,
+    should_wake,
+    terminal_signature,
+    within_wake_budget,
+)
 
 
 def control(**overrides):
@@ -80,3 +85,47 @@ def test_disabled_or_empty_control_never_wakes():
         statuses={},
         now=0.0,
     )[2] == "no_monitored_runs"
+
+
+def test_scheduled_audit_runs_without_recent_continuation():
+    due, reason = should_run_scheduled_audit(
+        control=control(audit_recent_continuation_seconds=3600),
+        runtime={"codex_wake_times": [1000.0]},
+        now=5000.0,
+    )
+    assert due is True
+    assert reason == "scheduled_90m_audit_due"
+
+
+def test_scheduled_audit_skips_recent_or_over_budget_continuation():
+    due, reason = should_run_scheduled_audit(
+        control=control(audit_recent_continuation_seconds=3600),
+        runtime={
+            "codex_wake_times": [4500.0],
+            "wake_history": [{"started_at": 4500.0, "return_code": 0}],
+        },
+        now=5000.0,
+    )
+    assert due is False
+    assert reason == "recent_continuation_already_checked_pipeline"
+
+    due, reason = should_run_scheduled_audit(
+        control=control(max_codex_wakes_per_24h=1),
+        runtime={"codex_wake_times": [4500.0]},
+        now=5000.0,
+    )
+    assert due is False
+    assert reason == "daily_codex_wake_budget_exhausted"
+
+
+def test_failed_launch_does_not_suppress_scheduled_audit():
+    due, reason = should_run_scheduled_audit(
+        control=control(audit_recent_continuation_seconds=3600),
+        runtime={
+            "codex_wake_times": [4500.0],
+            "wake_history": [{"started_at": 4500.0, "return_code": 1}],
+        },
+        now=5000.0,
+    )
+    assert due is True
+    assert reason == "scheduled_90m_audit_due"

@@ -24,6 +24,7 @@ CONTROL_PATH = ROOT / "progress" / "autonomy.json"
 STATE_DIR = ROOT / ".operator" / "autonomy"
 RUNTIME_PATH = STATE_DIR / "runtime.json"
 LIVE_PATH = STATE_DIR / "live.json"
+AUDIT_PATH = STATE_DIR / "audit.json"
 LOCK_PATH = STATE_DIR / "codex.lock"
 GATEWAY_URL = "https://bassimfaizal--humanwrite-gpu-gateway-gateway.modal.run"
 KEYCHAIN_SERVICE = "humanwrite-gateway-token"
@@ -120,7 +121,39 @@ def should_wake(
     return True, signature, "new_terminal_transition"
 
 
-def _continuation_prompt(control: dict[str, Any], statuses: dict[str, dict[str, Any]]) -> str:
+def should_run_scheduled_audit(
+    *, control: dict[str, Any], runtime: dict[str, Any], now: float
+) -> tuple[bool, str]:
+    """Decide whether the 90-minute model-backed safety audit should run.
+
+    The LaunchAgent supplies the coarse 90-minute cadence.  This additional
+    recent-wake guard prevents a scheduled audit from duplicating useful work
+    just performed by an event-triggered continuation.
+    """
+
+    if control.get("enabled") is not True:
+        return False, "disabled"
+    maximum = int(control.get("max_codex_wakes_per_24h", 8))
+    wake_times = [float(value) for value in runtime.get("codex_wake_times", [])]
+    if not within_wake_budget(wake_times, now, maximum):
+        return False, "daily_codex_wake_budget_exhausted"
+    recent_guard = int(control.get("audit_recent_continuation_seconds", 3600))
+    successful_wakes = [
+        float(item.get("started_at"))
+        for item in runtime.get("wake_history", [])
+        if item.get("return_code") == 0 and item.get("started_at") is not None
+    ]
+    if successful_wakes and now - max(successful_wakes) < recent_guard:
+        return False, "recent_continuation_already_checked_pipeline"
+    return True, "scheduled_90m_audit_due"
+
+
+def _continuation_prompt(
+    control: dict[str, Any],
+    statuses: dict[str, dict[str, Any]],
+    *,
+    invocation: str = "terminal_transition",
+) -> str:
     compact_status = {
         run_id: {
             key: state.get(key)
@@ -145,13 +178,24 @@ Read CLAUDE.md, RESEARCH_CONTEXT.md, progress/autonomy.json, progress/status.jso
 The deterministic coordinator observed this run state transition:
 {json.dumps(compact_status, indent=2, sort_keys=True)}
 
+Invocation type: {invocation}. If this is the scheduled 90-minute audit, inspect
+the full pipeline for a missed handoff, stale monitor target, silent failure, or
+completed job whose artifacts have not been validated. It is a real safety
+review, not a request to poll repeatedly or manufacture work when the pipeline
+is healthy.
+
 Do meaningful next work now: validate completed artifacts, repair recoverable failures, implement any missing fixed pipeline step, and launch the next safe asynchronous jobs when ready. Do not sleep, idle-poll, or repeatedly check unchanged jobs. Preserve prospective controls and never weaken quality gates merely to advance.
 
 Before exiting, update progress/status.json and progress/autonomy.json. Increment autonomy generation by exactly one and set monitored_runs to only the asynchronous run IDs whose transition should wake the next continuation. If no remote job is active but local work remains, complete that work during this invocation. If the core scientific answer is complete or genuinely requires user authority, set enabled=false and state the reason. Commit and push coherent changes.
 """
 
 
-def _invoke_codex(control: dict[str, Any], statuses: dict[str, dict[str, Any]]) -> dict[str, Any]:
+def _invoke_codex(
+    control: dict[str, Any],
+    statuses: dict[str, dict[str, Any]],
+    *,
+    invocation: str = "terminal_transition",
+) -> dict[str, Any]:
     if not CODEX.is_file():
         raise RuntimeError(f"Codex CLI not found at {CODEX}")
     STATE_DIR.mkdir(parents=True, exist_ok=True)
@@ -173,7 +217,9 @@ def _invoke_codex(control: dict[str, Any], statuses: dict[str, dict[str, Any]]) 
         'approval_policy="never"',
         "-c",
         'mcp_servers.braintrust.command="true"',
-        _continuation_prompt(control, statuses),
+        "-c",
+        'mcp_servers.openaiDeveloperDocs.command="true"',
+        _continuation_prompt(control, statuses, invocation=invocation),
     ]
     environment = dict(os.environ)
     environment["PATH"] = (
@@ -248,7 +294,6 @@ def tick(*, dry_run: bool = False) -> dict[str, Any]:
         return live
     LOCK_PATH.write_text(str(os.getpid()), encoding="utf-8")
     try:
-        runtime.setdefault("handled_signatures", []).append(signature)
         runtime.setdefault("codex_wake_times", []).append(now)
         runtime["codex_wake_times"] = [
             value for value in runtime["codex_wake_times"] if now - float(value) < 86_400
@@ -256,6 +301,8 @@ def tick(*, dry_run: bool = False) -> dict[str, Any]:
         _atomic_json(RUNTIME_PATH, runtime)
         result = _invoke_codex(control, statuses)
         runtime = _read_json(RUNTIME_PATH, runtime)
+        if result["return_code"] == 0:
+            runtime.setdefault("handled_signatures", []).append(signature)
         runtime.setdefault("wake_history", []).append({"signature": signature, **result})
         _atomic_json(RUNTIME_PATH, runtime)
         live["decision"] = "codex_continuation_finished"
@@ -266,13 +313,94 @@ def tick(*, dry_run: bool = False) -> dict[str, Any]:
         LOCK_PATH.unlink(missing_ok=True)
 
 
+def audit(*, dry_run: bool = False) -> dict[str, Any]:
+    """Run one bounded model-backed pipeline audit on the 90-minute cadence."""
+
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    control = _read_json(CONTROL_PATH, {})
+    runtime = _read_json(
+        RUNTIME_PATH,
+        {"handled_signatures": [], "codex_wake_times": [], "wake_history": []},
+    )
+    now = time.time()
+    statuses: dict[str, dict[str, Any]] = {}
+    errors: dict[str, str] = {}
+    monitored = control.get("monitored_runs") if isinstance(control, dict) else []
+    if isinstance(monitored, list) and monitored:
+        try:
+            token = _gateway_token()
+            for item in monitored:
+                run_id = str((item or {}).get("run_id") or "")
+                if run_id:
+                    try:
+                        statuses[run_id] = _run_status(run_id, token)
+                    except Exception as exc:
+                        errors[run_id] = f"{type(exc).__name__}: {exc}"
+        except Exception as exc:
+            errors["gateway"] = f"{type(exc).__name__}: {exc}"
+    due, reason = should_run_scheduled_audit(
+        control=control if isinstance(control, dict) else {},
+        runtime=runtime if isinstance(runtime, dict) else {},
+        now=now,
+    )
+    report = {
+        "schema": "humanwrite.autonomy_audit.v1",
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "generation": control.get("generation"),
+        "enabled": control.get("enabled"),
+        "decision": reason,
+        "dry_run": dry_run,
+        "statuses": statuses,
+        "errors": errors,
+        "token_use": "one bounded Codex turn only when the 90-minute audit is due",
+    }
+    _atomic_json(AUDIT_PATH, report)
+    if not due or dry_run or errors:
+        return report
+    if LOCK_PATH.exists():
+        report["decision"] = "codex_lock_exists"
+        _atomic_json(AUDIT_PATH, report)
+        return report
+    LOCK_PATH.write_text(str(os.getpid()), encoding="utf-8")
+    try:
+        current_signature = terminal_signature(
+            int(control.get("generation", 0)), statuses
+        )
+        runtime.setdefault("codex_wake_times", []).append(now)
+        runtime["codex_wake_times"] = [
+            value for value in runtime["codex_wake_times"]
+            if now - float(value) < 86_400
+        ]
+        _atomic_json(RUNTIME_PATH, runtime)
+        result = _invoke_codex(
+            control, statuses, invocation="scheduled_90m_safety_audit"
+        )
+        runtime = _read_json(RUNTIME_PATH, runtime)
+        if current_signature is not None and result["return_code"] == 0:
+            runtime.setdefault("handled_signatures", []).append(current_signature)
+        runtime.setdefault("wake_history", []).append(
+            {"signature": f"scheduled-audit-{int(now)}", **result}
+        )
+        _atomic_json(RUNTIME_PATH, runtime)
+        report["decision"] = "scheduled_audit_finished"
+        report["codex_result"] = result
+        _atomic_json(AUDIT_PATH, report)
+        return report
+    finally:
+        LOCK_PATH.unlink(missing_ok=True)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Event-driven Humanwrite autonomy coordinator")
-    parser.add_argument("command", choices=("tick", "status"), nargs="?", default="tick")
+    parser.add_argument(
+        "command", choices=("tick", "audit", "status"), nargs="?", default="tick"
+    )
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
     if args.command == "status":
         value = _read_json(LIVE_PATH, {"status": "never_run"})
+    elif args.command == "audit":
+        value = audit(dry_run=args.dry_run)
     else:
         value = tick(dry_run=args.dry_run)
     print(json.dumps(value, indent=2, sort_keys=True))
