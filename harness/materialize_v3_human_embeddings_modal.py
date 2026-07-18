@@ -27,7 +27,7 @@ FAMILIES = {
         "revision": "aa3b43a495a9b280d1bdb716da37c54bb495d630",
         "batch_size": 4,
         "max_tokens": 512,
-        "prompt_name": "passage",
+        "prompt_name": "document",
     },
 }
 
