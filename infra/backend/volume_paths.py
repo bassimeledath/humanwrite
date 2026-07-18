@@ -74,6 +74,12 @@ def run_artifact_metadata(
         "panel_bundle_sha256",
         "prompt_sources_path",
         "prompt_sources_sha256",
+        "train_prefix_bundle_path",
+        "train_prefix_bundle_sha256",
+        "clean_train_4096_path",
+        "clean_train_4096_sha256",
+        "clean_train_16384_path",
+        "clean_train_16384_sha256",
     ):
         value = manifest.get(key)
         if value is not None:

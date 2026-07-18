@@ -2516,3 +2516,44 @@ present, use them for the next clean-train qualification handoff. If they are
 absent, treat that as a non-retroactive deployment limitation for this
 already-running job and launch only an explicit qualification/freeze validator
 from the known frozen config before any 4,096-document training step.
+
+## [2026-07-18] M2 / scale-ladder-train-prefix-handoff-wireup
+HYPOTHESIS: With the only live remote job still the healthy 16,384-document
+train cleaner, the highest-value safety intervention is not another launch but
+an explicit, preregistered train-side qualification/freeze workflow. If that
+workflow exists before the cleaner turns terminal, the next continuation can
+freeze immutable 4,096- and 16,384-document clean-train prefixes
+prospectively instead of discovering another missing handoff after valid
+compute completes.
+SETUP: Scheduled 90-minute safety audit on Saturday, July 18, 2026. No new
+remote compute, provider calls, candidate outputs, or evaluation panels were
+opened. The repo inspected the existing lower-variance qualification code and
+the newly repaired status-surface contract, then added
+`data/materialize_scale_ladder_train_prefixes.py`,
+`experiments/m2/scale_ladder_train_prefixes.py`, and the pinned smoke config
+`configs/m2/m2_scale_ladder_freeze_train_prefixes_v1.yaml`
+(`train_prefix_contract_sha256=5cd6e8a942fc7057ae462cebc06d9b7e2e89fca44fe7197cd7c75f0b1ce4627a`).
+The shared sanctioned metadata surface in `infra/backend/volume_paths.py` was
+extended so completed train-prefix validators expose bundle and nested-prefix
+SHA/path fields. Focused local verification used
+`PYTHONPATH=. uv run --project infra pytest data/tests/test_scale_ladder_train_prefixes.py experiments/tests/test_m2_scale_ladder_train_prefixes.py infra/tests/test_volume_paths.py`.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| 16K cleaner live-state check | PASS | No new terminal transition occurred during this audit slice; the only monitored run remains `dftr-1784358360-4f83b039`, already validated as healthy in the prior same-day audit. |
+| Existing train-side handoff | FAIL | The repo still lacked a checked-in, exact-source qualification/freeze step for the 16,384-document clean-train artifact, so a terminal cleaner could still dead-end before any 4,096-document training launch. |
+| Fixed train-prefix workflow | PASS | The new workflow validates the completed clean-train artifact against the raw 26,000-document train pool and source manifest, enforces the unopened-candidate boundary plus raw-dev disjointness, and writes immutable `clean-train-4096.jsonl` and `clean-train-16384.jsonl` prefixes with manifests and a bundle. |
+| Approved metadata surfacing | PASS | Completed train-prefix validators now surface `train_prefix_bundle`, `clean_train_4096`, and `clean_train_16384` SHA-bound pointers through the same approved status-manifest path used for scale-dev handoffs. |
+| Local verification | PASS | Focused tests passed `11/11` with the new data materializer, exact config contract, and metadata-surface coverage. |
+| Additional async launch need | PASS | None. Launching the new validator now would be speculative because the 16K cleaner has not yet reached a terminal state. |
+DECISION: Keep the bounded 4K/16K ladder active with no new remote launch.
+The live cleaner is still the only wake target, but its train-side consumer is
+no longer missing. This does not unblock scale-dev prompt-brief synthesis:
+the already-completed scale-dev freeze run still lacks retrievable
+`prompt_sources` SHA/path on approved surfaces, so that separate blocker
+remains real.
+NEXT: When `dftr-1784358360-4f83b039` reaches a terminal state, use its
+approved `output_uri`/`output_sha256` if present; otherwise launch
+`configs/m2/m2_scale_ladder_freeze_train_prefixes_v1.yaml` as the explicit
+qualification/freeze step before any 4,096-document brief-synthesis or
+training launch.

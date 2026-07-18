@@ -37,6 +37,11 @@ from experiments.m2.scale_ladder_dev_panel import (
     SCALE_LADDER_DEV_PANEL_STEP,
     run_scale_ladder_dev_panel,
 )
+from experiments.m2.scale_ladder_train_prefixes import (
+    SCALE_LADDER_TRAIN_PREFIX_SCHEMA,
+    SCALE_LADDER_TRAIN_PREFIX_STEP,
+    run_scale_ladder_train_prefixes,
+)
 from experiments.tier0.metrics import batch_diagnostics
 
 
@@ -193,6 +198,10 @@ def main(argv: list[str] | None = None) -> int:
         raise ValueError("scale-ladder dev-panel protocol requires freeze_scale_dev_panel")
     if step == SCALE_LADDER_DEV_PANEL_STEP and protocol != SCALE_LADDER_DEV_PANEL_SCHEMA:
         raise ValueError("freeze_scale_dev_panel requires the frozen scale-ladder dev-panel protocol")
+    if protocol == SCALE_LADDER_TRAIN_PREFIX_SCHEMA and step != SCALE_LADDER_TRAIN_PREFIX_STEP:
+        raise ValueError("scale-ladder train-prefix protocol requires freeze_scale_train_prefixes")
+    if step == SCALE_LADDER_TRAIN_PREFIX_STEP and protocol != SCALE_LADDER_TRAIN_PREFIX_SCHEMA:
+        raise ValueError("freeze_scale_train_prefixes requires the frozen scale-ladder train-prefix protocol")
     lower_variance_protocols = {
         LOWER_VARIANCE_SCHEMA,
         LOWER_VARIANCE_CONFIRMATION_SCHEMA,
@@ -211,6 +220,8 @@ def main(argv: list[str] | None = None) -> int:
         manifest = run_estimator_audit(config, args.run_id)
     elif protocol == SCALE_LADDER_DEV_PANEL_SCHEMA:
         manifest = run_scale_ladder_dev_panel(config, args.run_id)
+    elif protocol == SCALE_LADDER_TRAIN_PREFIX_SCHEMA:
+        manifest = run_scale_ladder_train_prefixes(config, args.run_id)
     elif protocol in lower_variance_protocols:
         manifest = run_lower_variance(config, args.run_id)
     elif (

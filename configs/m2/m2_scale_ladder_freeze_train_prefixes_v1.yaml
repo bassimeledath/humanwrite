@@ -1,0 +1,26 @@
+artifact_schema: dftr.m2.scale_ladder_train_prefixes.v1
+run:
+  comparison_id: M2-scale-ladder-freeze-train-prefixes-v1
+  arm: freeze-scale-train-prefixes
+  budget_class: smoke
+  task_kind: experiment
+  command:
+    - python
+    - -m
+    - experiments.runner
+  seed: 0
+compute:
+  gpu: L40S
+  gpus: 1
+  timeout_min: 20
+data:
+  raw_train_uri: modal-volume://humanwrite-checkpoints/data/m2-scale-ladder-v1/raw-train-pool-26000.jsonl
+  raw_train_sha256: 1d346936dd3bb0e12d60b578d8cbcf2af32f3c02a093fcee5f23309e4b99b942
+  clean_train_uri: modal-volume://humanwrite-checkpoints/data/m2-scale-ladder-v1/clean-train-16384.jsonl
+  source_manifest_uri: modal-volume://humanwrite-checkpoints/data/m2-scale-ladder-v1/raw-source-manifest.json
+  output_dir_uri: modal-volume://humanwrite-checkpoints/data/m2-scale-ladder-v1/scale-train-prefixes
+  expected_clean_records: 16384
+workflow:
+  protocol_version: dftr.m2.scale_ladder_train_prefixes.v1
+  step: freeze_scale_train_prefixes
+  train_prefix_contract_sha256: 5cd6e8a942fc7057ae462cebc06d9b7e2e89fca44fe7197cd7c75f0b1ce4627a

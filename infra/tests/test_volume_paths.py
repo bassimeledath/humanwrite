@@ -39,6 +39,32 @@ def test_run_artifact_metadata_surfaces_scale_panel_handoff(tmp_path):
     assert metadata["prompt_sources_sha256"] == "b"
 
 
+def test_run_artifact_metadata_surfaces_scale_train_prefix_handoff(tmp_path):
+    artifact_dir = tmp_path / "runs" / "example-train"
+    artifact_dir.mkdir(parents=True)
+    (artifact_dir / "run_manifest.json").write_text(
+        (
+            "{"
+            "\"train_prefix_bundle_path\":\"/checkpoints/data/scale/train_prefix_bundle.json\","
+            "\"train_prefix_bundle_sha256\":\"a\","
+            "\"clean_train_4096_path\":\"/checkpoints/data/scale/clean-train-4096.jsonl\","
+            "\"clean_train_4096_sha256\":\"b\","
+            "\"clean_train_16384_path\":\"/checkpoints/data/scale/clean-train-16384.jsonl\","
+            "\"clean_train_16384_sha256\":\"c\""
+            "}\n"
+        ),
+        encoding="utf-8",
+    )
+    metadata = run_artifact_metadata(artifact_dir, mount_path=str(tmp_path))
+    assert metadata["metrics_ptr"] == "modal-volume://humanwrite-checkpoints/runs/example-train/run_manifest.json"
+    assert metadata["train_prefix_bundle_path"] == "modal-volume://humanwrite-checkpoints/data/scale/train_prefix_bundle.json"
+    assert metadata["clean_train_4096_path"] == "modal-volume://humanwrite-checkpoints/data/scale/clean-train-4096.jsonl"
+    assert metadata["clean_train_16384_path"] == "modal-volume://humanwrite-checkpoints/data/scale/clean-train-16384.jsonl"
+    assert metadata["train_prefix_bundle_sha256"] == "a"
+    assert metadata["clean_train_4096_sha256"] == "b"
+    assert metadata["clean_train_16384_sha256"] == "c"
+
+
 @pytest.mark.parametrize(
     "uri",
     [
