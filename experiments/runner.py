@@ -27,6 +27,7 @@ from experiments.m2.prepare_dft import (
     run_prepare_dft,
 )
 from experiments.m2.lower_variance_train import (
+    LOWER_VARIANCE_CONFIRMATION_SCHEMA,
     LOWER_VARIANCE_SCHEMA,
     LOWER_VARIANCE_STEP,
     run_lower_variance,
@@ -183,10 +184,14 @@ def main(argv: list[str] | None = None) -> int:
         raise ValueError("estimator-audit protocol requires audit_estimator")
     if step == ESTIMATOR_AUDIT_STEP and protocol != ESTIMATOR_AUDIT_SCHEMA:
         raise ValueError("audit_estimator requires the frozen estimator-audit protocol")
-    if protocol == LOWER_VARIANCE_SCHEMA and step != LOWER_VARIANCE_STEP:
+    lower_variance_protocols = {
+        LOWER_VARIANCE_SCHEMA,
+        LOWER_VARIANCE_CONFIRMATION_SCHEMA,
+    }
+    if protocol in lower_variance_protocols and step != LOWER_VARIANCE_STEP:
         raise ValueError("lower-variance protocol requires train_lower_variance")
-    if step == LOWER_VARIANCE_STEP and protocol != LOWER_VARIANCE_SCHEMA:
-        raise ValueError("train_lower_variance requires the frozen three-arm protocol")
+    if step == LOWER_VARIANCE_STEP and protocol not in lower_variance_protocols:
+        raise ValueError("train_lower_variance requires a frozen lower-variance protocol")
     if protocol == PREPARE_DFT_SCHEMA:
         manifest = run_prepare_dft(config, args.run_id)
     elif protocol == DFT_SCHEMA:
@@ -195,7 +200,7 @@ def main(argv: list[str] | None = None) -> int:
         manifest = run_generate_dft(config, args.run_id)
     elif protocol == ESTIMATOR_AUDIT_SCHEMA:
         manifest = run_estimator_audit(config, args.run_id)
-    elif protocol == LOWER_VARIANCE_SCHEMA:
+    elif protocol in lower_variance_protocols:
         manifest = run_lower_variance(config, args.run_id)
     elif (
         str(workflow.get("protocol_version", "")).casefold().startswith("m1")

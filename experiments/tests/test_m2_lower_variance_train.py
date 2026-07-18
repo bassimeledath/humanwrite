@@ -527,6 +527,11 @@ def test_runner_dispatch_is_bidirectional(monkeypatch, tmp_path, capsys):
     assert runner.main(["--config", str(path), "--run-id", "run-1"]) == 0
     assert json.loads(capsys.readouterr().out)["status"] == "completed"
 
+    confirmation = confirmation_config()
+    path.write_text(json.dumps(confirmation), encoding="utf-8")
+    assert runner.main(["--config", str(path), "--run-id", "run-confirmation"]) == 0
+    assert json.loads(capsys.readouterr().out)["status"] == "completed"
+
     config["workflow"]["step"] = "substitute"
     path.write_text(json.dumps(config), encoding="utf-8")
     with pytest.raises(ValueError, match="requires train_lower_variance"):
@@ -535,5 +540,5 @@ def test_runner_dispatch_is_bidirectional(monkeypatch, tmp_path, capsys):
     config = valid_config()
     config["workflow"]["protocol_version"] = "substitute"
     path.write_text(json.dumps(config), encoding="utf-8")
-    with pytest.raises(ValueError, match="requires the frozen three-arm"):
+    with pytest.raises(ValueError, match="requires a frozen lower-variance"):
         runner.main(["--config", str(path), "--run-id", "run-3"])
