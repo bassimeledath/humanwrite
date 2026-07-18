@@ -41,7 +41,7 @@ ARMS = {
     "MMD_WITNESS": {
         "checkpoint": CHECKPOINT_ROOT
         / "runs/dftr-1784339214-065c0f7a/MMD_WITNESS",
-        "config_sha256": "a48e3df9ae205c3c0cc8cb9707c76ff51742ed579201d8c713f8fcce8e198c",
+        "config_sha256": "a48e3df9ae205c3c3c0cc8cb9707c76ff51742ed579201d8c713f8fcce8e198c",
         "resumed_from_step": 0,
     },
 }
