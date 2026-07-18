@@ -42,6 +42,11 @@ from experiments.m2.scale_ladder_train_prefixes import (
     SCALE_LADDER_TRAIN_PREFIX_STEP,
     run_scale_ladder_train_prefixes,
 )
+from experiments.m2.scale_ladder_witness import (
+    SCALE_LADDER_WITNESS_SCHEMA,
+    SCALE_LADDER_WITNESS_STEP,
+    run_scale_ladder_witness,
+)
 from experiments.tier0.metrics import batch_diagnostics
 
 
@@ -202,6 +207,10 @@ def main(argv: list[str] | None = None) -> int:
         raise ValueError("scale-ladder train-prefix protocol requires freeze_scale_train_prefixes")
     if step == SCALE_LADDER_TRAIN_PREFIX_STEP and protocol != SCALE_LADDER_TRAIN_PREFIX_SCHEMA:
         raise ValueError("freeze_scale_train_prefixes requires the frozen scale-ladder train-prefix protocol")
+    if protocol == SCALE_LADDER_WITNESS_SCHEMA and step != SCALE_LADDER_WITNESS_STEP:
+        raise ValueError("scale-ladder witness protocol requires generate_scale_ladder_witness")
+    if step == SCALE_LADDER_WITNESS_STEP and protocol != SCALE_LADDER_WITNESS_SCHEMA:
+        raise ValueError("generate_scale_ladder_witness requires the frozen scale-ladder witness protocol")
     lower_variance_protocols = {
         LOWER_VARIANCE_SCHEMA,
         LOWER_VARIANCE_CONFIRMATION_SCHEMA,
@@ -222,6 +231,8 @@ def main(argv: list[str] | None = None) -> int:
         manifest = run_scale_ladder_dev_panel(config, args.run_id)
     elif protocol == SCALE_LADDER_TRAIN_PREFIX_SCHEMA:
         manifest = run_scale_ladder_train_prefixes(config, args.run_id)
+    elif protocol == SCALE_LADDER_WITNESS_SCHEMA:
+        manifest = run_scale_ladder_witness(config, args.run_id)
     elif protocol in lower_variance_protocols:
         manifest = run_lower_variance(config, args.run_id)
     elif (

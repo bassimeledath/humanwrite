@@ -634,6 +634,21 @@ def _lower_variance_outline_prompt(
     )
 
 
+def _lower_variance_safe_excerpt(source: dict) -> dict:
+    """Use a short, still-verbatim passage when a provider filters a full page."""
+    text = str(source["completion"])
+    candidates = [
+        item.strip()
+        for item in re.split(r"(?:\n\s*\n|(?<=[.!?])\s+)", text)
+        if 80 <= len(item.strip()) <= 1200
+        and len(re.findall(r"[A-Za-z]{3,}", item)) >= 8
+    ]
+    excerpt = min(candidates, key=lambda item: (item.count("http"), len(item))) if candidates else text[:800].strip()
+    recovered = dict(source)
+    recovered["completion"] = excerpt
+    return recovered
+
+
 def _json_schema_response_format(name: str, schema: dict) -> dict:
     return {
         "type": "json_schema",
@@ -721,10 +736,15 @@ def lower_variance_brief_synthesis_worker(run_id: str, payload: dict) -> dict:
         record_spent = 0.0
         for _attempt in range(6):
             recovery = _attempt >= 2
+            prompt_source = (
+                _lower_variance_safe_excerpt(source) if _attempt >= 4 else source
+            )
             try:
                 metadata, metadata_cost = provider_json(
                     model=QWEN_MODEL,
-                    prompt=_lower_variance_metadata_prompt(source, recovery=recovery),
+                    prompt=_lower_variance_metadata_prompt(
+                        prompt_source, recovery=recovery
+                    ),
                     schema_name="lower_variance_brief_metadata",
                     schema=qwen_metadata_response_schema(),
                 )
@@ -732,7 +752,7 @@ def lower_variance_brief_synthesis_worker(run_id: str, payload: dict) -> dict:
                 outline, outline_cost = provider_json(
                     model=OUTLINE_MODEL,
                     prompt=_lower_variance_outline_prompt(
-                        source,
+                        prompt_source,
                         force_empty=fingerprint in empty_ids,
                         recovery=recovery,
                     ),
