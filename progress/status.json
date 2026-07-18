@@ -1,9 +1,9 @@
 {
-  "updated_at": "2026-07-18T02:16:23Z",
+  "updated_at": "2026-07-18T02:37:34Z",
   "phase": "M2 — fresh-instrument and estimator rebuild",
-  "headline": "All three 4B tuning arms completed; matched candidate generation is running",
-  "summary": "SFT, token-moment, and MMD-witness each completed 512 matched steps over all 1,024 cleaned briefs. The token-moment arm resumed deterministically from its durable step-320 checkpoint after a final-volume-commit defect, and its completed manifest proves 512 logs and 1,024 optimizer examples. Measurement v3 is now frozen candidate-blind with qualified positive controls, two independent embedders, 97.39% powered decision logic, and a separate blinded writing-judge contract. The three models are generating the same 128 prompts concurrently.",
-  "run_state": "active",
+  "headline": "Lower-variance 4B cycle complete: no winner; MMD-witness merits one bounded follow-up",
+  "summary": "All three matched 4B arms completed, automatic scoring finished on a fresh 128-prompt panel, and all 1,024 blinded writing comparisons are final. Both treatments improved every distribution metric directionally, but neither passed the full preregistered automatic rule. Token-moment was significantly worse on overall judged writing quality and is retired. MMD-witness reached 54.7% human-style and 53.1% overall-quality wins without significance or validity clearance, so it is a weak positive trend rather than a successful human-writing model.",
+  "run_state": "complete",
   "budget": {
     "modal_cap_usd": 40,
     "modal_committed_usd": 4.890506,
@@ -25,6 +25,18 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "19:37",
+      "title": "Lower-variance cycle completed with no promoted model",
+      "detail": "The blinded judge completed 1,024 comparisons for $0.607845. Token-moment won 51.6% on human style but only 42.2% overall and was significantly worse on overall quality (one-sided p=0.0463). MMD-witness won 54.7% on human style and 53.1% overall, but neither was significant (p=0.1655 and 0.2681). No automatic or quality winner was selected. The evidence supports retiring token-moment and permitting only one stronger, fresh-panel 4B MMD-witness confirmation before any 14B, sealed, or detector evaluation.",
+      "tone": "complete"
+    },
+    {
+      "at": "19:30",
+      "title": "Automatic result is directionally positive but does not promote",
+      "detail": "Across the fresh 128-prompt panel, token-moment improved BGE MMD by 0.000088, Nemotron MMD by 0.000654, and Token L2 by 0.000392 versus SFT; MMD-witness improved the same metrics by 0.000032, 0.000461, and 0.000858. Only token-moment passed the heavyweight Nemotron effect endpoint. Neither arm passed the dual-embedder intersection or hard validity gates, and 76-78% of outputs remained byte-identical to SFT. The blinded GPT-5.4-mini writing judge is running after a documented output-token ceiling repair.",
+      "tone": "active"
+    },
     {
       "at": "19:16",
       "title": "Candidate-blind protocol frozen and matched output generation opened",
@@ -378,5 +390,5 @@
     {"at": "17:46", "title": "Storage created", "detail": "Gateway state, checkpoints, sealed state, and sealed artifacts volumes are online.", "tone": "complete"},
     {"at": "17:40", "title": "Engineering checks passed", "detail": "Harness, infrastructure, and private evaluator suites are green.", "tone": "complete"}
   ],
-  "next_action": "Complete and independently test the fidelity and measurement repairs, then run the bounded adapter-versus-merged public replay before materializing a prospective shadow evaluator or launching new 4B training."
+  "next_action": "Preregister one stronger-displacement MMD-witness-only 4B run at 128 tokens on a new untouched panel; require dual-embedder, validity, and blinded human-style success before 14B or sealed evaluation."
 }
