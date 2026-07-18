@@ -30,16 +30,19 @@ ARMS = {
     "SFT": {
         "checkpoint": CHECKPOINT_ROOT / "runs/dftr-1784339215-2799dbae/SFT",
         "config_sha256": "703d185168ccc206a7d7da1052c8a3a74b1c58c99172ffa5ebe7dfe74a3c64e5",
+        "resumed_from_step": 0,
     },
     "TOKEN_MOMENT": {
         "checkpoint": CHECKPOINT_ROOT
-        / "runs/dftr-1784339216-47c715cf/TOKEN_MOMENT",
-        "config_sha256": "3c249d4f6b81dfb87d50870ae0e4ef210dc8a73d45482fb26015cc53471376ed",
+        / "runs/dftr-1784340692-ee851016/TOKEN_MOMENT",
+        "config_sha256": "ec6d07fbc2856da64a5a231c96b55ce0945317b4c353aa7a79432a10f0b87bbd",
+        "resumed_from_step": 320,
     },
     "MMD_WITNESS": {
         "checkpoint": CHECKPOINT_ROOT
         / "runs/dftr-1784339214-065c0f7a/MMD_WITNESS",
         "config_sha256": "a48e3df9ae205c3c0cc8cb9707c76ff51742ed579201d8c713f8fcce8e198c",
+        "resumed_from_step": 0,
     },
 }
 
@@ -112,6 +115,7 @@ def _validate_checkpoint(arm: str, checkpoint: Path) -> dict:
         or manifest.get("steps") != 512
         or manifest.get("optimizer_examples") != 1024
         or manifest.get("config_sha256") != expected["config_sha256"]
+        or manifest.get("resumed_from_step") != expected["resumed_from_step"]
         or manifest.get("method_contract_sha256") != METHOD_CONTRACT_SHA256
         or manifest.get("base_model") != MODEL_ID
         or manifest.get("base_revision") != MODEL_REVISION
