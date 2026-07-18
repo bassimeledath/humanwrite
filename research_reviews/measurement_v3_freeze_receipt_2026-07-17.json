@@ -1,0 +1,59 @@
+{
+  "artifact_schema": "dftr.measurement.freeze_receipt.v3",
+  "status": "protocol_ready_candidate_unopened",
+  "frozen_at": "2026-07-18T02:15:33Z",
+  "candidate_outputs_opened": false,
+  "protocol": {
+    "modal_path": "/checkpoints/data/m2-lower-variance-v1/measurement-v3-panels/protocol-v1/measurement_protocol_v3.json",
+    "sha256": "eb690253b9fe45907e5e0c827385d0d930f1c8c0b48246e334b1508e98726921",
+    "panel_design_sha256": "45125f9616c75c208221faaa6b54a8dd61e98779ba46bd3a731efb4f152b4b87",
+    "embedding_family_ids": [
+      "bge-small-v1",
+      "nemotron-8b-v1"
+    ]
+  },
+  "decision": {
+    "config_sha256": "9848cd48e96d70e968d3f30cf2613f460de27107bdc5cf6236d6f1d68c34c817",
+    "family_effect_boundary": -0.0006,
+    "powered_alternative": -0.0012,
+    "alternative_power": 0.9739,
+    "type_i_rate": 0.0
+  },
+  "positive_controls": {
+    "sha256": "ceea6a0f0f5e600801bef05ccd73d6e7afc907a5c383a62a5406cf8567886b38",
+    "status": "qualified",
+    "human_vs_human_null_pvalues": {
+      "bge-small-v1": 0.467,
+      "nemotron-8b-v1": 0.3685
+    },
+    "prefix64_vs_full_human_pvalues": {
+      "bge-small-v1": 0.0005,
+      "nemotron-8b-v1": 0.0005
+    },
+    "initial_sft_vs_human_pvalues": {
+      "bge-small-v1": 0.002,
+      "nemotron-8b-v1": 0.0005
+    },
+    "base_model_vs_human_pvalues": {
+      "bge-small-v1": 0.0005,
+      "nemotron-8b-v1": 0.0005
+    }
+  },
+  "quality_judge_contract_sha256": "51ea7d9809a72cb8867082403f6c9129e2fea79e5d277d9a79d4e9191c10038a",
+  "training_checkpoints": {
+    "SFT": {
+      "run_id": "dftr-1784339215-2799dbae",
+      "steps": 512
+    },
+    "MMD_WITNESS": {
+      "run_id": "dftr-1784339214-065c0f7a",
+      "steps": 512
+    },
+    "TOKEN_MOMENT": {
+      "run_id": "dftr-1784340692-ee851016",
+      "steps": 512,
+      "resumed_from_step": 320,
+      "recovery_reason": "original worker returned before a final Modal volume commit became visible"
+    }
+  }
+}
