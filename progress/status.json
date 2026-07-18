@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-18T00:21:15Z",
+  "updated_at": "2026-07-18T00:56:05Z",
   "phase": "M2 — fresh-instrument and estimator rebuild",
-  "headline": "Brief synthesis is now intentionally eight-way parallel at 395/1,024",
-  "summary": "The one-step 4B fine-tuning smoke completed with real gradients and a saved adapter. Evaluation cleaning has preserved 586/640 rows and resumed as dftr-1784334059-4c8e8dca. Brief synthesis has 395/1,024 committed unique rows and is now running as one bounded eight-way worker, dftr-1784334071-18b380be, with serialized state writes and no competing output writers.",
+  "headline": "Evaluation is complete; only 17 of 1,024 training briefs remain",
+  "summary": "Evaluation cleaning completed 640/640. Parallel brief synthesis produced 1,007 unique validated rows with zero duplicates and stopped on 17 provider/schema rejects. Resumable run dftr-1784336141-a24176fe is retrying only those missing briefs. The full matched tuning run can be frozen and launched after this small recovery completes.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
@@ -25,6 +25,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "17:56",
+      "title": "Evaluation complete; targeted 17-brief recovery launched",
+      "detail": "The fresh evaluation corpus reached 640/640. Eight-way synthesis reached 1,007/1,024 unique briefs for 0.554152 dollars, with 17 strict validation or provider failures. Run dftr-1784336141-a24176fe is retrying only those missing identities.",
+      "tone": "active"
+    },
     {
       "at": "17:21",
       "title": "Sequential brief bottleneck replaced with bounded parallel synthesis",
