@@ -323,6 +323,25 @@ def test_lower_variance_confirmation_protocol_is_allowlisted_and_hash_bound():
         validate_launch(value)
 
 
+def test_confirmation_cleaning_support_is_exactly_scoped_to_v3_comparison():
+    config_path = (
+        Path(__file__).resolve().parents[2]
+        / "configs/m2/m2_confirmation_qwen32b_clean_eval_v3.yaml"
+    )
+    value = payload()
+    value["config"] = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    value["budget_class"] = "promo"
+    value["preregistration"]["comparison"] = value["config"]["run"]["comparison_id"]
+    value["config_hash"] = canonical_hash(value["config"])
+    assert validate_launch(value).task_kind == "document_cleaning"
+
+    value["config"]["run"]["comparison_id"] = "substitute"
+    value["preregistration"]["comparison"] = "substitute"
+    value["config_hash"] = canonical_hash(value["config"])
+    with pytest.raises(PolicyError, match="frozen word-count bounds"):
+        validate_launch(value)
+
+
 def test_brief_synthesis_rejects_unsafe_volume_uri():
     value = payload()
     value["config"]["run"]["task_kind"] = "brief_synthesis"
