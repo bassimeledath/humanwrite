@@ -16,6 +16,11 @@ def test_cleaner_keeps_exact_original_lines_without_rewriting():
     assert cleaned == "A first paragraph.\nA second paragraph."
     prompt = numbered_cleaning_prompt(source)
     assert "1: HOME" in prompt and "4: Subscribe" in prompt
+    bounded = numbered_cleaning_prompt(
+        source, min_word_count=80, max_word_count=220
+    )
+    assert "80 to 220 words" in bounded
+    assert "never retain boilerplate" in bounded
     assert cleaning_response_format()["json_schema"]["strict"] is True
 
 

@@ -1103,7 +1103,14 @@ def document_cleaning_worker(run_id: str, payload: dict) -> dict:
                 },
                 json={
                     "model": CLEANING_MODEL,
-                    "messages": [{"role": "user", "content": numbered_cleaning_prompt(source_text)}],
+                    "messages": [{
+                        "role": "user",
+                        "content": numbered_cleaning_prompt(
+                            source_text,
+                            min_word_count=int(config["quality"]["min_word_count"]),
+                            max_word_count=int(config["quality"]["max_word_count"]),
+                        ),
+                    }],
                     "response_format": cleaning_response_format(),
                     "reasoning": {"effort": "minimal", "exclude": True},
                     "max_completion_tokens": 2000,

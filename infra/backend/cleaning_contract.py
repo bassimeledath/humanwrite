@@ -8,15 +8,30 @@ class CleaningContractError(ValueError):
     pass
 
 
-def numbered_cleaning_prompt(text: str) -> str:
+def numbered_cleaning_prompt(
+    text: str,
+    *,
+    min_word_count: int | None = None,
+    max_word_count: int | None = None,
+) -> str:
     lines = text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
     numbered = "\n".join(f"{index + 1}: {line}" for index, line in enumerate(lines))
+    length_instruction = ""
+    if min_word_count is not None and max_word_count is not None:
+        length_instruction = (
+            f" Select a coherent main-prose excerpt totaling {min_word_count} to "
+            f"{max_word_count} words when the document contains enough suitable prose. "
+            "Prefer complete paragraphs and a natural stopping point; never retain boilerplate "
+            "merely to satisfy the length range. Return an empty list if no qualifying excerpt exists."
+        )
     return (
         "Identify the lines that belong to the main high-quality writing sample. "
         "Keep substantive article, essay, blog, or news prose. Remove navigation, "
         "addresses and contact blocks, cookie/privacy text, subscription prompts, "
         "commerce or review widgets, isolated image captions, unrelated recommendations, "
-        "and incomplete boilerplate. Do not rewrite, summarize, merge, or reorder lines. "
+        "and incomplete boilerplate. Do not rewrite, summarize, merge, or reorder lines."
+        + length_instruction
+        + " "
         "Return only a JSON object containing kept_line_numbers, a strictly increasing "
         "list of the original 1-indexed line numbers.\n\nDOCUMENT LINES:\n" + numbered
     )
