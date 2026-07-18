@@ -100,6 +100,52 @@ def _record_seed(prompt_id: str) -> int:
     return int.from_bytes(digest[:8], "big") % (2**63 - 1)
 
 
+def _load_control_outputs(prompts: list[dict]) -> dict[str, list[str]] | None:
+    generated: dict[str, list[str]] = {}
+    expected_ids = [str(row["fingerprint"]) for row in prompts]
+    for arm in ("base_model", "initial_sft"):
+        path = OUTPUT_ROOT / f"{arm}-128.jsonl"
+        if not path.is_file():
+            return None
+        rows = _rows(path)
+        if (
+            len(rows) != len(prompts)
+            or [str(row.get("prompt_id") or "") for row in rows] != expected_ids
+            or any(
+                int(row.get("sampling_seed", -1)) != _record_seed(prompt_id)
+                or not str(row.get("generated_completion") or "").strip()
+                for row, prompt_id in zip(rows, expected_ids)
+            )
+        ):
+            raise RuntimeError(f"existing positive-control outputs are invalid: {arm}")
+        generated[arm] = [str(row["generated_completion"]) for row in rows]
+    return generated
+
+
+def _write_control_outputs(
+    prompts: list[dict], generated: dict[str, list[str]]
+) -> None:
+    OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
+    for arm, texts in generated.items():
+        path = OUTPUT_ROOT / f"{arm}-128.jsonl"
+        path.write_text(
+            "".join(
+                json.dumps(
+                    {
+                        "prompt_id": str(row["fingerprint"]),
+                        "generated_completion": text,
+                        "sampling_seed": _record_seed(str(row["fingerprint"])),
+                    },
+                    ensure_ascii=False,
+                    sort_keys=True,
+                )
+                + "\n"
+                for row, text in zip(prompts, texts)
+            ),
+            encoding="utf-8",
+        )
+
+
 def _precomputed_mmd_pvalue(
     left: object,
     right: object,
@@ -171,45 +217,35 @@ def materialize() -> dict:
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "left"
-    base = AutoModelForCausalLM.from_pretrained(
-        MODEL_ID,
-        revision=MODEL_REVISION,
-        torch_dtype=torch.bfloat16,
-        device_map={"": 0},
-        cache_dir=str(CHECKPOINT_ROOT / "hf-cache"),
-        trust_remote_code=True,
-    )
-    model = PeftModel.from_pretrained(
-        base, INITIAL_ADAPTER, local_files_only=True, is_trainable=False
-    )
-    model.eval()
-    generated = {"base_model": [], "initial_sft": []}
-    with torch.inference_mode():
-        for row in prompts:
-            prompt_id = str(row["fingerprint"])
-            rendered = _prompt(row)
-            encoded = tokenizer(
-                rendered, return_tensors="pt", truncation=True, max_length=1024
-            )
-            encoded = {key: value.to(model.device) for key, value in encoded.items()}
-            for arm in ("base_model", "initial_sft"):
-                seed = _record_seed(prompt_id)
-                torch.manual_seed(seed)
-                torch.cuda.manual_seed_all(seed)
-                context = model.disable_adapter() if arm == "base_model" else None
-                if context is None:
-                    sequence = model.generate(
-                        **encoded,
-                        do_sample=True,
-                        temperature=1.0,
-                        top_p=1.0,
-                        top_k=0,
-                        max_new_tokens=64,
-                        eos_token_id=tokenizer.eos_token_id,
-                        pad_token_id=tokenizer.pad_token_id,
-                    )
-                else:
-                    with context:
+    generated = _load_control_outputs(prompts)
+    if generated is None:
+        base = AutoModelForCausalLM.from_pretrained(
+            MODEL_ID,
+            revision=MODEL_REVISION,
+            torch_dtype=torch.bfloat16,
+            device_map={"": 0},
+            cache_dir=str(CHECKPOINT_ROOT / "hf-cache"),
+            trust_remote_code=True,
+        )
+        model = PeftModel.from_pretrained(
+            base, INITIAL_ADAPTER, local_files_only=True, is_trainable=False
+        )
+        model.eval()
+        generated = {"base_model": [], "initial_sft": []}
+        with torch.inference_mode():
+            for row in prompts:
+                prompt_id = str(row["fingerprint"])
+                rendered = _prompt(row)
+                encoded = tokenizer(
+                    rendered, return_tensors="pt", truncation=True, max_length=1024
+                )
+                encoded = {key: value.to(model.device) for key, value in encoded.items()}
+                for arm in ("base_model", "initial_sft"):
+                    seed = _record_seed(prompt_id)
+                    torch.manual_seed(seed)
+                    torch.cuda.manual_seed_all(seed)
+                    context = model.disable_adapter() if arm == "base_model" else None
+                    if context is None:
                         sequence = model.generate(
                             **encoded,
                             do_sample=True,
@@ -220,8 +256,29 @@ def materialize() -> dict:
                             eos_token_id=tokenizer.eos_token_id,
                             pad_token_id=tokenizer.pad_token_id,
                         )
-                continuation = sequence[0, encoded["input_ids"].shape[1] :]
-                generated[arm].append(tokenizer.decode(continuation, skip_special_tokens=True).strip())
+                    else:
+                        with context:
+                            sequence = model.generate(
+                                **encoded,
+                                do_sample=True,
+                                temperature=1.0,
+                                top_p=1.0,
+                                top_k=0,
+                                max_new_tokens=64,
+                                eos_token_id=tokenizer.eos_token_id,
+                                pad_token_id=tokenizer.pad_token_id,
+                            )
+                    continuation = sequence[0, encoded["input_ids"].shape[1] :]
+                    generated[arm].append(
+                        tokenizer.decode(
+                            continuation, skip_special_tokens=True
+                        ).strip()
+                    )
+        _write_control_outputs(prompts, generated)
+        checkpoint_volume.commit()
+        del model, base
+        gc.collect()
+        torch.cuda.empty_cache()
 
     role_rows = {
         role: _rows(PANEL_ROOT / f"{role}.jsonl")
@@ -242,10 +299,6 @@ def materialize() -> dict:
         "base_model": [tokenizer.encode(text, add_special_tokens=False) for text in generated["base_model"]],
         "initial_sft": [tokenizer.encode(text, add_special_tokens=False) for text in generated["initial_sft"]],
     }
-    del model, base
-    gc.collect()
-    torch.cuda.empty_cache()
-
     pvalues = {name: {} for name in (
         "human_vs_human_null",
         "prefix64_vs_full_human",
@@ -299,7 +352,10 @@ def materialize() -> dict:
         base_outputs = encode(generated["base_model"])
         comparisons = {
             "human_vs_human_null": (floor_a, floor_b),
-            "prefix64_vs_full_human": (prefix, references),
+            "prefix64_vs_full_human": (
+                prefix,
+                np.concatenate((floor_a, floor_b), axis=0),
+            ),
             "sft_vs_unpaired_humans": (sft, references),
             "base_model_vs_unpaired_humans": (base_outputs, references),
         }
@@ -348,24 +404,6 @@ def materialize() -> dict:
         "controls": controls,
     }
     OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
-    for arm, texts in generated.items():
-        path = OUTPUT_ROOT / f"{arm}-128.jsonl"
-        path.write_text(
-            "".join(
-                json.dumps(
-                    {
-                        "prompt_id": str(row["fingerprint"]),
-                        "generated_completion": text,
-                        "sampling_seed": _record_seed(str(row["fingerprint"])),
-                    },
-                    ensure_ascii=False,
-                    sort_keys=True,
-                )
-                + "\n"
-                for row, text in zip(prompts, texts)
-            ),
-            encoding="utf-8",
-        )
     artifact_path = OUTPUT_ROOT / "positive_controls.json"
     artifact_path.write_text(
         json.dumps(artifact, indent=2, sort_keys=True) + "\n", encoding="utf-8"
