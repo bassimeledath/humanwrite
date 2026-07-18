@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-18T03:31:00Z",
+  "updated_at": "2026-07-18T04:53:54Z",
   "phase": "M2 — fresh-instrument and estimator rebuild",
   "headline": "Stronger 4B MMD-witness confirmation is underway",
-  "summary": "Matched 4B confirmation training is complete: SFT and MMD-witness each ran 1,024 steps over 2,048 examples and 256,466 teacher-forced tokens. The MMD arm passed its mechanism gate with a first-64 median witness-gradient ratio of 0.0968. Total H100 cost was $2.36196. A broadened, still-disjoint 2,000-document source bank is now being cleaned for the fresh blinded evaluation panel.",
+  "summary": "Matched 4B confirmation training is complete: SFT and MMD-witness each ran 1,024 steps over 2,048 examples and 256,466 teacher-forced tokens. The fresh 640-document evaluation bank and its untouched 128-prompt/256-reference/two-floor split are frozen, and both BGE-small and Nemotron-8B human embeddings are complete. Prompt briefs reached 123/128; a bounded recovery is retrying only the five missing rows before candidate-blind protocol qualification and scoring.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
@@ -25,6 +25,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "21:53",
+      "title": "Fresh evaluation panel and dual human embeddings completed",
+      "detail": "The independent 640-document bank is frozen into 128 prompt sources, 256 semantic references, and two disjoint 128-document human floors. BGE-small and Nemotron-8B human embeddings completed before candidate generation. Prompt synthesis preserved 123 valid briefs and is retrying only five ordinary provider/schema failures. Both 4B tuning arms remain complete and unopened; no writing-quality result exists until the blinded outputs are scored.",
+      "tone": "active"
+    },
     {
       "at": "20:31",
       "title": "Matched 4B training completed successfully",
