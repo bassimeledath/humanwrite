@@ -403,6 +403,10 @@ def training_worker(run_id: str, payload: dict) -> dict:
         }
         if log_path.is_file():
             (artifact_dir / "worker.log").write_bytes(log_path.read_bytes())
+        # Volume commits on container shutdown are not sufficiently prompt for
+        # scientific handoffs.  Make the final checkpoint/manifest visible
+        # before the successful FunctionCall result can be consumed.
+        checkpoint_volume.commit()
     return result_payload
 
 
