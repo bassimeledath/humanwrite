@@ -2557,3 +2557,49 @@ approved `output_uri`/`output_sha256` if present; otherwise launch
 `configs/m2/m2_scale_ladder_freeze_train_prefixes_v1.yaml` as the explicit
 qualification/freeze step before any 4,096-document brief-synthesis or
 training launch.
+
+## [2026-07-18] M2 / scale-ladder-prompt-brief-handoff-recovery
+HYPOTHESIS: The completed scale-dev freeze artifact should be sufficient to
+start faithful two-provider prompt-brief synthesis immediately, but only if
+the approved gateway status surface can expose the frozen `prompt_sources`
+path and SHA without bypassing the sanctioned data route. If that handoff can
+be recovered, the 128-brief preparation job can run safely in parallel with
+the still-active 16,384-document clean-train ladder.
+SETUP: Scheduled 90-minute safety audit on Saturday, July 18, 2026. Live
+inspection first confirmed that train cleaner `dftr-1784358360-4f83b039`
+remained active and advancing while completed scale-dev freeze run
+`dftr-1784360648-7505beeb` still lacked surfaced prompt-source metadata on
+the approved status surface. The repo then repaired the gateway a second time:
+`infra/backend/modal_app.py` now mounts the checkpoint volume on the web
+gateway, reloads it during `/status`, and backfills missing sanctioned
+artifact metadata from the stable `/checkpoints/runs/<run_id>` alias via
+`infra/backend/volume_paths.py`. Focused verification used
+`PYTHONPATH=. uv run --project infra pytest infra/tests/test_volume_paths.py
+infra/tests/test_local_backend.py` and passed `10/10`; the gateway was
+redeployed to the existing production URL. After the repaired status surface
+returned the frozen `prompt_sources` fields, the repo added pinned config
+`configs/m2/m2_scale_ladder_eval_prompt_briefs_v1.yaml`, preregistered
+comparison `M2-scale-ladder-eval-prompt-briefs-v1`, and launched promo brief
+run `dftr-1784376478-461b4d1b` at git SHA
+`754c79ceba311222ba14bac7e910625bd9d96574` with config hash
+`b10ef5c537f253804f0f7280f427f889a9e130cffe8e47031597573ecdac0f6e`.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Retroactive scale-dev handoff surface | PASS | Approved `status` for `dftr-1784360648-7505beeb` now surfaces `metrics_ptr`, `panel_bundle_path`, `panel_bundle_sha256`, `prompt_sources_path=modal-volume://humanwrite-checkpoints/data/m2-scale-ladder-v1/scale-dev-panels/prompt_sources.jsonl`, and `prompt_sources_sha256=2eba6d6e18131e5571ba19b7c7c9cd7f6e5643d60e08df26ad32a252e9a8f569`. |
+| Root cause of the stale blocker | PASS | The prior repair wrote terminal metadata correctly for future runs, but the web gateway itself could not read historical artifacts because it lacked the checkpoint mount and the stored `artifact_dir` used a resolved Modal volume path rather than the stable mount alias. |
+| Local verification after repair | PASS | Focused infra tests passed `10/10` after the checkpoint-mounted status backfill and mount-alias fallback were added. |
+| Next safe async launch | PASS | Prompt-brief synthesis run `dftr-1784376478-461b4d1b` is running under the frozen two-provider lower-variance protocol with `$1.0` API reserve, using only the surfaced 128-row frozen `prompt_sources` artifact. |
+| 16K cleaner health snapshot | PASS | The still-monitored cleaner `dftr-1784358360-4f83b039` remained healthy and advanced to `processed=8300 total_completed=8300 api_cost_usd=3.180233 concurrency=128` in the latest approved worker-log snapshot. |
+| Budget boundary after launch | PASS | Gateway budget reports Modal committed `$16.769555/$100` and OpenRouter spend/reserve `$29.838326/$100`, leaving `$83.230445` Modal and `$70.161674` API. |
+DECISION: Keep autonomy enabled. This audit found a real missed handoff,
+repaired it without weakening any quality gate, and launched the correct next
+data-preparation job while the 16K cleaner continues independently. The 46K
+cell remains blocked by the preregistered 16K gate, and Measurement-v4
+remains blocked by the Nemotron manipulation check miss.
+NEXT: Wake on the next terminal transition from either
+`dftr-1784376478-461b4d1b` or `dftr-1784358360-4f83b039`. If the brief job
+finishes first, validate the 128 prompt briefs before any candidate
+generation. If the cleaner finishes first, use surfaced `output_uri` and
+`output_sha256` if present; otherwise launch the pinned train-prefix freeze
+validator before any 4,096-document training or brief-synthesis step.

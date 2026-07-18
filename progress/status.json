@@ -1,14 +1,14 @@
 {
-  "updated_at": "2026-07-18T10:29:06Z",
+  "updated_at": "2026-07-18T12:08:29Z",
   "phase": "M2 — 4B data-scale ladder through 16K",
-  "headline": "16K cleaner is healthy; train-prefix handoff is now wired",
-  "summary": "The prior 1,024-document MMD-witness result remains directionally positive but inconclusive: 54.7% human-style wins, 53.1% overall-quality wins, improvements on both embedding families and Token L2, but insufficient significance and 78% identity with SFT. The preregistered nested source selection, 640-document scale-development cleaner, and scale-dev freeze validator all remain complete and unchanged. The only live remote job is still the healthy 16,384-train cleaner `dftr-1784358360-4f83b039`, whose latest approved worker-log snapshot remains 2,626 accepted rows at 1.011754 dollars cumulative API spend. During this scheduled 90-minute safety audit, the recoverable defect was downstream train wiring rather than live compute: the repo now contains a pinned smoke validator that can prospectively qualify the completed clean-train artifact and freeze immutable 4,096/16,384 prefixes with SHA-bound status fields. No new async launch was justified. The already-completed scale-dev freeze still lacks retrievable `prompt_sources` SHA/path through approved surfaces, so faithful scale-dev prompt-brief synthesis remains paused rather than guessed. Measurement-v4 remains blocked because one Nemotron manipulation check narrowly missed alpha (p=0.0525).",
+  "headline": "Scale-dev prompt handoff recovered; 16K cleaner and prompt briefs are running",
+  "summary": "The prior 1,024-document MMD-witness result remains directionally positive but inconclusive: 54.7% human-style wins, 53.1% overall-quality wins, improvements on both embedding families and Token L2, but insufficient significance and 78% identity with SFT. The preregistered nested source selection, 640-document scale-development cleaner, and scale-dev freeze validator remain complete, and their sanctioned handoff is now recovered: completed freeze run `dftr-1784360648-7505beeb` surfaces `prompt_sources` SHA/path through the gateway after a retroactive artifact-backfill repair. That enabled promo brief-synthesis run `dftr-1784376478-461b4d1b` over the frozen 128 prompt sources while the 16,384-train cleaner `dftr-1784358360-4f83b039` continued healthy to 8,300 accepted rows at 3.180233 dollars cumulative API spend in the latest approved worker-log snapshot. No quality gates were weakened, the gated 46K cell remains untouched, and Measurement-v4 remains blocked because one Nemotron manipulation check narrowly missed alpha (p=0.0525).",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 100,
     "modal_committed_usd": 16.769555,
     "openrouter_cap_usd": 100,
-    "openrouter_spend_usd": 28.838326
+    "openrouter_spend_usd": 29.838326
   },
   "services": [
     {"name": "GPU gateway", "detail": "Constrained launch API", "status": "online"},
@@ -25,6 +25,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "05:08",
+      "title": "Recovered scale-dev prompt handoff and launched brief synthesis",
+      "detail": "The scheduled safety audit found a real stale handoff rather than a sick cleaner: completed freeze run dftr-1784360648-7505beeb still hid its prompt-source SHA because the gateway status path lacked the checkpoint mount and only knew the worker's resolved volume path. After mounting /checkpoints on the gateway, backfilling from /checkpoints/runs/<run_id>, passing 10 of 10 focused infra tests, and redeploying, approved status began surfacing the frozen prompt_sources URI and SHA. That enabled preregistration and promo launch of brief run dftr-1784376478-461b4d1b while 16K cleaner dftr-1784358360-4f83b039 stayed healthy at 8,300 accepted rows and 3.180233 dollars cumulative API spend.",
+      "tone": "complete"
+    },
     {
       "at": "03:29",
       "title": "Train-prefix handoff wired while 16K cleaning stayed healthy",
