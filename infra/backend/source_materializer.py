@@ -124,12 +124,15 @@ def materialize_rows(
         ),
     )
     selected: list[dict[str, Any]] = []
-    domains: set[str] = set()
+    domain_counts: dict[str, int] = {}
+    max_records_per_domain = int(selection.get("max_records_per_domain", 1))
+    if max_records_per_domain < 1:
+        raise SourceMaterializationError("max_records_per_domain must be positive")
     for row in ranked:
-        if row["domain"] in domains:
+        if domain_counts.get(row["domain"], 0) >= max_records_per_domain:
             continue
         selected.append(row)
-        domains.add(row["domain"])
+        domain_counts[row["domain"]] = domain_counts.get(row["domain"], 0) + 1
         if len(selected) == corpus_size:
             break
     if len(selected) != corpus_size:
@@ -164,7 +167,7 @@ def materialize_rows(
             "eligible_unique_count": len(candidates),
             "scanned_count": scanned,
             "train_count": len(split_rows["train"]),
-            "unique_domain_count": len(domains),
+            "unique_domain_count": len(domain_counts),
         },
         "policy": config.get("policy") or {},
         "selection": selection,

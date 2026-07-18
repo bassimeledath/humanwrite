@@ -26,6 +26,7 @@ def _config() -> dict:
             "corpus_size": 8,
             "dev_count": 2,
             "eligible_pool_size": 10,
+            "max_records_per_domain": 1,
             "stream_scan_limit": 12,
             "min_word_count": 80,
             "max_word_count": 120,
@@ -55,3 +56,10 @@ def test_materialization_fails_when_domains_are_not_distinct():
     config = _config()
     with pytest.raises(SourceMaterializationError, match="distinct-domain"):
         materialize_rows([_row(index, "one.example") for index in range(12)], config)
+
+
+def test_materialization_rejects_nonpositive_domain_cap():
+    config = _config()
+    config["selection"]["max_records_per_domain"] = 0
+    with pytest.raises(SourceMaterializationError, match="must be positive"):
+        materialize_rows([_row(index) for index in range(12)], config)

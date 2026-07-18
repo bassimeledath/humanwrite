@@ -7,6 +7,7 @@ import pytest
 import yaml
 
 from backend.policy import (
+    LOWER_VARIANCE_BRIEF_PROTOCOL,
     PolicyError,
     REPLAY_GENERATION_CONTRACT_PATH,
     REPLAY_GENERATION_CONTRACT_SHA256,
@@ -279,7 +280,7 @@ def test_lower_variance_briefs_require_two_frozen_providers_and_exact_corpus():
     value["config"]["api"]["metadata_model"] = "qwen/qwen3-32b"
     value["config"]["data"]["max_records"] = 1000
     value["config_hash"] = canonical_hash(value["config"])
-    with pytest.raises(PolicyError, match="128 or 1024"):
+    with pytest.raises(PolicyError, match="preregistered scale"):
         validate_launch(value)
 
 
@@ -389,6 +390,57 @@ def test_document_cleaning_is_qwen32b_only_and_volume_scoped():
         validate_launch(value)
 
 
+def test_preregistered_16k_cleaning_and_brief_scales_are_allowed():
+    cleaning = payload()
+    cleaning["budget_class"] = "promo"
+    cleaning["config"] = {
+        "run": {
+            "comparison_id": "M2-scale-clean-16k-v1",
+            "budget_class": "promo",
+            "task_kind": "document_cleaning",
+        },
+        "compute": {"gpus": 1, "timeout_min": 480},
+        "data": {
+            "input_uri": "modal-volume://humanwrite-checkpoints/data/scale/raw.jsonl",
+            "output_uri": "modal-volume://humanwrite-checkpoints/data/scale/clean.jsonl",
+            "input_sha256": "a" * 64,
+            "max_records": 26000,
+            "target_records": 16384,
+        },
+        "api": {"model": "qwen/qwen3-32b", "max_cost_usd": 30.0},
+        "quality": {"min_word_count": 80, "max_word_count": 220},
+    }
+    cleaning["preregistration"]["comparison"] = "M2-scale-clean-16k-v1"
+    cleaning["config_hash"] = canonical_hash(cleaning["config"])
+    assert validate_launch(cleaning).task_kind == "document_cleaning"
+
+    briefs = payload()
+    briefs["budget_class"] = "promo"
+    briefs["config"] = {
+        "run": {
+            "comparison_id": "M2-scale-briefs-16k-v1",
+            "budget_class": "promo",
+            "task_kind": "brief_synthesis",
+        },
+        "compute": {"gpus": 1, "timeout_min": 480},
+        "data": {
+            "input_uri": "modal-volume://humanwrite-checkpoints/data/scale/clean.jsonl",
+            "output_uri": "modal-volume://humanwrite-checkpoints/data/scale/briefs.jsonl",
+            "input_sha256": "b" * 64,
+            "max_records": 16384,
+        },
+        "api": {
+            "protocol": LOWER_VARIANCE_BRIEF_PROTOCOL,
+            "metadata_model": "qwen/qwen3-32b",
+            "outline_model": "openai/gpt-5-mini",
+            "max_cost_usd": 60.0,
+        },
+    }
+    briefs["preregistration"]["comparison"] = "M2-scale-briefs-16k-v1"
+    briefs["config_hash"] = canonical_hash(briefs["config"])
+    assert validate_launch(briefs).task_kind == "brief_synthesis"
+
+
 def test_brief_synthesis_requires_hash_count_and_model_binding():
     value = payload()
     value["config"]["run"]["task_kind"] = "brief_synthesis"
@@ -474,7 +526,10 @@ def test_source_materialization_requires_pinned_source_and_volume_outputs():
         "split": "train",
         "files": ["data/CC-MAIN-2024-10/000_00000.parquet"],
     }
-    value["config"]["selection"] = {"corpus_size": 320}
+    value["config"]["selection"] = {
+        "corpus_size": 320,
+        "max_records_per_domain": 1,
+    }
     value["config"]["data"] = {
         "train_output_uri": "modal-volume://humanwrite-checkpoints/data/pilot/train.jsonl",
         "dev_output_uri": "modal-volume://humanwrite-checkpoints/data/pilot/dev.jsonl",

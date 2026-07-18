@@ -1,0 +1,47 @@
+run:
+  comparison_id: M2-scale-ladder-source-pool-16k-v1
+  arm: nested-raw-source-pool
+  budget_class: smoke
+  task_kind: source_materialization
+compute:
+  gpus: 1
+  timeout_min: 20
+source:
+  dataset_id: HuggingFaceFW/fineweb
+  dataset_config: CC-MAIN-2024-10
+  revision: 9bb295ddab0e05d785b879661af7260fed5140fc
+  split: train
+  files:
+    - data/CC-MAIN-2024-10/000_00003.parquet
+    - data/CC-MAIN-2024-10/000_00004.parquet
+    - data/CC-MAIN-2024-10/000_00005.parquet
+selection:
+  corpus_size: 27000
+  dev_count: 1000
+  eligible_pool_size: 50000
+  max_records_per_domain: 1
+  max_non_latin_letter_ratio: 0.02
+  max_word_count: 220
+  min_word_count: 80
+  selection_seed: dftr-m2-scale-ladder-source-selection-v1
+  split_seed: dftr-m2-scale-ladder-source-split-v1
+  stream_scan_limit: 1000000
+exclusion_input_uris:
+  - modal-volume://humanwrite-checkpoints/data/m1-realdata-adherence-v1/train_briefs.jsonl
+  - modal-volume://humanwrite-checkpoints/data/m2-measurement-v2-visible-v1/source-manifest.json
+  - modal-volume://humanwrite-checkpoints/data/m2-lower-variance-v1/raw-source-manifest.json
+  - modal-volume://humanwrite-checkpoints/data/m2-confirmation-v1/raw-source-manifest.json
+  - modal-volume://humanwrite-checkpoints/data/m2-confirmation-v1/raw-source-manifest-v2.json
+exclusions:
+  fingerprints: []
+  domains: []
+data:
+  train_output_uri: modal-volume://humanwrite-checkpoints/data/m2-scale-ladder-v1/raw-train-pool-26000.jsonl
+  dev_output_uri: modal-volume://humanwrite-checkpoints/data/m2-scale-ladder-v1/raw-scale-dev-pool-1000.jsonl
+  manifest_output_uri: modal-volume://humanwrite-checkpoints/data/m2-scale-ladder-v1/raw-source-manifest.json
+policy:
+  agent_visible_train_dev: true
+  hidden_test_materialized: false
+  purpose: Nested disjoint raw pool for the preregistered 4K and 16K scale cells
+  training_corpus_shard_excluded: true
+  candidate_outputs_opened: false

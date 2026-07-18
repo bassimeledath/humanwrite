@@ -812,8 +812,10 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
                 raise PolicyError("lower-variance brief provider models are frozen")
             if data.get("input_uri") == data.get("output_uri"):
                 raise PolicyError("lower-variance brief input and output URIs must be distinct")
-            if max_records not in {128, 1024} or max_records % 4:
-                raise PolicyError("lower-variance brief corpus must contain 128 or 1024 records")
+            if max_records not in {128, 1024, 4096, 16384, 46080} or max_records % 4:
+                raise PolicyError(
+                    "lower-variance brief corpus must use a preregistered scale"
+                )
             if budget_class != "promo":
                 raise PolicyError("lower-variance brief synthesis requires promo budget")
         else:
@@ -854,8 +856,8 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
         if not re.fullmatch(r"[0-9a-f]{64}", str(data.get("input_sha256") or "")):
             raise PolicyError("document_cleaning requires lowercase data.input_sha256")
         records = data.get("max_records")
-        if not isinstance(records, int) or isinstance(records, bool) or not 1 <= records <= 5000:
-            raise PolicyError("document_cleaning max_records must be between 1 and 5000")
+        if not isinstance(records, int) or isinstance(records, bool) or not 1 <= records <= 50_000:
+            raise PolicyError("document_cleaning max_records must be between 1 and 50000")
         target_records = data.get("target_records")
         if (
             not isinstance(target_records, int)
@@ -885,8 +887,15 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
         if any(not source.get(field) for field in required_source):
             raise PolicyError("source_materialization requires a fully pinned source")
         selection = config.get("selection") or {}
-        if int(selection.get("corpus_size", 0)) <= 0 or int(selection.get("corpus_size", 0)) > 5000:
-            raise PolicyError("source_materialization corpus_size must be between 1 and 5000")
+        if int(selection.get("corpus_size", 0)) <= 0 or int(selection.get("corpus_size", 0)) > 50_000:
+            raise PolicyError("source_materialization corpus_size must be between 1 and 50000")
+        max_per_domain = selection.get("max_records_per_domain", 1)
+        if (
+            not isinstance(max_per_domain, int)
+            or isinstance(max_per_domain, bool)
+            or max_per_domain != 1
+        ):
+            raise PolicyError("scale source materialization requires one record per domain")
         exclusion_uris = config.get("exclusion_input_uris") or []
         if not isinstance(exclusion_uris, list) or any(
             not str(uri).startswith("modal-volume://humanwrite-checkpoints/")

@@ -362,8 +362,8 @@ def _validate_submit(config: dict, budget_class: str) -> tuple[str, dict]:
                 _die("lower-variance brief provider models are frozen")
             if data.get("input_uri") == data.get("output_uri"):
                 _die("lower-variance brief input and output URIs must be distinct")
-            if int(data.get("max_records", 0)) not in {128, 1024}:
-                _die("lower-variance brief corpus must contain 128 or 1024 records")
+            if int(data.get("max_records", 0)) not in {128, 1024, 4096, 16384, 46080}:
+                _die("lower-variance brief corpus must use a preregistered scale")
         elif api.get("prompt_repair_only") is True:
             if not str(api.get("model", "")):
                 _die("brief_synthesis requires a frozen api.model")

@@ -23,7 +23,7 @@ A single 46,080-document run checkpointed after 4,096 and 16,384 examples would 
 - Accepted training sizes: 4,096, 16,384, and 46,080 documents.
 - The 4,096 corpus is an immutable hash-selected prefix of 16,384; 16,384 is an immutable prefix of 46,080.
 - Every document is disjoint by source fingerprint and cleaned fingerprint from all prior Humanwrite training and evaluation artifacts.
-- Domain concentration is capped prospectively; the exact cap and deterministic tie-breaking rule must be frozen before source streaming.
+- Domain concentration is capped at exactly one selected document per registered domain. Raw candidates are ranked by SHA-256 of `dftr-m2-scale-ladder-source-selection-v1:{fingerprint}`, with the fingerprint as the deterministic tie-breaker. The 16,384-stage source pool contains 27,000 selected raw documents: 26,000 training candidates and 1,000 scale-development candidates, drawn from pinned FineWeb shards `000_00003` through `000_00005` and excluding every prior Humanwrite training/evaluation manifest.
 - Cleaning uses Qwen3-32B ordered-line removal under the existing strict provenance validator.
 - Qwen3-32B generates prompt, use case, and style metadata. GPT-5-mini generates outlines. Exactly 25% of each nested prefix has an empty outline.
 - Target lengths are normalized with the pinned Qwen3-4B tokenizer and serialized as tokens.
