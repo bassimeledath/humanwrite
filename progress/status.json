@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-18T02:53:01Z",
+  "updated_at": "2026-07-18T03:06:00Z",
   "phase": "M2 — fresh-instrument and estimator rebuild",
   "headline": "Stronger 4B MMD-witness confirmation is underway",
-  "summary": "The confirmation is frozen before outputs: two matched arms, two full training epochs, 128-token targets and evaluation, and witness temperature 0.035. Audit shows this raises weight dispersion about 19-fold while retaining effective sample size near 985/1,024. A new 900-document FineWeb source pool completed with every prior domain and fingerprint excluded; Qwen3-32B cleaning and the 128-token baseline witness are running concurrently.",
+  "summary": "The confirmation is frozen before outputs: two matched 4B arms, two full training epochs, 128-token targets and evaluation, and witness temperature 0.035. SFT run dftr-1784344275-4ca9ff0b and MMD-witness run dftr-1784344283-61883086 are active on H100s. The fresh evaluation cleaner is running concurrently and has committed its first 50 accepted documents toward the 640-document bank.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
@@ -25,6 +25,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "20:06",
+      "title": "Matched 4B confirmation training launched",
+      "detail": "After repairing and testing two stale protocol allowlists, SFT run dftr-1784344275-4ca9ff0b and MMD-witness run dftr-1784344283-61883086 started concurrently on H100s. Both consume the same 1,024 briefs for two complete epochs at a 128-token teacher-forced horizon. The evaluation cleaner remains independent and has committed 50/640 accepted documents.",
+      "tone": "active"
+    },
     {
       "at": "19:53",
       "title": "Confirmation data and training machinery running concurrently",
