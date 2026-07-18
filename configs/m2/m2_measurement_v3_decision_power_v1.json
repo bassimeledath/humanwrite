@@ -1,0 +1,63 @@
+{
+  "alternative_generator_sha256": "07e079d0dcc368ffd2cac75d501e188d2c5da9e7b2ed162693e415856b35b0ea",
+  "analysis_code_sha256": "735a2b28171afad0ba59331dd30d0721954e1e73f353653654f22115e3e6c200",
+  "artifact_schema": "dftr.measurement.decision_power_config.v3",
+  "candidate_outputs_opened": false,
+  "decision_rule": {
+    "alpha": 0.05,
+    "endpoints": [
+      "embedding_family_a_paired_mmd",
+      "embedding_family_b_paired_mmd",
+      "embedding_family_direction_agreement",
+      "token_unigram_l2",
+      "human_calibrated_equivalence",
+      "human_calibrated_noninferiority",
+      "positive_control_qualification"
+    ],
+    "equivalence_margin": 0.05,
+    "family_effect_boundary": -0.0006,
+    "intersection_required": true,
+    "noninferiority_margin": 0.02,
+    "rule_id": "measurement-v3-lower-variance-intersection-v1",
+    "token_l2_margin": 0.00022
+  },
+  "decision_rule_sha256": "c2a6b5133a59e31eeae9ab15e578b30ecd1278b74f258589413fce8629c8bfc4",
+  "null_generator_sha256": "61496ac20b84ab698bd65b4eb8af626c1dcfadfcec7309a2baab1905001a6958",
+  "power": {
+    "all_targets_pass": true,
+    "alternative": {
+      "decision_vector_sha256": "46351a18617ab3bb73f12566c9c879b2ced89052d718fbedf3f53929df97832e",
+      "rate": 0.9739,
+      "rule_id": "measurement-v3-lower-variance-intersection-v1",
+      "scenario": "alternative",
+      "seed": 10242585133971234775,
+      "successes": 9739,
+      "trials": 10000
+    },
+    "alternative_effect": -0.0012,
+    "alternative_strictly_beyond_boundary": true,
+    "artifact_schema": "dftr.measurement.exact_decision_power.v3",
+    "decision_boundary": -0.0006,
+    "effect_direction": "less",
+    "master_seed": 95173,
+    "null": {
+      "decision_vector_sha256": "fb701ba16878b120e90469d8238b8765f8a157f6aabf76d94fd6aa09b591cf93",
+      "rate": 0.0,
+      "rule_id": "measurement-v3-lower-variance-intersection-v1",
+      "scenario": "null",
+      "seed": 10500695898316309728,
+      "successes": 0,
+      "trials": 10000
+    },
+    "power_min": 0.8,
+    "power_pass": true,
+    "rule_id": "measurement-v3-lower-variance-intersection-v1",
+    "trials_per_scenario": 10000,
+    "type_i_max": 0.05,
+    "type_i_pass": true
+  },
+  "status": "frozen",
+  "training_reward_model_ids": [
+    "Qwen/Qwen3-4B"
+  ]
+}
