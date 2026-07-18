@@ -2716,3 +2716,47 @@ NEXT: Wake only on terminal transition from `dftr-1784358360-4f83b039`. When
 it completes, validate the surfaced clean-train artifact and launch the pinned
 4,096/16,384 train-prefix freeze step before any downstream 4K training or
 candidate generation.
+
+## [2026-07-18] M2 / scale-ladder-clean-train-timeout-resume
+HYPOTHESIS: The 16K clean-train timeout is recoverable without changing the
+comparison, protocol, output path, or quality gate because the fixed-code
+cleaner commits accepted rows incrementally and, on startup, skips any source
+fingerprints already present in the canonical output artifact. Relaunching
+the same config against the same output URI should therefore preserve the
+prospective 4K/16K ladder while continuing from the 12,648 committed accepts.
+SETUP: Terminal-transition continuation on Saturday, July 18, 2026 after the
+coordinator observed failed run `dftr-1784358360-4f83b039` for comparison
+`M2-scale-ladder-clean-train-16k-v1`. The repo read `CLAUDE.md`,
+`RESEARCH_CONTEXT.md`, `progress/autonomy.json`, `progress/status.json`,
+`FINDINGS.md`, and recent git history, then queried the sanctioned gateway
+status and logs through the same keychain-backed credential pattern already
+used by the local coordinator. The frozen config remained
+`configs/m2/m2_scale_ladder_clean_train_16k_v1.yaml` with output URI
+`modal-volume://humanwrite-checkpoints/data/m2-scale-ladder-v1/clean-train-16384.jsonl`.
+The worker implementation in `infra/backend/modal_app.py` was inspected to
+verify that existing committed rows are re-read by `source_fingerprint`, then
+skipped before new work begins. No code or protocol change was made. After
+confirming budget headroom, the same frozen config was relaunched through the
+approved wrapper with `uv run --project infra ./infra/gpu submit ...`,
+producing resume run `dftr-1784387469-9e5b1936` at git SHA
+`b42bd7d63ef712ca784c2f397ce111fc129f37d2`.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Terminal failure classification | PASS | Run `dftr-1784358360-4f83b039` ended `failed` with `worker_result_error=FunctionTimeoutError`, not with an input-hash, policy, or quality-contract failure. Terminal status showed `records_processed=12648`, `records_failed=7192`, and `actual_api_cost_usd=4.919519`. |
+| Partial artifact resumability | PASS | The fixed-code cleaner appends accepted rows to the canonical output path, commits the checkpoint volume after each batch, and rebuilds its completed set from existing `source_fingerprint` values before resuming. This makes an in-place bounded resume scientifically cleaner than forking a new output artifact. |
+| Budget boundary before relaunch | PASS | Approved budget check before resume showed Modal committed `$16.769555/$100` and OpenRouter spend/reserve `$21.877799/$100`, leaving `$83.230445` Modal and `$78.122201` API. |
+| Resume launch | PASS | Promo resume run `dftr-1784387469-9e5b1936` launched successfully under the same config hash `ad131251512f9b754a5be7be8f6d791cb17f2fb3eefc1497c82847ad328e94df` and entered `running` state immediately. |
+| Budget boundary after relaunch | PASS | Post-launch budget remained inside the user caps at Modal committed `$16.769555/$100` and OpenRouter spend/reserve `$33.877799/$100`, leaving `$83.230445` Modal and `$66.122201` API. |
+| Additional async launch need | PASS | None. The resumed 16K cleaner is now the only active remote job, and the 46K cell remains blocked by the preregistered 16K gate. |
+DECISION: Keep autonomy enabled and retarget monitoring to the new resume run
+only. The scientific pipeline did not need a new method or relaxed gate; it
+needed a bounded continuation of the same frozen cleaning comparison. The
+already-prepared train-prefix freeze step remains the next sanctioned handoff
+after this cleaner reaches a terminal state.
+NEXT: Wake only on terminal transition from `dftr-1784387469-9e5b1936`. If it
+completes with 16,384 accepted rows, validate the surfaced clean-train
+artifact and launch the pinned train-prefix freezer before any 4K training
+run. If it fails again, inspect whether the remaining gap is due to timeout,
+insufficient remaining valid candidates, or a new contract failure before
+considering any further relaunch.

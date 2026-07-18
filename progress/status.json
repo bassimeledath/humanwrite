@@ -1,14 +1,14 @@
 {
-  "updated_at": "2026-07-18T13:47:42Z",
+  "updated_at": "2026-07-18T15:11:40Z",
   "phase": "M2 — 4B data-scale ladder through 16K",
-  "headline": "Live cleaner status surface repaired; 16K clean-train run remains healthy",
-  "summary": "The prior 1,024-document MMD-witness result remains directionally positive but inconclusive: 54.7% human-style wins, 53.1% overall-quality wins, improvements on both embedding families and Token L2, but insufficient significance and 78% identity with SFT. The preregistered nested source selection, 640-document scale-development cleaner, scale-dev freeze validator, and 128-row scale-dev prompt-brief panel remain complete. This scheduled 90-minute safety audit found a real monitor-surface defect rather than a scientific failure: the sanctioned gateway `/status` path for active API jobs was surfacing only the latest incremental `api_cost` event while approved `/logs` already contained cumulative progress. The gateway was patched, focused tests passed, and the live status surface now matches the cleaner log for `dftr-1784358360-4f83b039`, which currently shows 10,748 accepted rows, 6,148 failed candidates, and 4.182616 dollars cumulative API spend. No quality gates were weakened, no speculative downstream job was launched, the gated 46K cell remains untouched, and Measurement-v4 remains blocked because one Nemotron manipulation check narrowly missed alpha (p=0.0525).",
+  "headline": "16K cleaner timed out; bounded resume is now running",
+  "summary": "The prior 1,024-document MMD-witness result remains directionally positive but inconclusive: 54.7% human-style wins, 53.1% overall-quality wins, improvements on both embedding families and Token L2, but insufficient significance and 78% identity with SFT. The preregistered nested source selection, 640-document scale-development cleaner, scale-dev freeze validator, and 128-row scale-dev prompt-brief panel remain complete. The observed terminal transition for `dftr-1784358360-4f83b039` was real: the 16K clean-train run hit `FunctionTimeoutError` after committing 12,648 accepted rows, 7,192 failed candidates, and 4.919519 dollars of API spend. Because the fixed-code cleaner revalidates existing rows and skips already-committed `source_fingerprint` values on restart, the same frozen config was safely relaunched in place as resume run `dftr-1784387469-9e5b1936`, which is now the only active asynchronous job. No quality gates were weakened, no new protocol or output artifact was introduced, the gated 46K cell remains untouched, and Measurement-v4 remains blocked because one Nemotron manipulation check narrowly missed alpha (p=0.0525).",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 100,
     "modal_committed_usd": 16.769555,
     "openrouter_cap_usd": 100,
-    "openrouter_spend_usd": 28.958278
+    "openrouter_spend_usd": 33.877799
   },
   "services": [
     {"name": "GPU gateway", "detail": "Constrained launch API", "status": "online"},
@@ -25,6 +25,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "08:11",
+      "title": "16K clean-train timeout recovered by bounded in-place resume",
+      "detail": "Run `dftr-1784358360-4f83b039` ended with `FunctionTimeoutError` after `records_processed=12648`, `records_failed=7192`, and `actual_api_cost_usd=4.919519`. Inspection of the fixed-code cleaner confirmed that it rebuilds its completed set from the existing output artifact and skips already-committed `source_fingerprint` values on restart, so the same frozen config was safely relaunched through the approved wrapper as `dftr-1784387469-9e5b1936`. Immediate status shows the resume run in `running` state; no new protocol, panel, or quality gate was changed.",
+      "tone": "active"
+    },
     {
       "at": "06:47",
       "title": "Scheduled audit repaired live cleaner status surface",

@@ -1,7 +1,7 @@
 {
   "schema": "humanwrite.autonomy_control.v1",
   "enabled": true,
-  "generation": 13,
+  "generation": 14,
   "objective": "Determine whether the lower-variance method family can produce a model that writes demonstrably more like a human than a matched SFT control.",
   "poll_interval_seconds": 600,
   "max_codex_wakes_per_24h": 8,
@@ -10,8 +10,8 @@
   "wake_policy": "once_per_new_terminal_transition",
   "monitored_runs": [
     {
-      "role": "scale_ladder_clean_train_16k",
-      "run_id": "dftr-1784358360-4f83b039"
+      "role": "scale_ladder_clean_train_16k_resume",
+      "run_id": "dftr-1784387469-9e5b1936"
     }
   ]
 }
