@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-18T00:56:05Z",
+  "updated_at": "2026-07-18T01:00:30Z",
   "phase": "M2 — fresh-instrument and estimator rebuild",
-  "headline": "Evaluation is complete; only 17 of 1,024 training briefs remain",
-  "summary": "Evaluation cleaning completed 640/640. Parallel brief synthesis produced 1,007 unique validated rows with zero duplicates and stopped on 17 provider/schema rejects. Resumable run dftr-1784336141-a24176fe is retrying only those missing briefs. The full matched tuning run can be frozen and launched after this small recovery completes.",
+  "headline": "Evaluation is complete; 1,020/1,024 training briefs are validated",
+  "summary": "Evaluation cleaning completed 640/640. Two resumable recovery passes raised the training corpus from 1,007 to 1,020 unique validated briefs. Four persistent cases remain: two provider content filters and two strict grounding failures. The next recovery is isolated to those four and will not weaken the corpus validation contract.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
@@ -25,6 +25,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "18:00",
+      "title": "Ordinary retries exhausted with four persistent brief gaps",
+      "detail": "Recovery passes successfully added 13 of 17 missing briefs. The remaining four consist of two provider content filters and two exact-grounding validation failures. Repeating the identical stochastic request is stopped; the autonomous next step is an isolated, provenance-labeled recovery before corpus freeze.",
+      "tone": "active"
+    },
     {
       "at": "17:56",
       "title": "Evaluation complete; targeted 17-brief recovery launched",
