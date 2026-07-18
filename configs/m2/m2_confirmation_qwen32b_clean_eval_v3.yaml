@@ -1,0 +1,20 @@
+run:
+  comparison_id: M2-mmd-witness-confirmation-clean-eval-v3
+  arm: clean-combined-fresh-evaluation-pool
+  budget_class: promo
+  task_kind: document_cleaning
+compute:
+  gpus: 1
+  timeout_min: 480
+data:
+  input_uri: modal-volume://humanwrite-checkpoints/data/m2-confirmation-v1/raw-eval-pool-combined-2000.jsonl
+  output_uri: modal-volume://humanwrite-checkpoints/data/m2-confirmation-v1/clean-eval-v3-640.jsonl
+  input_sha256: 766e479005dadd4c238e6854061f3f307d7f3d3e794e8e3371e498c5a6911d28
+  max_records: 2000
+  target_records: 640
+api:
+  model: qwen/qwen3-32b
+  max_cost_usd: 2.0
+quality:
+  min_word_count: 40
+  max_word_count: 500
