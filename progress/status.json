@@ -1,14 +1,14 @@
 {
-  "updated_at": "2026-07-18T06:10:06Z",
-  "phase": "M2 — fresh-instrument and estimator rebuild",
-  "headline": "Stronger 4B MMD-witness confirmation is underway",
-  "summary": "Matched 4B confirmation training is complete. The fresh evaluation bank, both human embedder families, and all 128 normalized prompt briefs are complete. Candidate-blind base-versus-initial-SFT positive controls are running before protocol freeze and candidate generation. A separately preregistered independent 4,096/16,384/46,080 scale ladder is ready, with a hard stop at 16,384 unless displacement, validity, quality non-regression, and directional distribution or human-style signal pass.",
+  "updated_at": "2026-07-18T06:48:20Z",
+  "phase": "M2 — 4B data-scale ladder through 16K",
+  "headline": "The preregistered 16K scale ladder is running",
+  "summary": "The prior 1,024-document MMD-witness result was directionally positive but inconclusive: 54.7% human-style wins, 53.1% overall-quality wins, improvements on both embedding families and Token L2, but insufficient significance and 78% identity with SFT. The newer measurement-v4 positive-control run stopped before candidate generation because one Nemotron manipulation check narrowly missed alpha (p=0.0525). The independent scale ladder has now launched source selection for nested 4,096 and 16,384 clean training cells; it remains hard-stopped at 16,384 pending the frozen safety and signal gates.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 100,
-    "modal_committed_usd": 4.890506,
+    "modal_committed_usd": 16.75756,
     "openrouter_cap_usd": 100,
-    "openrouter_spend_usd": 1.328778
+    "openrouter_spend_usd": 16.598985
   },
   "services": [
     {"name": "GPU gateway", "detail": "Constrained launch API", "status": "online"},
@@ -25,6 +25,18 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "23:48",
+      "title": "Nested 4K/16K source selection launched",
+      "detail": "Run dftr-1784357254-035e8d3c is selecting a prior-disjoint 27,000-document raw FineWeb pool from three new pinned shards, capped at one record per domain. The updated gateway and scale-size policy passed 121 focused tests. This feeds Qwen3-32B line cleaning, faithful brief synthesis, independent 4K training, then the gated 16K cell.",
+      "tone": "active"
+    },
+    {
+      "at": "23:16",
+      "title": "Latest positive-control run narrowly missed qualification",
+      "detail": "No candidate output was generated or opened. Base-versus-human and SFT-versus-human controls were detected and the human-versus-human null behaved correctly. The 64-token-versus-full-human manipulation was detected by BGE but Nemotron returned p=0.0525, narrowly above the frozen 0.05 cutoff. This is an evaluation-instrument issue, not a tuning result; the scale ladder proceeds while a fresh evaluator is repaired before scoring candidates.",
+      "tone": "blocked"
+    },
     {
       "at": "23:10",
       "title": "Scale ladder converted to L40S-only execution",
