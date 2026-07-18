@@ -18,6 +18,11 @@ LOWER_VARIANCE_BRIEF_PROTOCOL = "dftr.lower_variance_briefs.two_provider.v1"
 LOWER_VARIANCE_METADATA_MODEL = "qwen/qwen3-32b"
 LOWER_VARIANCE_OUTLINE_MODEL = "openai/gpt-5-mini"
 LOWER_VARIANCE_TRAIN_PROTOCOL = "dftr.m2.lower_variance_three_arm.v1"
+LOWER_VARIANCE_CONFIRMATION_PROTOCOL = "dftr.m2.lower_variance_confirmation.v2"
+LOWER_VARIANCE_TRAIN_PROTOCOLS = {
+    LOWER_VARIANCE_TRAIN_PROTOCOL,
+    LOWER_VARIANCE_CONFIRMATION_PROTOCOL,
+}
 LOWER_VARIANCE_METHOD_KEYS = (
     "artifact_schema",
     "run",
@@ -732,8 +737,8 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
         data = config.get("data") or {}
         initial_adapter = config.get("initial_adapter") or {}
         if (
-            config.get("artifact_schema") != LOWER_VARIANCE_TRAIN_PROTOCOL
-            or workflow.get("protocol_version") != LOWER_VARIANCE_TRAIN_PROTOCOL
+            config.get("artifact_schema") not in LOWER_VARIANCE_TRAIN_PROTOCOLS
+            or workflow.get("protocol_version") != config.get("artifact_schema")
             or set(workflow) != {"protocol_version", "step", "method_contract_sha256"}
             or canonical_hash(method_payload) != workflow.get("method_contract_sha256")
             or task_kind != "experiment"

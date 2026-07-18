@@ -301,6 +301,28 @@ def test_lower_variance_training_smoke_uses_token_unit_wrapper_contract():
         validate_launch(value)
 
 
+def test_lower_variance_confirmation_protocol_is_allowlisted_and_hash_bound():
+    config_path = (
+        Path(__file__).resolve().parents[2]
+        / "configs/m2/m2_confirmation_4b_mmd_witness_v1.yaml"
+    )
+    value = payload()
+    value["config"] = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    value["budget_class"] = "screen"
+    value["preregistration"]["comparison"] = value["config"]["run"]["comparison_id"]
+    value["config_hash"] = canonical_hash(value["config"])
+    policy = validate_launch(value)
+    assert policy.task_kind == "experiment"
+    assert policy.gpu == "H100"
+
+    value["config"]["workflow"]["protocol_version"] = (
+        "dftr.m2.lower_variance_three_arm.v1"
+    )
+    value["config_hash"] = canonical_hash(value["config"])
+    with pytest.raises(PolicyError, match="frozen wrapper protocol"):
+        validate_launch(value)
+
+
 def test_brief_synthesis_rejects_unsafe_volume_uri():
     value = payload()
     value["config"]["run"]["task_kind"] = "brief_synthesis"
