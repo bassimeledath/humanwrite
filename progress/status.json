@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-18T01:40:00Z",
+  "updated_at": "2026-07-18T01:47:00Z",
   "phase": "M2 — fresh-instrument and estimator rebuild",
-  "headline": "Full 4B research cycle has started with fixed baseline generation",
-  "summary": "The normalized 1,024-brief training corpus and 640-document disjoint evaluation corpus are complete. Modal is now generating one frozen baseline output for every training brief from the seed-11 Qwen3-4B SFT adapter. This shared panel will define the one-round MMD witness before the matched SFT, token-moment, and witness-weighted tuning arms launch.",
+  "headline": "Three full 1,024-brief 4B tuning arms are running in parallel",
+  "summary": "The fixed 1,024-output baseline witness panel completed and passed hash, cardinality, uniqueness, and nonempty-output checks. Three matched H100 runs are active: ordinary SFT, token-distribution moment matching, and one-round MMD-witness-weighted SFT. Each consumes every cleaned brief exactly once in 512 optimizer steps. The fresh 128-prompt evaluator is still candidate-blind.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
@@ -25,6 +25,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "18:47",
+      "title": "Full matched 4B tuning screen launched",
+      "detail": "The immutable baseline panel contains 1,024 unique nonempty outputs with SHA 89c07f95. H100 runs dftr-1784339215-2799dbae (SFT), dftr-1784339216-47c715cf (token moments), and dftr-1784339214-065c0f7a (MMD witness) are running concurrently from the same seed-11 adapter under method contract 0b2a741b. Each has 512 batch-two steps and exact one-epoch exposure.",
+      "tone": "active"
+    },
     {
       "at": "18:40",
       "title": "Blind evaluation preparation is running concurrently",
