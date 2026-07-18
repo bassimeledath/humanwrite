@@ -1,9 +1,9 @@
 {
-  "updated_at": "2026-07-18T02:37:34Z",
+  "updated_at": "2026-07-18T02:53:01Z",
   "phase": "M2 — fresh-instrument and estimator rebuild",
-  "headline": "Lower-variance 4B cycle complete: no winner; MMD-witness merits one bounded follow-up",
-  "summary": "All three matched 4B arms completed, automatic scoring finished on a fresh 128-prompt panel, and all 1,024 blinded writing comparisons are final. Both treatments improved every distribution metric directionally, but neither passed the full preregistered automatic rule. Token-moment was significantly worse on overall judged writing quality and is retired. MMD-witness reached 54.7% human-style and 53.1% overall-quality wins without significance or validity clearance, so it is a weak positive trend rather than a successful human-writing model.",
-  "run_state": "complete",
+  "headline": "Stronger 4B MMD-witness confirmation is underway",
+  "summary": "The confirmation is frozen before outputs: two matched arms, two full training epochs, 128-token targets and evaluation, and witness temperature 0.035. Audit shows this raises weight dispersion about 19-fold while retaining effective sample size near 985/1,024. A new 900-document FineWeb source pool completed with every prior domain and fingerprint excluded; Qwen3-32B cleaning and the 128-token baseline witness are running concurrently.",
+  "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
     "modal_committed_usd": 4.890506,
@@ -25,6 +25,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "19:53",
+      "title": "Confirmation data and training machinery running concurrently",
+      "detail": "Fresh source run dftr-1784342763-d52433cb completed 900 disjoint records at zero cost. Cleaner dftr-1784343002-37f8a337 is producing the untouched 640-document evaluation bank while Modal generates a new 1,024-row, 128-token baseline witness. The v2 training contract uses two epochs and an explicit first-64-step witness-gradient ratio gate of 0.05-0.30.",
+      "tone": "active"
+    },
     {
       "at": "19:37",
       "title": "Lower-variance cycle completed with no promoted model",
