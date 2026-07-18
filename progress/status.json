@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-18T01:47:00Z",
+  "updated_at": "2026-07-18T02:02:32Z",
   "phase": "M2 — fresh-instrument and estimator rebuild",
-  "headline": "Three full 1,024-brief 4B tuning arms are running in parallel",
-  "summary": "The fixed 1,024-output baseline witness panel completed and passed hash, cardinality, uniqueness, and nonempty-output checks. Three matched H100 runs are active: ordinary SFT, token-distribution moment matching, and one-round MMD-witness-weighted SFT. Each consumes every cleaned brief exactly once in 512 optimizer steps. The fresh 128-prompt evaluator is still candidate-blind.",
+  "headline": "SFT and MMD-witness tuning completed; token-moment tuning remains active",
+  "summary": "The matched 1,024-example SFT and MMD-witness H100 arms completed all 512 steps successfully for a combined observed cost of about $1.15. Token-moment tuning is still running because its teacher-forced vocabulary-moment objective is substantially more expensive per step. In parallel, the fresh 128-prompt evaluator remains candidate-blind while its positive controls qualify; the complete candidate generation, dual-embedder scoring, and frozen decision code is implemented and tested.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
@@ -25,6 +25,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "19:02",
+      "title": "Two tuning arms completed and prospective scoring path is ready",
+      "detail": "SFT run dftr-1784339215-2799dbae and MMD-witness run dftr-1784339214-065c0f7a each completed 512 steps over all 1,024 examples with valid native-adapter manifests. Token-moment run dftr-1784339216-47c715cf remains active. The candidate-blind v3 decision rule is powered at 97.39% for a two-noise-envelope effect, both evaluator families are frozen, and 21 focused measurement tests pass. No tuned output has been opened.",
+      "tone": "active"
+    },
     {
       "at": "18:47",
       "title": "Full matched 4B tuning screen launched",
