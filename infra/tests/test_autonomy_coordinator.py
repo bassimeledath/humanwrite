@@ -3,6 +3,7 @@ from __future__ import annotations
 from infra.autonomy.coordinator import (
     should_run_scheduled_audit,
     should_wake,
+    successful_wake_times,
     terminal_signature,
     within_wake_budget,
 )
@@ -64,7 +65,11 @@ def test_daily_budget_is_rolling_and_fail_closed():
     assert within_wake_budget([now - 90_000], now, 1) is True
     wake, _, reason = should_wake(
         control=control(max_codex_wakes_per_24h=1),
-        runtime={"codex_wake_times": [now - 10]},
+        runtime={
+            "wake_history": [
+                {"started_at": now - 10, "return_code": 0, "succeeded": True}
+            ]
+        },
         statuses={"run-a": {"status": "completed"}},
         now=now,
     )
@@ -111,7 +116,12 @@ def test_scheduled_audit_skips_recent_or_over_budget_continuation():
 
     due, reason = should_run_scheduled_audit(
         control=control(max_codex_wakes_per_24h=1),
-        runtime={"codex_wake_times": [4500.0]},
+        runtime={
+            "codex_wake_times": [4500.0],
+            "wake_history": [
+                {"started_at": 4500.0, "return_code": 0, "succeeded": True}
+            ],
+        },
         now=5000.0,
     )
     assert due is False
@@ -129,3 +139,15 @@ def test_failed_launch_does_not_suppress_scheduled_audit():
     )
     assert due is True
     assert reason == "scheduled_90m_audit_due"
+
+
+def test_successful_wake_times_excludes_failed_or_legacy_false_successes():
+    assert successful_wake_times(
+        {
+            "wake_history": [
+                {"started_at": 10.0, "return_code": 1, "succeeded": False},
+                {"started_at": 20.0, "return_code": 0},
+                {"started_at": 30.0, "return_code": 0, "succeeded": True},
+            ]
+        }
+    ) == [30.0]

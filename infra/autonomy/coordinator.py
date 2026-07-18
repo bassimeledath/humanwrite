@@ -96,6 +96,16 @@ def within_wake_budget(wake_times: list[float], now: float, maximum: int) -> boo
     return len(recent) < maximum
 
 
+def successful_wake_times(runtime: dict[str, Any]) -> list[float]:
+    """Return only completed, evidence-bearing Codex continuations."""
+
+    return [
+        float(item["started_at"])
+        for item in runtime.get("wake_history", [])
+        if item.get("succeeded") is True and item.get("started_at") is not None
+    ]
+
+
 def should_wake(
     *,
     control: dict[str, Any],
@@ -115,7 +125,7 @@ def should_wake(
     if signature in handled:
         return False, signature, "terminal_transition_already_handled"
     maximum = int(control.get("max_codex_wakes_per_24h", 4))
-    wake_times = [float(value) for value in runtime.get("codex_wake_times", [])]
+    wake_times = successful_wake_times(runtime)
     if not within_wake_budget(wake_times, now, maximum):
         return False, signature, "daily_codex_wake_budget_exhausted"
     return True, signature, "new_terminal_transition"
@@ -134,15 +144,11 @@ def should_run_scheduled_audit(
     if control.get("enabled") is not True:
         return False, "disabled"
     maximum = int(control.get("max_codex_wakes_per_24h", 8))
-    wake_times = [float(value) for value in runtime.get("codex_wake_times", [])]
+    wake_times = successful_wake_times(runtime)
     if not within_wake_budget(wake_times, now, maximum):
         return False, "daily_codex_wake_budget_exhausted"
     recent_guard = int(control.get("audit_recent_continuation_seconds", 3600))
-    successful_wakes = [
-        float(item.get("started_at"))
-        for item in runtime.get("wake_history", [])
-        if item.get("succeeded") is True and item.get("started_at") is not None
-    ]
+    successful_wakes = wake_times
     if successful_wakes and now - max(successful_wakes) < recent_guard:
         return False, "recent_continuation_already_checked_pipeline"
     return True, "scheduled_90m_audit_due"
@@ -213,8 +219,12 @@ def _invoke_codex(
         str(ROOT),
         "-s",
         "danger-full-access",
+        "-m",
+        "gpt-5.4",
         "-c",
         'approval_policy="never"',
+        "-c",
+        'model_reasoning_effort="high"',
         _continuation_prompt(control, statuses, invocation=invocation),
     ]
     environment = dict(os.environ)

@@ -9,6 +9,9 @@ Modal jobs and bounded Codex continuation turns.
 - A separate 90-minute LaunchAgent invokes one real Codex safety audit when no
   continuation has run during the preceding hour. This catches missed
   handoffs, stale monitor targets, and silent failures.
+- Background continuations use GPT-5.4 with high reasoning because the current
+  unattended Codex CLI rejects GPT-5.6; interactive research model selection
+  is unaffected.
 - A persisted transition signature prevents repeated invocations.
 - At most eight Codex continuations may start in any rolling 24-hour period
   while the bounded 4K/16K ladder is active.
