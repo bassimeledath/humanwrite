@@ -279,7 +279,7 @@ def materialize() -> dict:
         )
         embedder.max_seq_length = 512
 
-        def encode(texts: list[str]) -> np.ndarray:
+        def encode(texts: list[str], active_embedder: object = embedder) -> np.ndarray:
             kwargs = {
                 "batch_size": config["batch_size"],
                 "normalize_embeddings": True,
@@ -288,7 +288,9 @@ def materialize() -> dict:
             }
             if config["prompt_name"]:
                 kwargs["prompt_name"] = config["prompt_name"]
-            values = np.asarray(embedder.encode(texts, **kwargs), dtype=np.float32)
+            values = np.asarray(
+                active_embedder.encode(texts, **kwargs), dtype=np.float32
+            )
             norms = np.linalg.norm(values, axis=1, keepdims=True)
             return values / norms
 

@@ -118,7 +118,15 @@ def _exact_decision(trial: dict[str, Any]) -> bool:
 
 
 def materialize(output_path: Path) -> dict[str, Any]:
-    analysis_path = Path(__file__).resolve().parent / "src/harness/measurement_v3.py"
+    analysis_paths = {
+        "measurement_v3.py": Path(__file__).resolve().parent
+        / "src/harness/measurement_v3.py",
+        "score_v3_candidates.py": Path(__file__).resolve().parent
+        / "score_v3_candidates.py",
+    }
+    analysis_spec = {
+        name: _file_sha(path) for name, path in analysis_paths.items()
+    }
     rule = {
         "rule_id": RULE_ID,
         "endpoints": DECISION_ENDPOINTS,
@@ -159,7 +167,7 @@ def materialize(output_path: Path) -> dict[str, Any]:
         "candidate_outputs_opened": False,
         "decision_rule": rule,
         "decision_rule_sha256": _canonical_sha(rule),
-        "analysis_code_sha256": _file_sha(analysis_path),
+        "analysis_code_sha256": _canonical_sha(analysis_spec),
         "null_generator_sha256": _canonical_sha(null_spec),
         "alternative_generator_sha256": _canonical_sha(alternative_spec),
         "training_reward_model_ids": ["Qwen/Qwen3-4B"],

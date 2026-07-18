@@ -232,6 +232,22 @@ def mmd2_unbiased(x: Any, y: Any, bandwidths: Sequence[float]) -> float:
     return float(xx + yy - 2.0 * k_xy.mean())
 
 
+def _mmd2_from_precomputed_kernel(
+    kernel: np.ndarray, left_indices: np.ndarray, right_indices: np.ndarray
+) -> float:
+    """Unbiased MMD2 from one frozen pooled kernel matrix."""
+    k_xx = kernel[np.ix_(left_indices, left_indices)]
+    k_yy = kernel[np.ix_(right_indices, right_indices)]
+    k_xy = kernel[np.ix_(left_indices, right_indices)]
+    xx = (k_xx.sum() - np.trace(k_xx)) / (
+        len(left_indices) * (len(left_indices) - 1)
+    )
+    yy = (k_yy.sum() - np.trace(k_yy)) / (
+        len(right_indices) * (len(right_indices) - 1)
+    )
+    return float(xx + yy - 2.0 * k_xy.mean())
+
+
 def one_sided_absolute_mmd_permutation_test(
     sample: Any,
     human_reference: Any,
@@ -258,9 +274,21 @@ def one_sided_absolute_mmd_permutation_test(
         raise MeasurementV3Error("absolute MMD samples are incompatible")
     if draws < 1:
         raise MeasurementV3Error("permutation draws must be positive")
-    observed = mmd2_unbiased(left, right, bandwidths)
     pooled = np.concatenate((left, right), axis=0)
     n_left = len(left)
+    if n_left < 2 or len(right) < 2:
+        raise MeasurementV3Error("absolute MMD requires at least two rows per sample")
+    kernel = fixed_rbf_kernel(pooled, pooled, bandwidths)
+    all_indices = np.arange(len(pooled), dtype=np.int64)
+
+    def statistic(selected: np.ndarray) -> float:
+        mask = np.ones(len(pooled), dtype=bool)
+        mask[selected] = False
+        return _mmd2_from_precomputed_kernel(
+            kernel, selected, np.flatnonzero(mask)
+        )
+
+    observed = statistic(np.arange(n_left, dtype=np.int64))
     total_partitions = math.comb(len(pooled), n_left)
     exceedances = 0
     if exact:
@@ -269,23 +297,17 @@ def one_sided_absolute_mmd_permutation_test(
                 "exact MMD permutation space exceeds its frozen cap"
             )
         trial_count = total_partitions
-        all_indices = np.arange(len(pooled))
         for selected_tuple in itertools.combinations(range(len(pooled)), n_left):
             selected = np.asarray(selected_tuple, dtype=np.int64)
-            complement = np.setdiff1d(all_indices, selected, assume_unique=True)
-            statistic = mmd2_unbiased(pooled[selected], pooled[complement], bandwidths)
-            exceedances += statistic >= observed
+            exceedances += statistic(selected) >= observed
         pvalue = exceedances / trial_count
         mode = "exact_label_enumeration"
     else:
         trial_count = int(draws)
         rng = np.random.default_rng(seed)
         for _ in range(trial_count):
-            order = rng.permutation(len(pooled))
-            statistic = mmd2_unbiased(
-                pooled[order[:n_left]], pooled[order[n_left:]], bandwidths
-            )
-            exceedances += statistic >= observed
+            selected = rng.permutation(all_indices)[:n_left]
+            exceedances += statistic(selected) >= observed
         pvalue = (exceedances + 1) / (trial_count + 1)
         mode = "monte_carlo_plus_one"
     return {
@@ -336,9 +358,25 @@ def paired_treatment_control_swap_test(
         raise MeasurementV3Error("paired MMD alternative is invalid")
     if draws < 1:
         raise MeasurementV3Error("paired-swap draws must be positive")
-    observed = mmd2_unbiased(treated, reference, bandwidths) - mmd2_unbiased(
-        baseline, reference, bandwidths
-    )
+    if len(treated) < 2 or len(reference) < 2:
+        raise MeasurementV3Error("paired MMD requires at least two rows per sample")
+    candidates = np.concatenate((treated, baseline), axis=0)
+    candidate_kernel = fixed_rbf_kernel(candidates, candidates, bandwidths)
+    reference_kernel = fixed_rbf_kernel(candidates, reference, bandwidths)
+    n = len(treated)
+
+    def candidate_component(indices: np.ndarray) -> float:
+        within = candidate_kernel[np.ix_(indices, indices)]
+        xx = (within.sum() - np.trace(within)) / (n * (n - 1))
+        return float(xx - 2.0 * reference_kernel[indices].mean())
+
+    def statistic(swap: np.ndarray) -> float:
+        offsets = np.arange(n, dtype=np.int64)
+        left_indices = np.where(swap, offsets + n, offsets)
+        right_indices = np.where(swap, offsets, offsets + n)
+        return candidate_component(left_indices) - candidate_component(right_indices)
+
+    observed = statistic(np.zeros(n, dtype=bool))
 
     def is_extreme(value: float) -> bool:
         return (
@@ -365,12 +403,7 @@ def paired_treatment_control_swap_test(
         )
         mode = "monte_carlo_plus_one"
     for swap in masks:
-        left, right = treated.copy(), baseline.copy()
-        left[swap], right[swap] = baseline[swap], treated[swap]
-        statistic = mmd2_unbiased(left, reference, bandwidths) - mmd2_unbiased(
-            right, reference, bandwidths
-        )
-        exceedances += is_extreme(statistic)
+        exceedances += is_extreme(statistic(swap))
     pvalue = (
         exceedances / trial_count if exact else (exceedances + 1) / (trial_count + 1)
     )

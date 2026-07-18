@@ -1,6 +1,6 @@
 {
   "alternative_generator_sha256": "07e079d0dcc368ffd2cac75d501e188d2c5da9e7b2ed162693e415856b35b0ea",
-  "analysis_code_sha256": "735a2b28171afad0ba59331dd30d0721954e1e73f353653654f22115e3e6c200",
+  "analysis_code_sha256": "b73d6c3ce9ff137bd86ebb2c3aa86eaf332efb70b076d94409320665757b7840",
   "artifact_schema": "dftr.measurement.decision_power_config.v3",
   "candidate_outputs_opened": false,
   "decision_rule": {

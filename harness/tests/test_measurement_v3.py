@@ -16,6 +16,7 @@ from harness.measurement_v3 import (
     one_sided_absolute_mmd_permutation_test,
     paired_treatment_control_swap_test,
     prospective_exact_decision_power,
+    mmd2_unbiased,
     token_unigram_l2,
     two_family_distribution_report,
 )
@@ -135,6 +136,27 @@ def test_paired_swap_is_one_sided_and_prompt_clustered() -> None:
     assert improved["pvalue"] < 0.05
     assert wrong_tail["pvalue"] > 0.95
     assert improved["effective_prompt_clusters"] == n
+
+
+def test_precomputed_permutation_statistics_match_direct_mmd() -> None:
+    rng = np.random.default_rng(91)
+    treatment = rng.normal(size=(6, 3))
+    control = rng.normal(size=(6, 3))
+    reference = rng.normal(size=(9, 3))
+    bandwidths = (0.5, 1.5)
+    direct_effect = mmd2_unbiased(
+        treatment, reference, bandwidths
+    ) - mmd2_unbiased(control, reference, bandwidths)
+
+    result = paired_treatment_control_swap_test(
+        treatment,
+        control,
+        reference,
+        bandwidths,
+        prompt_ids=[f"p-{index}" for index in range(6)],
+        exact=True,
+    )
+    assert result["effect"] == pytest.approx(direct_effect, abs=1e-14)
 
 
 def test_token_unigram_l2_uses_normalized_corpus_counts() -> None:
