@@ -90,6 +90,7 @@ def embed_family(family_id: str) -> dict:
         "max_tokens": config["max_tokens"],
         "prompt_name": config["prompt_name"],
         "normalize_embeddings": True,
+        "post_encode_normalization": "explicit_float32_l2.v1",
         "output_dtype": "float32",
     }
     model = SentenceTransformer(
@@ -116,9 +117,12 @@ def embed_family(family_id: str) -> dict:
         or not np.isfinite(vectors).all()
     ):
         raise RuntimeError("embedding family returned an invalid matrix")
-    norms = np.linalg.norm(vectors, axis=1)
-    if not np.allclose(norms, 1.0, atol=2e-3):
-        raise RuntimeError("embedding family did not return normalized vectors")
+    norms = np.linalg.norm(vectors, axis=1, keepdims=True)
+    if not np.isfinite(norms).all() or bool((norms <= 0).any()):
+        raise RuntimeError("embedding family returned a zero or invalid vector")
+    vectors = vectors / norms
+    if not np.allclose(np.linalg.norm(vectors, axis=1), 1.0, atol=1e-5):
+        raise RuntimeError("explicit embedding normalization failed")
     artifact = {
         "artifact_schema": "dftr.measurement.embedding_family.v3",
         "status": "materialized",

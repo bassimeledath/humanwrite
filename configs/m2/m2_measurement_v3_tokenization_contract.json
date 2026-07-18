@@ -1,0 +1,13 @@
+{
+  "add_special_tokens": false,
+  "aggregation": "corpus_relative_frequency",
+  "artifact_schema": "dftr.measurement.tokenization_contract.v3",
+  "casefold": false,
+  "implementation": "transformers.AutoTokenizer.encode@4.57.6",
+  "input_encoding": "utf8_verbatim",
+  "status": "frozen",
+  "tokenizer_artifact_sha256": "3d03de0e22b75ab4c2ba39e4e6a65d1f9e754bf3c841ed1d995e51e30aea8f9a",
+  "tokenizer_id": "Qwen/Qwen3-4B",
+  "tokenizer_revision": "1cfa9a7208912126459214e8b04321603b3df60c",
+  "truncation": "none"
+}
