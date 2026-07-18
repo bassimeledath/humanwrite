@@ -2674,3 +2674,45 @@ into immutable 4,096/16,384 prefixes before any 4K training launch.
 NEXT: Wake only on terminal transition from `dftr-1784358360-4f83b039`. When
 it completes, validate the clean-train artifact and launch the pinned
 train-prefix freeze workflow before any downstream 4K/16K candidate training.
+
+## [2026-07-18] M2 / scale-ladder-live-status-repair
+HYPOTHESIS: The scheduled 90-minute audit should see the same cumulative
+progress that approved worker logs already show for the live 16K cleaner. If
+the sanctioned `/status` surface is only exposing the most recent incremental
+`api_cost` event instead of cumulative progress, then the autonomy monitor is
+stale even though the underlying run is healthy. A narrow gateway repair that
+parses the existing worker progress log should restore accurate live counts
+without opening any candidate outputs or touching the scientific protocol.
+SETUP: Scheduled 90-minute safety audit on Saturday, July 18, 2026. Direct
+inspection of the sanctioned gateway showed an inconsistency for active
+clean-train run `dftr-1784358360-4f83b039`: `/status` returned only
+`cost_usd=0.025067` with no cumulative `actual_api_cost_usd` or
+`records_processed`, while `/logs` simultaneously showed
+`processed=10510 total_completed=10510 api_cost_usd=4.085475`. The repo
+patched the gateway prospectively by adding pure parser
+`infra/backend/status_progress.py` and wiring `infra/backend/modal_app.py` to
+enrich running `brief_synthesis` and `document_cleaning` states from their own
+progress logs. Focused verification used
+`PYTHONPATH=. uv run --project infra pytest infra/tests/test_status_progress.py
+infra/tests/test_volume_paths.py infra/tests/test_autonomy_coordinator.py`
+and passed `21/21`. The Modal gateway was then redeployed to the existing
+production URL and the same live cleaner was rechecked through the sanctioned
+status and logs routes.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Root cause classified | PASS | Running API jobs wrote cumulative progress only to worker logs, while `/status` exposed the latest incremental `api_cost` event. The autonomy coordinator therefore saw a stale delta-only view for healthy long-running cleaners. |
+| Prospective live-status repair | PASS | Running `brief_synthesis` and `document_cleaning` states are now enriched from their existing log snapshots, surfacing cumulative `records_processed`, `records_failed`, and `actual_api_cost_usd` without changing terminal accounting or protocol semantics. |
+| Focused verification | PASS | Focused infra tests passed `21/21` before redeploy. |
+| Live post-deploy validation | PASS | Re-querying `dftr-1784358360-4f83b039` after deploy returned `records_processed=10748`, `records_failed=6148`, and `actual_api_cost_usd=4.182616` on `/status`, matching the latest approved `/logs` snapshot `processed=10748 total_completed=10748 api_cost_usd=4.182616 concurrency=128`. |
+| Cleaner health during repair | PASS | The 16K cleaner remained productively active throughout the audit; no cancellation, resume, or speculative downstream launch was required. |
+| Budget boundary after repair | PASS | Official gateway budget remained within cap at Modal committed `$16.769555/$100` and OpenRouter spend `$28.958278/$100`. |
+DECISION: Keep autonomy enabled and keep monitoring only
+`dftr-1784358360-4f83b039`. This audit found and repaired a real stale monitor
+surface, not a scientific or data-pipeline failure. No new async launch is
+justified until the clean-train run reaches a terminal state, because the next
+sanctioned step is still the pinned train-prefix freeze workflow.
+NEXT: Wake only on terminal transition from `dftr-1784358360-4f83b039`. When
+it completes, validate the surfaced clean-train artifact and launch the pinned
+4,096/16,384 train-prefix freeze step before any downstream 4K training or
+candidate generation.

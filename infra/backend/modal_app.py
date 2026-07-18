@@ -31,6 +31,7 @@ from .policy import (
     validate_launch,
 )
 from .source_materializer import materialize_rows
+from .status_progress import enrich_running_api_state
 from .brief_contract import (
     brief_response_format,
     empty_brief_quotations,
@@ -139,6 +140,10 @@ def _notify(event: str, details: dict) -> None:
 
 def _artifact_dir(run_id: str) -> Path:
     return Path(CHECKPOINT_PATH) / "runs" / run_id
+
+
+def _log_path(run_id: str) -> Path:
+    return Path("/state/logs") / f"{run_id}.log"
 
 
 def _resolved_model_manifest_path(run_id: str) -> Path:
@@ -1361,6 +1366,7 @@ def gateway():
             if isinstance(result, dict):
                 _record({"kind": "run_update", **result})
             state = run_snapshot(_events(), run_id) or state
+        state = enrich_running_api_state(state, _log_path(run_id))
         if (
             state.get("status") == "completed"
             and state.get("workflow_step") == "generate_dft"
@@ -1402,7 +1408,7 @@ def gateway():
         require_auth(authorization)
         if not run_snapshot(_events(), run_id):
             raise HTTPException(status_code=404, detail="run not found")
-        path = Path("/state/logs") / f"{run_id}.log"
+        path = _log_path(run_id)
         if not path.exists():
             return {"run_id": run_id, "logs": ""}
         lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
