@@ -28,6 +28,10 @@ from experiments.m2.lower_variance_train import (
     validate_lower_variance_config,
 )
 from experiments.m2.representation import canonical_hash
+from experiments.m2.materialize_lower_variance_confirmation_configs import (
+    materialize as materialize_confirmation,
+)
+from experiments.m2.materialize_lower_variance_full_configs import ANCHOR_SHA256
 
 
 SHA = "a" * 64
@@ -235,6 +239,47 @@ def test_confirmation_contract_freezes_two_arms_and_128_token_horizon():
     _rehash(changed)
     with pytest.raises(LowerVarianceTrainError, match="confirmation"):
         validate_lower_variance_config(changed)
+
+
+def test_confirmation_materializer_binds_witness_and_produces_valid_configs(tmp_path):
+    witness_path = tmp_path / "witness.json"
+    vocabulary_path = tmp_path / "vocabulary.json"
+    witness_path.write_text(
+        json.dumps(
+            {
+                "artifact_schema": "dftr.m2.lower_variance_baseline_witness.v2",
+                "scientific_role": "training_only_not_evaluation",
+                "documents": 1024,
+                "briefs_sha256": ANCHOR_SHA256,
+                "generation_contract": CONFIRMATION_GENERATION_CONTRACT,
+                "generation_contract_sha256": canonical_hash(
+                    CONFIRMATION_GENERATION_CONTRACT
+                ),
+                "output_path": "/checkpoints/data/confirmation/witness.jsonl",
+                "output_sha256": SHA,
+            }
+        ),
+        encoding="utf-8",
+    )
+    vocabulary_path.write_text(
+        json.dumps(
+            {
+                "artifact_schema": "dftr.m2.frequent_token_vocabulary.v1",
+                "source_sha256": ANCHOR_SHA256,
+                "frequent_token_ids": list(range(512)),
+            }
+        ),
+        encoding="utf-8",
+    )
+    result = materialize_confirmation(
+        witness_path, vocabulary_path, tmp_path / "configs"
+    )
+    assert set(result["configs"]) == {"SFT", "MMD_WITNESS"}
+    for descriptor in result["configs"].values():
+        config = __import__("yaml").safe_load(Path(descriptor["path"]).read_text())
+        assert validate_lower_variance_config(config) is config
+        assert config["training"]["steps"] == 1024
+        assert config["objectives"]["mmd_witness"]["temperature"] == 0.035
 
 
 def test_eos_contract_stops_at_first_eos_or_reserves_terminal_eos():

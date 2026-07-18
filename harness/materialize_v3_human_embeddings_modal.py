@@ -11,8 +11,10 @@ import modal
 
 APP_NAME = "humanwrite-measurement-v3-human-embeddings"
 CHECKPOINT_ROOT = Path("/checkpoints")
-PANEL_ROOT = CHECKPOINT_ROOT / "data/m2-lower-variance-v1/measurement-v3-panels"
-OUTPUT_ROOT = PANEL_ROOT / "human-embeddings"
+PANEL_ROOTS = {
+    "v3": CHECKPOINT_ROOT / "data/m2-lower-variance-v1/measurement-v3-panels",
+    "v4": CHECKPOINT_ROOT / "data/m2-confirmation-v1/measurement-v4-panels",
+}
 
 FAMILIES = {
     "bge-small-v1": {
@@ -64,7 +66,7 @@ def _read_jsonl(path: Path) -> list[dict]:
     secrets=[provider_secret],
     volumes={str(CHECKPOINT_ROOT): checkpoint_volume},
 )
-def embed_family(family_id: str) -> dict:
+def embed_family(family_id: str, cycle: str = "v3") -> dict:
     import numpy as np
     import torch
     from sentence_transformers import SentenceTransformer
@@ -72,11 +74,15 @@ def embed_family(family_id: str) -> dict:
     checkpoint_volume.reload()
     if family_id not in FAMILIES:
         raise ValueError(f"unknown embedding family: {family_id}")
+    if cycle not in PANEL_ROOTS:
+        raise ValueError(f"unknown measurement cycle: {cycle}")
+    panel_root = PANEL_ROOTS[cycle]
+    output_root = panel_root / "human-embeddings"
     config = FAMILIES[family_id]
     role_paths = [
-        PANEL_ROOT / "distribution_references.jsonl",
-        PANEL_ROOT / "human_floor_a.jsonl",
-        PANEL_ROOT / "human_floor_b.jsonl",
+        panel_root / "distribution_references.jsonl",
+        panel_root / "human_floor_a.jsonl",
+        panel_root / "human_floor_b.jsonl",
     ]
     rows = [row for path in role_paths for row in _read_jsonl(path)]
     if len(rows) != 512:
@@ -138,8 +144,8 @@ def embed_family(family_id: str) -> dict:
             for document_id, vector in zip(document_ids, vectors)
         ],
     }
-    OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
-    output_path = OUTPUT_ROOT / f"{family_id}.json"
+    output_root.mkdir(parents=True, exist_ok=True)
+    output_path = output_root / f"{family_id}.json"
     payload = json.dumps(artifact, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
     output_path.write_text(payload, encoding="utf-8")
     checkpoint_volume.commit()
@@ -155,7 +161,7 @@ def embed_family(family_id: str) -> dict:
 
 
 @app.local_entrypoint()
-def main() -> None:
-    calls = {family: embed_family.spawn(family) for family in FAMILIES}
+def main(cycle: str = "v3") -> None:
+    calls = {family: embed_family.spawn(family, cycle) for family in FAMILIES}
     results = {family: call.get() for family, call in calls.items()}
     print(json.dumps(results, indent=2, sort_keys=True))
