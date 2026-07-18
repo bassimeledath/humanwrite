@@ -1,0 +1,29 @@
+artifact_schema: dftr.m2.scale_ladder_dev_panel.v1
+run:
+  comparison_id: M2-scale-ladder-freeze-dev-panel-v1
+  arm: freeze-scale-dev-panel
+  budget_class: smoke
+  task_kind: experiment
+  command:
+    - python
+    - -m
+    - experiments.runner
+  seed: 0
+compute:
+  gpu: L40S
+  gpus: 1
+  timeout_min: 20
+data:
+  raw_dev_uri: modal-volume://humanwrite-checkpoints/data/m2-scale-ladder-v1/raw-scale-dev-pool-1000.jsonl
+  raw_dev_sha256: a952f68933c301e967abeb0cf6cd2dcd3079e956e67ba3467ca18ac426194c94
+  clean_dev_uri: modal-volume://humanwrite-checkpoints/data/m2-scale-ladder-v1/clean-scale-dev-640.jsonl
+  raw_train_uri: modal-volume://humanwrite-checkpoints/data/m2-scale-ladder-v1/raw-train-pool-26000.jsonl
+  raw_train_sha256: 1d346936dd3bb0e12d60b578d8cbcf2af32f3c02a093fcee5f23309e4b99b942
+  source_manifest_uri: modal-volume://humanwrite-checkpoints/data/m2-scale-ladder-v1/raw-source-manifest.json
+  output_dir_uri: modal-volume://humanwrite-checkpoints/data/m2-scale-ladder-v1/scale-dev-panels
+  expected_clean_records: 640
+  partition_seed: dftr-m2-scale-ladder-dev-partition-v1
+workflow:
+  protocol_version: dftr.m2.scale_ladder_dev_panel.v1
+  step: freeze_scale_dev_panel
+  panel_contract_sha256: 8d9e6196b9e0c4a94992afeaea932b3c8bf205e521c34eb2063cdbe3407dc8d9

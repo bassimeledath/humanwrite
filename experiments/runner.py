@@ -32,6 +32,11 @@ from experiments.m2.lower_variance_train import (
     LOWER_VARIANCE_STEP,
     run_lower_variance,
 )
+from experiments.m2.scale_ladder_dev_panel import (
+    SCALE_LADDER_DEV_PANEL_SCHEMA,
+    SCALE_LADDER_DEV_PANEL_STEP,
+    run_scale_ladder_dev_panel,
+)
 from experiments.tier0.metrics import batch_diagnostics
 
 
@@ -184,6 +189,10 @@ def main(argv: list[str] | None = None) -> int:
         raise ValueError("estimator-audit protocol requires audit_estimator")
     if step == ESTIMATOR_AUDIT_STEP and protocol != ESTIMATOR_AUDIT_SCHEMA:
         raise ValueError("audit_estimator requires the frozen estimator-audit protocol")
+    if protocol == SCALE_LADDER_DEV_PANEL_SCHEMA and step != SCALE_LADDER_DEV_PANEL_STEP:
+        raise ValueError("scale-ladder dev-panel protocol requires freeze_scale_dev_panel")
+    if step == SCALE_LADDER_DEV_PANEL_STEP and protocol != SCALE_LADDER_DEV_PANEL_SCHEMA:
+        raise ValueError("freeze_scale_dev_panel requires the frozen scale-ladder dev-panel protocol")
     lower_variance_protocols = {
         LOWER_VARIANCE_SCHEMA,
         LOWER_VARIANCE_CONFIRMATION_SCHEMA,
@@ -200,6 +209,8 @@ def main(argv: list[str] | None = None) -> int:
         manifest = run_generate_dft(config, args.run_id)
     elif protocol == ESTIMATOR_AUDIT_SCHEMA:
         manifest = run_estimator_audit(config, args.run_id)
+    elif protocol == SCALE_LADDER_DEV_PANEL_SCHEMA:
+        manifest = run_scale_ladder_dev_panel(config, args.run_id)
     elif protocol in lower_variance_protocols:
         manifest = run_lower_variance(config, args.run_id)
     elif (
