@@ -140,7 +140,7 @@ def _continuation_prompt(control: dict[str, Any], statuses: dict[str, dict[str, 
 
 Core objective: obtain a model that demonstrably writes more like a human than its matched SFT control, or reach a defensible negative conclusion about the current method family.
 
-Read CLAUDE.md, RESEARCH_CONTEXT.md, progress/autonomy.json, progress/status.json, FINDINGS.md, and recent git history. The user explicitly waived intermediate milestone sign-offs for this bounded cycle and approved 14B scale-up, but Tier 3 detectors remain human-triggered only. Respect the existing $40 Modal and $100 API caps.
+Read CLAUDE.md, RESEARCH_CONTEXT.md, progress/autonomy.json, progress/status.json, FINDINGS.md, and recent git history. The user explicitly waived intermediate milestone sign-offs for this bounded cycle and authorized the preregistered 4K/16K data-scale ladder, but not the gated 46K cell. Tier 3 detectors remain human-triggered only. Respect the existing $100 Modal and $100 API caps.
 
 The deterministic coordinator observed this run state transition:
 {json.dumps(compact_status, indent=2, sort_keys=True)}
@@ -171,6 +171,8 @@ def _invoke_codex(control: dict[str, Any], statuses: dict[str, dict[str, Any]]) 
         "danger-full-access",
         "-c",
         'approval_policy="never"',
+        "-c",
+        'mcp_servers.braintrust.command="true"',
         _continuation_prompt(control, statuses),
     ]
     environment = dict(os.environ)

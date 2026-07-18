@@ -7,7 +7,8 @@ Modal jobs and bounded Codex continuation turns.
 - Polling consumes no model tokens and never invokes a provider model.
 - It invokes Codex once when a monitored run first becomes terminal.
 - A persisted transition signature prevents repeated invocations.
-- At most four Codex continuations may start in any rolling 24-hour period.
+- At most eight Codex continuations may start in any rolling 24-hour period
+  while the bounded 4K/16K ladder is active.
 - Each continuation must replace the monitored run list and increment the
   generation in `progress/autonomy.json` before exiting.
 - Tier 3 detectors remain human-triggered and are outside this coordinator.
