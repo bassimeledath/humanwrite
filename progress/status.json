@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-18T02:02:32Z",
+  "updated_at": "2026-07-18T02:16:23Z",
   "phase": "M2 — fresh-instrument and estimator rebuild",
-  "headline": "SFT and MMD-witness tuning completed; token-moment tuning remains active",
-  "summary": "The matched 1,024-example SFT and MMD-witness H100 arms completed all 512 steps successfully for a combined observed cost of about $1.15. Token-moment tuning is still running because its teacher-forced vocabulary-moment objective is substantially more expensive per step. In parallel, the fresh 128-prompt evaluator remains candidate-blind while its positive controls qualify; the complete candidate generation, dual-embedder scoring, and frozen decision code is implemented and tested.",
+  "headline": "All three 4B tuning arms completed; matched candidate generation is running",
+  "summary": "SFT, token-moment, and MMD-witness each completed 512 matched steps over all 1,024 cleaned briefs. The token-moment arm resumed deterministically from its durable step-320 checkpoint after a final-volume-commit defect, and its completed manifest proves 512 logs and 1,024 optimizer examples. Measurement v3 is now frozen candidate-blind with qualified positive controls, two independent embedders, 97.39% powered decision logic, and a separate blinded writing-judge contract. The three models are generating the same 128 prompts concurrently.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
@@ -25,6 +25,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "19:16",
+      "title": "Candidate-blind protocol frozen and matched output generation opened",
+      "detail": "Protocol eb690253 binds the fresh 128-prompt panel, 256 semantic references, two disjoint 128-human floors, BGE-small and Nemotron-8B, token L2, a -0.0006 meaningful-effect boundary, and qualified manipulation checks. Token-moment recovery run dftr-1784340692-ee851016 completed the missing steps with explicit volume commit. Modal app ap-neExB7IND2vkCSlcqI9ZID is now generating all three candidate arms with identical per-prompt seeds.",
+      "tone": "active"
+    },
     {
       "at": "19:02",
       "title": "Two tuning arms completed and prospective scoring path is ready",
