@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-17T23:45:05Z",
+  "updated_at": "2026-07-18T00:21:15Z",
   "phase": "M2 — fresh-instrument and estimator rebuild",
-  "headline": "Evaluation is 550/640; training briefs are 295/1,024 and safely resumed",
-  "summary": "The one-step 4B fine-tuning smoke completed with real gradients and a saved adapter. Evaluation cleaning is 550/640. Brief synthesis preserved 295 valid rows before a recoverable failed terminal state and has resumed as dftr-1784331905-e89aa4be from those committed rows. The full matched tuning experiment still uses all 1,024 validated briefs.",
+  "headline": "Brief synthesis is now intentionally eight-way parallel at 395/1,024",
+  "summary": "The one-step 4B fine-tuning smoke completed with real gradients and a saved adapter. Evaluation cleaning has preserved 586/640 rows and resumed as dftr-1784334059-4c8e8dca. Brief synthesis has 395/1,024 committed unique rows and is now running as one bounded eight-way worker, dftr-1784334071-18b380be, with serialized state writes and no competing output writers.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 40,
@@ -25,6 +25,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "17:21",
+      "title": "Sequential brief bottleneck replaced with bounded parallel synthesis",
+      "detail": "The gateway now keeps eight independent brief requests in flight, writes and validates completions as they finish, and serializes run-state events. Existing committed rows were preserved. Infrastructure checks passed 79 tests before deployment; evaluation and brief jobs resumed under fresh run IDs.",
+      "tone": "active"
+    },
     {
       "at": "16:45",
       "title": "Brief synthesis safely resumed from 295/1,024",
