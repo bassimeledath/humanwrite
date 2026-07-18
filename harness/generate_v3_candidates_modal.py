@@ -13,12 +13,10 @@ import modal
 
 APP_NAME = "humanwrite-measurement-v3-candidates"
 CHECKPOINT_ROOT = Path("/checkpoints")
-PANEL_ROOT = CHECKPOINT_ROOT / "data/m2-lower-variance-v1/measurement-v3-panels"
-PROTOCOL_ROOT = PANEL_ROOT / "protocol-v1"
-PROTOCOL_PATH = PROTOCOL_ROOT / "measurement_protocol_v3.json"
-BRIEFS_PATH = PANEL_ROOT / "prompt_briefs-128-normalized.jsonl"
-PROMPT_MANIFEST_PATH = PANEL_ROOT / "prompt_sources.manifest.json"
-OUTPUT_ROOT = PANEL_ROOT / "candidate-outputs-v1"
+PANEL_ROOTS = {
+    "v3": CHECKPOINT_ROOT / "data/m2-lower-variance-v1/measurement-v3-panels",
+    "v4": CHECKPOINT_ROOT / "data/m2-confirmation-v1/measurement-v4-panels",
+}
 MODEL_ID = "Qwen/Qwen3-4B"
 MODEL_REVISION = "1cfa9a7208912126459214e8b04321603b3df60c"
 BRIEFS_SHA256 = "c5371cff6e35cc0695082ab060d65bb2e0b6549ba6a2c0f58c488afbb3c06732"
@@ -45,6 +43,20 @@ ARMS = {
         "resumed_from_step": 0,
     },
 }
+V4_ARMS = {
+    "SFT": {
+        "checkpoint": CHECKPOINT_ROOT / "runs/dftr-1784344275-4ca9ff0b/SFT",
+        "config_sha256": "9419b1ef727fc6f223ec3f4e504a02619f5229da1b96fe1ffbdbf87e2e55ec1c",
+        "resumed_from_step": 0,
+    },
+    "MMD_WITNESS": {
+        "checkpoint": CHECKPOINT_ROOT
+        / "runs/dftr-1784344283-61883086/MMD_WITNESS",
+        "config_sha256": "36957ef1ce6ca7637fe0c2ad2ca039a07766f18bd62f44bb0a9c8a745f399c1d",
+        "resumed_from_step": 0,
+    },
+}
+V4_METHOD_CONTRACT_SHA256 = "b9cf2459a91deb31dbabe1fea7a9cc3b6d06c52cef80bb8cc8e5b2c3a350c0eb"
 
 checkpoint_volume = modal.Volume.from_name("humanwrite-checkpoints")
 provider_secret = modal.Secret.from_name("the-other-ones")
@@ -101,22 +113,29 @@ def _record_seed(prompt_id: str) -> int:
     return int.from_bytes(digest[:8], "big") % (2**63 - 1)
 
 
-def _validate_checkpoint(arm: str, checkpoint: Path) -> dict:
+def _validate_checkpoint(
+    arm: str,
+    checkpoint: Path,
+    *,
+    expected: dict,
+    method_contract_sha256: str,
+    steps: int,
+    optimizer_examples: int,
+    schema: str,
+) -> dict:
     manifest_path = checkpoint / "checkpoint_manifest.json"
     if not manifest_path.is_file():
         raise RuntimeError(f"{arm} has no completed checkpoint manifest")
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    expected = ARMS[arm]
     if (
-        manifest.get("artifact_schema")
-        != "dftr.m2.lower_variance_adapter_checkpoint.v1"
+        manifest.get("artifact_schema") != schema
         or manifest.get("status") != "completed"
         or manifest.get("arm") != arm
-        or manifest.get("steps") != 512
-        or manifest.get("optimizer_examples") != 1024
+        or manifest.get("steps") != steps
+        or manifest.get("optimizer_examples") != optimizer_examples
         or manifest.get("config_sha256") != expected["config_sha256"]
         or manifest.get("resumed_from_step") != expected["resumed_from_step"]
-        or manifest.get("method_contract_sha256") != METHOD_CONTRACT_SHA256
+        or manifest.get("method_contract_sha256") != method_contract_sha256
         or manifest.get("base_model") != MODEL_ID
         or manifest.get("base_revision") != MODEL_REVISION
     ):
@@ -134,17 +153,26 @@ def _validate_checkpoint(arm: str, checkpoint: Path) -> dict:
     secrets=[provider_secret],
     volumes={str(CHECKPOINT_ROOT): checkpoint_volume},
 )
-def generate_arm(arm: str, git_sha: str) -> dict:
+def generate_arm(arm: str, git_sha: str, cycle: str = "v3") -> dict:
     import torch
     from peft import PeftModel
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
     checkpoint_volume.reload()
-    if arm not in ARMS:
+    if cycle not in PANEL_ROOTS:
+        raise ValueError(f"unknown cycle: {cycle}")
+    arm_specs = ARMS if cycle == "v3" else V4_ARMS
+    if arm not in arm_specs:
         raise ValueError(f"unknown arm: {arm}")
-    if _sha(BRIEFS_PATH) != BRIEFS_SHA256:
+    panel_root = PANEL_ROOTS[cycle]
+    protocol_path = panel_root / "protocol-v1/measurement_protocol_v3.json"
+    briefs_path = panel_root / "prompt_briefs-128-normalized.jsonl"
+    prompt_manifest_path = panel_root / "prompt_sources.manifest.json"
+    output_root = panel_root / "candidate-outputs-v1"
+    briefs_sha256 = _sha(briefs_path)
+    if cycle == "v3" and briefs_sha256 != BRIEFS_SHA256:
         raise RuntimeError("evaluation brief hash mismatch")
-    protocol = json.loads(PROTOCOL_PATH.read_text(encoding="utf-8"))
+    protocol = json.loads(protocol_path.read_text(encoding="utf-8"))
     if (
         protocol.get("artifact_schema") != "dftr.measurement.protocol.v3"
         or protocol.get("status") != "ready"
@@ -152,17 +180,32 @@ def generate_arm(arm: str, git_sha: str) -> dict:
         or protocol.get("candidate_outputs_opened") is not False
     ):
         raise RuntimeError("measurement-v3 protocol was not frozen candidate-blind")
-    protocol_sha = _sha(PROTOCOL_PATH)
-    checkpoint = ARMS[arm]["checkpoint"]
-    checkpoint_manifest = _validate_checkpoint(arm, checkpoint)
-    rows = _rows(BRIEFS_PATH)
+    protocol_sha = _sha(protocol_path)
+    expected = arm_specs[arm]
+    checkpoint = expected["checkpoint"]
+    checkpoint_manifest = _validate_checkpoint(
+        arm,
+        checkpoint,
+        expected=expected,
+        method_contract_sha256=(
+            METHOD_CONTRACT_SHA256 if cycle == "v3" else V4_METHOD_CONTRACT_SHA256
+        ),
+        steps=512 if cycle == "v3" else 1024,
+        optimizer_examples=1024 if cycle == "v3" else 2048,
+        schema=(
+            "dftr.m2.lower_variance_adapter_checkpoint.v1"
+            if cycle == "v3"
+            else "dftr.m2.lower_variance_adapter_checkpoint.v2"
+        ),
+    )
+    rows = _rows(briefs_path)
     if len(rows) != 128:
         raise RuntimeError("measurement-v3 requires exactly 128 prompts")
     fingerprints = [str(row.get("fingerprint") or "") for row in rows]
     prompt_ids = [f"prompt-{item}" for item in fingerprints]
     if any(not item for item in fingerprints) or len(set(prompt_ids)) != 128:
         raise RuntimeError("evaluation prompt identities are incomplete")
-    prompt_manifest = json.loads(PROMPT_MANIFEST_PATH.read_text(encoding="utf-8"))
+    prompt_manifest = json.loads(prompt_manifest_path.read_text(encoding="utf-8"))
     frozen_prompt_ids = {
         str(record.get("prompt_id") or "")
         for record in prompt_manifest.get("records", [])
@@ -210,7 +253,7 @@ def generate_arm(arm: str, git_sha: str) -> dict:
                 temperature=1.0,
                 top_p=1.0,
                 top_k=0,
-                max_new_tokens=MAX_NEW_TOKENS,
+                max_new_tokens=MAX_NEW_TOKENS if cycle == "v3" else 128,
                 eos_token_id=tokenizer.eos_token_id,
                 pad_token_id=tokenizer.pad_token_id,
                 use_cache=True,
@@ -232,8 +275,8 @@ def generate_arm(arm: str, git_sha: str) -> dict:
                 }
             )
 
-    OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
-    output_path = OUTPUT_ROOT / f"{arm}.jsonl"
+    output_root.mkdir(parents=True, exist_ok=True)
+    output_path = output_root / f"{arm}.jsonl"
     payload = "".join(
         json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n"
         for row in output_rows
@@ -245,9 +288,9 @@ def generate_arm(arm: str, git_sha: str) -> dict:
         "status": "completed",
         "candidate_outputs_opened_after_protocol_freeze": True,
         "git_sha": git_sha,
-        "protocol_path": str(PROTOCOL_PATH),
+        "protocol_path": str(protocol_path),
         "protocol_sha256": protocol_sha,
-        "briefs_sha256": BRIEFS_SHA256,
+        "briefs_sha256": briefs_sha256,
         "checkpoint_path": str(checkpoint),
         "checkpoint_manifest_sha256": _sha(checkpoint / "checkpoint_manifest.json"),
         "adapter_model_sha256": checkpoint_manifest["file_sha256"][
@@ -259,14 +302,14 @@ def generate_arm(arm: str, git_sha: str) -> dict:
             "temperature": 1.0,
             "top_p": 1.0,
             "top_k": 0,
-            "max_new_tokens": MAX_NEW_TOKENS,
+            "max_new_tokens": MAX_NEW_TOKENS if cycle == "v3" else 128,
             "stop_on_eos": True,
         },
         "documents": len(output_rows),
         "output_path": str(output_path),
         "output_sha256": hashlib.sha256(payload.encode("utf-8")).hexdigest(),
     }
-    manifest_path = OUTPUT_ROOT / f"{arm}.manifest.json"
+    manifest_path = output_root / f"{arm}.manifest.json"
     manifest_path.write_text(
         json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
@@ -275,10 +318,11 @@ def generate_arm(arm: str, git_sha: str) -> dict:
 
 
 @app.local_entrypoint()
-def main() -> None:
+def main(cycle: str = "v3") -> None:
     root = Path(__file__).resolve().parents[1]
     git_sha = subprocess.check_output(
         ["git", "-C", str(root), "rev-parse", "HEAD"], text=True
     ).strip()
-    results = list(generate_arm.starmap([(arm, git_sha) for arm in ARMS]))
+    arms = ARMS if cycle == "v3" else V4_ARMS
+    results = list(generate_arm.starmap([(arm, git_sha, cycle) for arm in arms]))
     print(json.dumps(results, indent=2, sort_keys=True))

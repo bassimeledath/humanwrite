@@ -111,9 +111,11 @@ def _hard_validity(texts: list[str]) -> dict[str, Any]:
     }
 
 
-def _candidate_rows(candidate_root: Path, protocol_sha: str) -> dict[str, list[dict]]:
+def _candidate_rows(
+    candidate_root: Path, protocol_sha: str, arms: tuple[str, ...] = ARMS
+) -> dict[str, list[dict]]:
     result = {}
-    for arm in ARMS:
+    for arm in arms:
         output_path = candidate_root / f"{arm}.jsonl"
         manifest = _json(candidate_root / f"{arm}.manifest.json")
         rows = _jsonl(output_path)
@@ -135,7 +137,9 @@ def _candidate_rows(candidate_root: Path, protocol_sha: str) -> dict[str, list[d
 
 
 def _candidate_embeddings(
-    candidate_root: Path, protocol_sha: str
+    candidate_root: Path,
+    protocol_sha: str,
+    arms: tuple[str, ...] = ARMS,
 ) -> dict[str, dict[str, dict[str, np.ndarray]]]:
     result: dict[str, dict[str, dict[str, np.ndarray]]] = {}
     for family_id in FAMILY_IDS:
@@ -146,15 +150,15 @@ def _candidate_embeddings(
             or value.get("status") != "completed"
             or value.get("family_id") != family_id
             or value.get("protocol_sha256") != protocol_sha
-            or len(value.get("rows", [])) != 384
+            or len(value.get("rows", [])) != 128 * len(arms)
         ):
             raise RuntimeError(f"candidate embedding binding failed for {family_id}")
-        family: dict[str, dict[str, np.ndarray]] = {arm: {} for arm in ARMS}
+        family: dict[str, dict[str, np.ndarray]] = {arm: {} for arm in arms}
         for row in value["rows"]:
             family[str(row["arm"])][str(row["prompt_id"])] = np.asarray(
                 row["embedding"], dtype=np.float64
             )
-        if any(len(family[arm]) != 128 for arm in ARMS):
+        if any(len(family[arm]) != 128 for arm in arms):
             raise RuntimeError(f"candidate embedding cardinality failed for {family_id}")
         result[family_id] = family
     return result
@@ -166,7 +170,11 @@ def score(
     protocol_root: Path,
     candidate_root: Path,
     tokenizer_path: Path,
+    arms: tuple[str, ...] = ARMS,
 ) -> dict[str, Any]:
+    if "SFT" not in arms or len(arms) < 2 or len(set(arms)) != len(arms):
+        raise ValueError("arms require unique SFT control plus at least one treatment")
+    treatments = tuple(arm for arm in arms if arm != "SFT")
     protocol_path = protocol_root / "measurement_protocol_v3.json"
     protocol = _json(protocol_path)
     protocol_sha = _sha(protocol_path)
@@ -206,14 +214,14 @@ def score(
             row["document_id"] for row in manifests["human_floor_b"]["records"]
         ],
     )
-    candidates = _candidate_rows(candidate_root, protocol_sha)
+    candidates = _candidate_rows(candidate_root, protocol_sha, arms)
     candidate_maps = {
         arm: {str(row["prompt_id"]): row for row in rows}
         for arm, rows in candidates.items()
     }
     if any(set(mapping) != set(design.prompt_ids) for mapping in candidate_maps.values()):
         raise RuntimeError("candidate outputs do not match the frozen prompt identities")
-    candidate_vectors = _candidate_embeddings(candidate_root, protocol_sha)
+    candidate_vectors = _candidate_embeddings(candidate_root, protocol_sha, arms)
 
     human_text = {
         role: _text_by_id(panel_root, role)
@@ -256,7 +264,7 @@ def score(
             str(candidate_maps[arm][prompt_id]["generated_completion"])
             for prompt_id in design.prompt_ids
         ]
-        for arm in ARMS
+        for arm in arms
     }
     token_l2 = {
         arm: token_unigram_l2(tokens(texts), tokens(reference_texts))
@@ -272,11 +280,11 @@ def score(
                 ]
             )
         )
-        for treatment in TREATMENTS
+        for treatment in treatments
     }
 
     comparisons = {}
-    for treatment_index, treatment in enumerate(TREATMENTS):
+    for treatment_index, treatment in enumerate(treatments):
         families = []
         for family_id in FAMILY_IDS:
             metadata = family_metadata[family_id]
@@ -388,7 +396,7 @@ def score(
         "automatic_winner": next(
             (
                 treatment
-                for treatment in TREATMENTS
+                for treatment in treatments
                 if comparisons[treatment]["automatic_promotion_pass"]
             ),
             None,
@@ -403,12 +411,15 @@ def main() -> int:
     parser.add_argument("--candidate-root", type=Path, required=True)
     parser.add_argument("--tokenizer-path", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--arms", default=",".join(ARMS))
     args = parser.parse_args()
+    arms = tuple(item.strip() for item in args.arms.split(",") if item.strip())
     result = score(
         panel_root=args.panel_root,
         protocol_root=args.protocol_root,
         candidate_root=args.candidate_root,
         tokenizer_path=args.tokenizer_path,
+        arms=arms,
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(

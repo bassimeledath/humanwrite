@@ -15,25 +15,34 @@ import modal
 
 APP_NAME = "humanwrite-measurement-v3-quality-judge"
 CHECKPOINT_ROOT = Path("/checkpoints")
-PANEL_ROOT = CHECKPOINT_ROOT / "data/m2-lower-variance-v1/measurement-v3-panels"
-PROTOCOL_PATH = PANEL_ROOT / "protocol-v1/measurement_protocol_v3.json"
-CANDIDATE_ROOT = PANEL_ROOT / "candidate-outputs-v1"
-BRIEFS_PATH = PANEL_ROOT / "prompt_briefs-128-normalized.jsonl"
-OUTPUT_ROOT = PANEL_ROOT / "quality-judge-v1"
-LOCAL_CONTRACT = Path("/root/judge_contract.json")
-ARMS = ("SFT", "TOKEN_MOMENT", "MMD_WITNESS")
-TREATMENTS = ("TOKEN_MOMENT", "MMD_WITNESS")
+PANEL_ROOTS = {
+    "v3": CHECKPOINT_ROOT / "data/m2-lower-variance-v1/measurement-v3-panels",
+    "v4": CHECKPOINT_ROOT / "data/m2-confirmation-v1/measurement-v4-panels",
+}
+ARMS_BY_CYCLE = {
+    "v3": ("SFT", "TOKEN_MOMENT", "MMD_WITNESS"),
+    "v4": ("SFT", "MMD_WITNESS"),
+}
+TREATMENTS_BY_CYCLE = {
+    "v3": ("TOKEN_MOMENT", "MMD_WITNESS"),
+    "v4": ("MMD_WITNESS",),
+}
 
 checkpoint_volume = modal.Volume.from_name("humanwrite-checkpoints")
 provider_secret = modal.Secret.from_name("the-other-ones")
-contract_path = (
+contract_path_v3 = (
     Path(__file__).resolve().parents[1]
     / "configs/m2/m2_measurement_v3_judge_contract_v3.json"
+)
+contract_path_v4 = (
+    Path(__file__).resolve().parents[1]
+    / "configs/m2/m2_measurement_v4_judge_contract_v1.json"
 )
 image = (
     modal.Image.debian_slim(python_version="3.11")
     .pip_install("requests>=2.32,<3")
-    .add_local_file(contract_path, remote_path=str(LOCAL_CONTRACT), copy=True)
+    .add_local_file(contract_path_v3, remote_path="/root/judge_contract_v3.json", copy=True)
+    .add_local_file(contract_path_v4, remote_path="/root/judge_contract_v4.json", copy=True)
 )
 app = modal.App(APP_NAME)
 
@@ -98,24 +107,38 @@ Return only A or B. Do not explain your answer.
     secrets=[provider_secret],
     volumes={str(CHECKPOINT_ROOT): checkpoint_volume},
 )
-def judge() -> dict:
+def judge(cycle: str = "v3") -> dict:
     import requests
 
     checkpoint_volume.reload()
-    contract = json.loads(LOCAL_CONTRACT.read_text(encoding="utf-8"))
+    if cycle not in PANEL_ROOTS:
+        raise ValueError(f"unknown cycle: {cycle}")
+    panel_root = PANEL_ROOTS[cycle]
+    protocol_path = panel_root / "protocol-v1/measurement_protocol_v3.json"
+    candidate_root = panel_root / "candidate-outputs-v1"
+    briefs_path = panel_root / "prompt_briefs-128-normalized.jsonl"
+    output_root = panel_root / "quality-judge-v1"
+    arms = ARMS_BY_CYCLE[cycle]
+    treatments = TREATMENTS_BY_CYCLE[cycle]
+    local_contract = Path(f"/root/judge_contract_{cycle}.json")
+    contract = json.loads(local_contract.read_text(encoding="utf-8"))
     model = os.environ.get("DFTR_JUDGE_MODEL", "")
-    if (
-        contract.get("artifact_schema")
-        != "dftr.measurement.quality_judge_contract.v3"
-        or contract.get("status") != "frozen_operational_amendment"
-        or contract.get("candidate_outputs_opened") is not True
-        or contract.get("amendment", {}).get("scope") != "operational_only"
-        or contract.get("amendment", {}).get("analytic_changes") is not False
-        or model != contract.get("model")
-    ):
+    legacy_contract = (
+        contract.get("artifact_schema") == "dftr.measurement.quality_judge_contract.v3"
+        and contract.get("status") == "frozen_operational_amendment"
+        and contract.get("candidate_outputs_opened") is True
+        and contract.get("amendment", {}).get("scope") == "operational_only"
+        and contract.get("amendment", {}).get("analytic_changes") is False
+    )
+    confirmation_contract = (
+        contract.get("artifact_schema") == "dftr.measurement.quality_judge_contract.v4"
+        and contract.get("status") == "frozen_candidate_blind"
+        and contract.get("candidate_outputs_opened") is False
+    )
+    if not (legacy_contract or confirmation_contract) or model != contract.get("model"):
         raise RuntimeError("quality judge does not match its frozen contract")
-    protocol = json.loads(PROTOCOL_PATH.read_text(encoding="utf-8"))
-    protocol_sha = _sha(PROTOCOL_PATH)
+    protocol = json.loads(protocol_path.read_text(encoding="utf-8"))
+    protocol_sha = _sha(protocol_path)
     if (
         protocol.get("artifact_schema") != "dftr.measurement.protocol.v3"
         or protocol.get("status") != "ready"
@@ -123,14 +146,14 @@ def judge() -> dict:
         or protocol.get("candidate_outputs_opened") is not False
     ):
         raise RuntimeError("quality judge requires a candidate-blind protocol freeze")
-    briefs = _rows(BRIEFS_PATH)
+    briefs = _rows(briefs_path)
     brief_map = {f"prompt-{row['fingerprint']}": row for row in briefs}
     candidates = {}
     candidate_hashes = {}
-    for arm in ARMS:
-        output_path = CANDIDATE_ROOT / f"{arm}.jsonl"
+    for arm in arms:
+        output_path = candidate_root / f"{arm}.jsonl"
         manifest = json.loads(
-            (CANDIDATE_ROOT / f"{arm}.manifest.json").read_text(encoding="utf-8")
+            (candidate_root / f"{arm}.manifest.json").read_text(encoding="utf-8")
         )
         rows = _rows(output_path)
         if (
@@ -144,11 +167,11 @@ def judge() -> dict:
         }
         candidate_hashes[arm] = manifest["output_sha256"]
     prompt_ids = sorted(brief_map)
-    if any(set(candidates[arm]) != set(prompt_ids) for arm in ARMS):
+    if any(set(candidates[arm]) != set(prompt_ids) for arm in arms):
         raise RuntimeError("quality judge prompt identities do not align")
 
-    OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
-    output_path = OUTPUT_ROOT / "results.jsonl"
+    output_root.mkdir(parents=True, exist_ok=True)
+    output_path = output_root / "results.jsonl"
     completed = {}
     spent = 0.0
     if output_path.is_file():
@@ -160,7 +183,7 @@ def judge() -> dict:
             spent += float(row["cost_usd"])
 
     tasks = []
-    for treatment in TREATMENTS:
+    for treatment in treatments:
         for dimension, rubric in contract["dimensions"].items():
             for prompt_id in prompt_ids:
                 key = (treatment, dimension, prompt_id)
@@ -258,7 +281,7 @@ def judge() -> dict:
                     sink.write(json.dumps(row, sort_keys=True) + "\n")
                     sink.flush()
             checkpoint_volume.commit()
-    expected = len(TREATMENTS) * len(contract["dimensions"]) * len(prompt_ids)
+    expected = len(treatments) * len(contract["dimensions"]) * len(prompt_ids)
     rows = _rows(output_path)
     if len(rows) != expected:
         raise RuntimeError(
@@ -267,7 +290,7 @@ def judge() -> dict:
     manifest = {
         "artifact_schema": "dftr.measurement.quality_judge_results.v3",
         "status": "completed",
-        "contract_sha256": _sha(LOCAL_CONTRACT),
+        "contract_sha256": _sha(local_contract),
         "protocol_sha256": protocol_sha,
         "candidate_output_sha256": candidate_hashes,
         "model": model,
@@ -276,7 +299,7 @@ def judge() -> dict:
         "output_path": str(output_path),
         "output_sha256": _sha(output_path),
     }
-    manifest_path = OUTPUT_ROOT / "manifest.json"
+    manifest_path = output_root / "manifest.json"
     manifest_path.write_text(
         json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
@@ -285,5 +308,5 @@ def judge() -> dict:
 
 
 @app.local_entrypoint()
-def main() -> None:
-    print(json.dumps(judge.remote(), indent=2, sort_keys=True))
+def main(cycle: str = "v3") -> None:
+    print(json.dumps(judge.remote(cycle), indent=2, sort_keys=True))

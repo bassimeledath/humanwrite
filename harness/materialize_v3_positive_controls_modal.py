@@ -11,10 +11,11 @@ import modal
 
 APP_NAME = "humanwrite-measurement-v3-positive-controls"
 CHECKPOINT_ROOT = Path("/checkpoints")
-PANEL_ROOT = CHECKPOINT_ROOT / "data/m2-lower-variance-v1/measurement-v3-panels"
-PROMPT_BRIEFS = PANEL_ROOT / "prompt_briefs-128-normalized.jsonl"
+PANEL_ROOTS = {
+    "v3": CHECKPOINT_ROOT / "data/m2-lower-variance-v1/measurement-v3-panels",
+    "v4": CHECKPOINT_ROOT / "data/m2-confirmation-v1/measurement-v4-panels",
+}
 INITIAL_ADAPTER = CHECKPOINT_ROOT / "runs/dftr-1784216516-91130dd3/seed-11"
-OUTPUT_ROOT = PANEL_ROOT / "positive-controls"
 MODEL_ID = "Qwen/Qwen3-4B"
 MODEL_REVISION = "1cfa9a7208912126459214e8b04321603b3df60c"
 PROMPT_BRIEFS_SHA256 = "c5371cff6e35cc0695082ab060d65bb2e0b6549ba6a2c0f58c488afbb3c06732"
@@ -100,11 +101,13 @@ def _record_seed(prompt_id: str) -> int:
     return int.from_bytes(digest[:8], "big") % (2**63 - 1)
 
 
-def _load_control_outputs(prompts: list[dict]) -> dict[str, list[str]] | None:
+def _load_control_outputs(
+    prompts: list[dict], output_root: Path
+) -> dict[str, list[str]] | None:
     generated: dict[str, list[str]] = {}
     expected_ids = [str(row["fingerprint"]) for row in prompts]
     for arm in ("base_model", "initial_sft"):
-        path = OUTPUT_ROOT / f"{arm}-128.jsonl"
+        path = output_root / f"{arm}-128.jsonl"
         if not path.is_file():
             return None
         rows = _rows(path)
@@ -123,11 +126,11 @@ def _load_control_outputs(prompts: list[dict]) -> dict[str, list[str]] | None:
 
 
 def _write_control_outputs(
-    prompts: list[dict], generated: dict[str, list[str]]
+    prompts: list[dict], generated: dict[str, list[str]], output_root: Path
 ) -> None:
-    OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
+    output_root.mkdir(parents=True, exist_ok=True)
     for arm, texts in generated.items():
-        path = OUTPUT_ROOT / f"{arm}-128.jsonl"
+        path = output_root / f"{arm}-128.jsonl"
         path.write_text(
             "".join(
                 json.dumps(
@@ -189,7 +192,7 @@ def _precomputed_mmd_pvalue(
     secrets=[provider_secret],
     volumes={str(CHECKPOINT_ROOT): checkpoint_volume},
 )
-def materialize() -> dict:
+def materialize(cycle: str = "v3") -> dict:
     import gc
     import sys
 
@@ -204,11 +207,21 @@ def materialize() -> dict:
         human_floor_bandwidths,
         token_unigram_l2,
     )
+    from harness.measurement_v3_operator import (
+        _panel_design,
+        _pretty_sha,
+        _qualified_panel,
+    )
 
     checkpoint_volume.reload()
-    if _sha(PROMPT_BRIEFS) != PROMPT_BRIEFS_SHA256:
+    if cycle not in PANEL_ROOTS:
+        raise ValueError(f"unknown cycle: {cycle}")
+    panel_root = PANEL_ROOTS[cycle]
+    prompt_briefs = panel_root / "prompt_briefs-128-normalized.jsonl"
+    output_root = panel_root / "positive-controls"
+    if cycle == "v3" and _sha(prompt_briefs) != PROMPT_BRIEFS_SHA256:
         raise RuntimeError("normalized evaluation prompt hash mismatch")
-    prompts = _rows(PROMPT_BRIEFS)
+    prompts = _rows(prompt_briefs)
     if len(prompts) != 128:
         raise RuntimeError("positive controls require exactly 128 prompts")
     tokenizer = AutoTokenizer.from_pretrained(
@@ -217,7 +230,7 @@ def materialize() -> dict:
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "left"
-    generated = _load_control_outputs(prompts)
+    generated = _load_control_outputs(prompts, output_root)
     if generated is None:
         base = AutoModelForCausalLM.from_pretrained(
             MODEL_ID,
@@ -252,7 +265,7 @@ def materialize() -> dict:
                             temperature=1.0,
                             top_p=1.0,
                             top_k=0,
-                            max_new_tokens=64,
+                            max_new_tokens=64 if cycle == "v3" else 128,
                             eos_token_id=tokenizer.eos_token_id,
                             pad_token_id=tokenizer.pad_token_id,
                         )
@@ -264,7 +277,7 @@ def materialize() -> dict:
                                 temperature=1.0,
                                 top_p=1.0,
                                 top_k=0,
-                                max_new_tokens=64,
+                                max_new_tokens=64 if cycle == "v3" else 128,
                                 eos_token_id=tokenizer.eos_token_id,
                                 pad_token_id=tokenizer.pad_token_id,
                             )
@@ -274,14 +287,14 @@ def materialize() -> dict:
                             continuation, skip_special_tokens=True
                         ).strip()
                     )
-        _write_control_outputs(prompts, generated)
+        _write_control_outputs(prompts, generated, output_root)
         checkpoint_volume.commit()
         del model, base
         gc.collect()
         torch.cuda.empty_cache()
 
     role_rows = {
-        role: _rows(PANEL_ROOT / f"{role}.jsonl")
+        role: _rows(panel_root / f"{role}.jsonl")
         for role in ("distribution_references", "human_floor_a", "human_floor_b")
     }
     reference_texts = [str(row["completion"]) for row in role_rows["distribution_references"]]
@@ -289,7 +302,7 @@ def materialize() -> dict:
     floor_b_texts = [str(row["completion"]) for row in role_rows["human_floor_b"]]
     prefix_texts = []
     for text in reference_texts:
-        ids = tokenizer.encode(text, add_special_tokens=False)[:64]
+        ids = tokenizer.encode(text, add_special_tokens=False)[: (64 if cycle == "v3" else 128)]
         prefix_texts.append(tokenizer.decode(ids, skip_special_tokens=True))
     token_sets = {
         "reference": [tokenizer.encode(text, add_special_tokens=False) for text in reference_texts],
@@ -307,7 +320,7 @@ def materialize() -> dict:
     )}
     for family_offset, (family_id, config) in enumerate(FAMILIES.items()):
         human_bundle = json.loads(
-            (PANEL_ROOT / "human-embeddings" / f"{family_id}.json").read_text(encoding="utf-8")
+            (panel_root / "human-embeddings" / f"{family_id}.json").read_text(encoding="utf-8")
         )
         human_vectors = {
             row["document_id"]: np.asarray(row["embedding"], dtype=np.float32)
@@ -393,18 +406,28 @@ def materialize() -> dict:
             "token_unigram_l2": float(l2_values[name]),
             "detected": detected,
         }
+    panel_inputs = {
+        role: _qualified_panel(panel_root / f"{role}.manifest.json", role)
+        for role in (
+            "prompt_sources",
+            "distribution_references",
+            "human_floor_a",
+            "human_floor_b",
+        )
+    }
+    _, panel_design = _panel_design(panel_inputs)
     artifact = {
         "artifact_schema": "dftr.measurement.positive_controls.v3",
         "status": "qualified",
         "candidate_outputs_opened": False,
-        "panel_design_sha256": PANEL_DESIGN_SHA256,
+        "panel_design_sha256": _pretty_sha(panel_design),
         "tokenization_contract_sha256": TOKENIZATION_CONTRACT_SHA256,
         "embedding_family_ids": sorted(FAMILIES),
         "alpha": ALPHA,
         "controls": controls,
     }
-    OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
-    artifact_path = OUTPUT_ROOT / "positive_controls.json"
+    output_root.mkdir(parents=True, exist_ok=True)
+    artifact_path = output_root / "positive_controls.json"
     artifact_path.write_text(
         json.dumps(artifact, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
@@ -418,5 +441,5 @@ def materialize() -> dict:
 
 
 @app.local_entrypoint()
-def main() -> None:
-    print(json.dumps(materialize.remote(), indent=2, sort_keys=True))
+def main(cycle: str = "v3") -> None:
+    print(json.dumps(materialize.remote(cycle), indent=2, sort_keys=True))

@@ -11,11 +11,14 @@ import modal
 
 APP_NAME = "humanwrite-measurement-v3-candidate-embeddings"
 CHECKPOINT_ROOT = Path("/checkpoints")
-PANEL_ROOT = CHECKPOINT_ROOT / "data/m2-lower-variance-v1/measurement-v3-panels"
-PROTOCOL_PATH = PANEL_ROOT / "protocol-v1/measurement_protocol_v3.json"
-OUTPUT_ROOT = PANEL_ROOT / "candidate-outputs-v1"
-HUMAN_ROOT = PANEL_ROOT / "human-embeddings"
-ARMS = ("SFT", "TOKEN_MOMENT", "MMD_WITNESS")
+PANEL_ROOTS = {
+    "v3": CHECKPOINT_ROOT / "data/m2-lower-variance-v1/measurement-v3-panels",
+    "v4": CHECKPOINT_ROOT / "data/m2-confirmation-v1/measurement-v4-panels",
+}
+ARMS_BY_CYCLE = {
+    "v3": ("SFT", "TOKEN_MOMENT", "MMD_WITNESS"),
+    "v4": ("SFT", "MMD_WITNESS"),
+}
 FAMILIES = {
     "bge-small-v1": {
         "model_id": "BAAI/bge-small-en-v1.5",
@@ -66,7 +69,7 @@ def _rows(path: Path) -> list[dict]:
     secrets=[provider_secret],
     volumes={str(CHECKPOINT_ROOT): checkpoint_volume},
 )
-def embed_family(family_id: str) -> dict:
+def embed_family(family_id: str, cycle: str = "v3") -> dict:
     import numpy as np
     import torch
     from sentence_transformers import SentenceTransformer
@@ -74,8 +77,15 @@ def embed_family(family_id: str) -> dict:
     checkpoint_volume.reload()
     if family_id not in FAMILIES:
         raise ValueError(f"unknown family: {family_id}")
-    protocol_sha = _sha(PROTOCOL_PATH)
-    protocol = json.loads(PROTOCOL_PATH.read_text(encoding="utf-8"))
+    if cycle not in PANEL_ROOTS:
+        raise ValueError(f"unknown cycle: {cycle}")
+    panel_root = PANEL_ROOTS[cycle]
+    protocol_path = panel_root / "protocol-v1/measurement_protocol_v3.json"
+    output_root = panel_root / "candidate-outputs-v1"
+    human_root = panel_root / "human-embeddings"
+    arms = ARMS_BY_CYCLE[cycle]
+    protocol_sha = _sha(protocol_path)
+    protocol = json.loads(protocol_path.read_text(encoding="utf-8"))
     family_binding = next(
         (
             item
@@ -91,7 +101,7 @@ def embed_family(family_id: str) -> dict:
         or family_binding.get("model_revision") != config["revision"]
     ):
         raise RuntimeError(f"{family_id} does not match the frozen protocol")
-    human_bundle = json.loads((HUMAN_ROOT / f"{family_id}.json").read_text())
+    human_bundle = json.loads((human_root / f"{family_id}.json").read_text())
     if (
         human_bundle.get("model_id") != config["model_id"]
         or human_bundle.get("model_revision") != config["revision"]
@@ -103,10 +113,10 @@ def embed_family(family_id: str) -> dict:
     all_rows: list[dict] = []
     candidate_hashes: dict[str, str] = {}
     prompt_order: list[str] | None = None
-    for arm in ARMS:
-        output_path = OUTPUT_ROOT / f"{arm}.jsonl"
+    for arm in arms:
+        output_path = output_root / f"{arm}.jsonl"
         manifest = json.loads(
-            (OUTPUT_ROOT / f"{arm}.manifest.json").read_text(encoding="utf-8")
+            (output_root / f"{arm}.manifest.json").read_text(encoding="utf-8")
         )
         rows = _rows(output_path)
         ids = [str(row.get("prompt_id") or "") for row in rows]
@@ -171,7 +181,7 @@ def embed_family(family_id: str) -> dict:
             for row, vector in zip(all_rows, vectors)
         ],
     }
-    output_path = OUTPUT_ROOT / f"{family_id}.candidate-embeddings.json"
+    output_path = output_root / f"{family_id}.candidate-embeddings.json"
     output_path.write_text(
         json.dumps(artifact, sort_keys=True, separators=(",", ":")) + "\n",
         encoding="utf-8",
@@ -187,6 +197,6 @@ def embed_family(family_id: str) -> dict:
 
 
 @app.local_entrypoint()
-def main() -> None:
-    results = list(embed_family.map(FAMILIES))
+def main(cycle: str = "v3") -> None:
+    results = list(embed_family.starmap([(family, cycle) for family in FAMILIES]))
     print(json.dumps(results, indent=2, sort_keys=True))
