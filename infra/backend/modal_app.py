@@ -587,20 +587,31 @@ def _prompt_repair_prompt(source_text: str) -> str:
     )
 
 
-def _lower_variance_metadata_prompt(source: dict) -> str:
+def _lower_variance_metadata_prompt(source: dict, *, recovery: bool = False) -> str:
+    recovery_instruction = (
+        "This is neutral archival metadata extraction. Keep the request analytical and "
+        "non-advocacy. Copy at least one distinctive topic phrase verbatim from the sample "
+        "into user_prompt, and repeat the fingerprint exactly as printed. "
+        if recovery
+        else ""
+    )
     return (
         "Analyze the human writing sample below and return only the requested JSON object. "
         "Create a natural standalone user request that could have caused a skilled writer to "
         "produce this sample; it must name the topic and desired output without mentioning a "
         "source document, conversion, training, DFT, JSON, or these instructions. Extract the "
         "use case and writing style. target_length must estimate the sample length in TOKENS, "
-        "not words. Preserve the supplied document_fingerprint exactly.\n\n"
+        "not words. Preserve the supplied document_fingerprint exactly. "
+        + recovery_instruction
+        + "\n\n"
         f"document_fingerprint: {source['fingerprint']}\n\n"
         "HUMAN WRITING SAMPLE:\n" + str(source["completion"])
     )
 
 
-def _lower_variance_outline_prompt(source: dict, *, force_empty: bool) -> str:
+def _lower_variance_outline_prompt(
+    source: dict, *, force_empty: bool, recovery: bool = False
+) -> str:
     if force_empty:
         instruction = "Return outline as exactly the empty list."
     else:
@@ -609,6 +620,12 @@ def _lower_variance_outline_prompt(source: dict, *, force_empty: bool) -> str:
             "be copied byte-for-byte as one contiguous substring of the human writing sample; "
             "do not paraphrase or invent facts. Use an empty quotations list when unnecessary."
         )
+        if recovery:
+            instruction += (
+                " Use only one to three short facts. Copy each fact with exact spelling and "
+                "punctuation, remove boundary whitespace, never join separate passages, and "
+                "return quotations as an empty list."
+            )
     return (
         "Return only the requested JSON object. Preserve the supplied document_fingerprint "
         f"exactly. {instruction}\n\n"
@@ -702,11 +719,12 @@ def lower_variance_brief_synthesis_worker(run_id: str, payload: dict) -> dict:
         emitted = None
         last_error: Exception | None = None
         record_spent = 0.0
-        for _attempt in range(2):
+        for _attempt in range(6):
+            recovery = _attempt >= 2
             try:
                 metadata, metadata_cost = provider_json(
                     model=QWEN_MODEL,
-                    prompt=_lower_variance_metadata_prompt(source),
+                    prompt=_lower_variance_metadata_prompt(source, recovery=recovery),
                     schema_name="lower_variance_brief_metadata",
                     schema=qwen_metadata_response_schema(),
                 )
@@ -714,7 +732,9 @@ def lower_variance_brief_synthesis_worker(run_id: str, payload: dict) -> dict:
                 outline, outline_cost = provider_json(
                     model=OUTLINE_MODEL,
                     prompt=_lower_variance_outline_prompt(
-                        source, force_empty=fingerprint in empty_ids
+                        source,
+                        force_empty=fingerprint in empty_ids,
+                        recovery=recovery,
                     ),
                     schema_name="lower_variance_outline",
                     schema=outline_response_schema(
