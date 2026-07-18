@@ -1,14 +1,14 @@
 {
-  "updated_at": "2026-07-18T15:11:40Z",
+  "updated_at": "2026-07-18T19:35:00Z",
   "phase": "M2 — 4B data-scale ladder through 16K",
-  "headline": "16K cleaner timed out; bounded resume is now running",
-  "summary": "The prior 1,024-document MMD-witness result remains directionally positive but inconclusive: 54.7% human-style wins, 53.1% overall-quality wins, improvements on both embedding families and Token L2, but insufficient significance and 78% identity with SFT. The preregistered nested source selection, 640-document scale-development cleaner, scale-dev freeze validator, and 128-row scale-dev prompt-brief panel remain complete. The observed terminal transition for `dftr-1784358360-4f83b039` was real: the 16K clean-train run hit `FunctionTimeoutError` after committing 12,648 accepted rows, 7,192 failed candidates, and 4.919519 dollars of API spend. Because the fixed-code cleaner revalidates existing rows and skips already-committed `source_fingerprint` values on restart, the same frozen config was safely relaunched in place as resume run `dftr-1784387469-9e5b1936`, which is now the only active asynchronous job. No quality gates were weakened, no new protocol or output artifact was introduced, the gated 46K cell remains untouched, and Measurement-v4 remains blocked because one Nemotron manipulation check narrowly missed alpha (p=0.0525).",
+  "headline": "16K cleaning complete; immutable 4K/16K corpus freeze is running",
+  "summary": "The clean-train corpus reached exactly 16,384 accepted documents without weakening the frozen 80-220-word or provenance rules. Initial run `dftr-1784358360-4f83b039` committed 12,648 rows before its eight-hour timeout; bounded resume `dftr-1784387469-9e5b1936` added the remaining 3,736 and completed with output SHA-256 `ee8d6f35e11e4e7dbf4b7d11c1c5532b7426d46c42b0ac41867382127ef79626`. The exact existing train-prefix protocol is now preregistered and smoke run `dftr-1784403212-e147e7cb` is qualifying the complete artifact and freezing immutable nested 4,096/16,384 corpora. Scale-dev data and all 128 evaluation briefs remain complete. Fine-tuning has not started yet; training-brief synthesis is the next handoff after the freeze passes.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 100,
     "modal_committed_usd": 16.769555,
     "openrouter_cap_usd": 100,
-    "openrouter_spend_usd": 33.877799
+    "openrouter_spend_usd": 24.235771
   },
   "services": [
     {"name": "GPU gateway", "detail": "Constrained launch API", "status": "online"},
@@ -25,6 +25,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "12:35",
+      "title": "16K cleaning completed and corpus freeze launched",
+      "detail": "Resume run `dftr-1784387469-9e5b1936` reached exactly 16,384 accepted rows and completed with output SHA `ee8d6f35e11e4e7dbf4b7d11c1c5532b7426d46c42b0ac41867382127ef79626`. The unchanged train-prefix qualification protocol was preregistered and launched as smoke run `dftr-1784403212-e147e7cb`; autonomy now monitors that handoff before training-brief synthesis.",
+      "tone": "active"
+    },
     {
       "at": "08:11",
       "title": "16K clean-train timeout recovered by bounded in-place resume",

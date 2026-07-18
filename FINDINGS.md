@@ -2717,6 +2717,30 @@ it completes, validate the surfaced clean-train artifact and launch the pinned
 4,096/16,384 train-prefix freeze step before any downstream 4K training or
 candidate generation.
 
+## [2026-07-18] M2 / scale-ladder-clean-complete-and-prefix-freeze-launch
+HYPOTHESIS: The bounded in-place cleaning resume can complete the frozen
+16,384-document target, after which the already-tested qualification workflow
+can freeze immutable nested 4,096/16,384 corpora without changing data-quality
+rules or opening candidate outputs.
+SETUP: Sanctioned gateway status and logs confirmed resume run
+`dftr-1784387469-9e5b1936` completed at exactly 16,384 total accepted rows.
+The existing train-prefix config was then append-only preregistered under
+comparison `M2-scale-ladder-freeze-train-prefixes-v1` and launched unchanged
+as smoke run `dftr-1784403212-e147e7cb`.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Clean-train cardinality | PASS | Initial run contributed 12,648 accepted rows and the resume contributed 3,736, reaching exactly 16,384. |
+| Clean artifact identity | PASS | Completed output SHA-256 is `ee8d6f35e11e4e7dbf4b7d11c1c5532b7426d46c42b0ac41867382127ef79626`. |
+| Quality-rule stability | PASS | The same Qwen3-32B ordered-line cleaner and frozen 80-220-word bounds remained in force. |
+| Prefix-freeze launch | PASS | `dftr-1784403212-e147e7cb` entered running state under the pinned smoke protocol. |
+| Candidate boundary | PASS | No tuned candidate output or evaluation result was generated or opened. |
+DECISION: Continue the bounded 4K/16K ladder. Source expansion is unnecessary
+because the exact target completed through safe retry.
+NEXT: Validate the prefix-freeze terminal artifact, synthesize faithful
+training briefs, and launch the matched 4B SFT and MMD-witness fine-tuning
+arms after their immutable input hashes are available.
+
 ## [2026-07-18] M2 / scale-ladder-clean-train-timeout-resume
 HYPOTHESIS: The 16K clean-train timeout is recoverable without changing the
 comparison, protocol, output path, or quality gate because the fixed-code
