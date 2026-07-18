@@ -52,7 +52,12 @@ def materialize(
 ) -> dict[str, Any]:
     source_manifest = json.loads(source_manifest_path.read_text(encoding="utf-8"))
     historical = json.loads(historical_manifest_path.read_text(encoding="utf-8"))
-    if (source_manifest.get("policy") or {}).get("candidate_outputs_opened") is not False:
+    candidate_outputs_opened = (
+        (source_manifest.get("policy") or {}).get("candidate_outputs_opened")
+        if "policy" in source_manifest
+        else source_manifest.get("candidate_outputs_opened")
+    )
+    if candidate_outputs_opened is not False:
         raise ValueError("fresh source manifest opened candidate outputs")
     historical_fingerprints = tuple(str(item) for item in historical.get("fingerprints") or [])
     historical_domains = tuple(str(item) for item in historical.get("domains") or [])
