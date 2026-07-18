@@ -29,13 +29,13 @@ Completed in this repository:
    `bassimeledath/humanwrite-sealed-evaluator`; only its API contract is here.
 4. `infra/gpu`, the constrained Modal gateway, separate reaper, checkpoint
    volume wiring, fixed-code brief synthesis, and fixed-code quality judge are
-   implemented with internal $40 monthly GPU and $100 monthly API caps.
+   implemented with internal $200 monthly GPU and $100 monthly API caps.
 
 Remaining human-only deployment steps:
 
 1. Rotate any credentials ever pasted into chat, authenticate Modal locally,
    and create the secrets listed in `infra/backend/README.md`.
-2. Set provider-side hard caps of $40 in Modal and $100 in OpenRouter, with
+2. Set provider-side hard caps of $200 in Modal and $100 in OpenRouter, with
    automatic top-ups disabled where applicable.
 3. Configure `DFTR_ALERT_WEBHOOK_URL`, then deploy the gateway, reaper, and
    private sealed evaluator. Export only their capability URLs/tokens to the

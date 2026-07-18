@@ -12,7 +12,7 @@ import re
 from typing import Any
 
 
-MONTHLY_GPU_CAP_USD = 40.0
+MONTHLY_GPU_CAP_USD = 200.0
 MONTHLY_API_CAP_USD = 100.0
 LOWER_VARIANCE_BRIEF_PROTOCOL = "dftr.lower_variance_briefs.two_provider.v1"
 LOWER_VARIANCE_METADATA_MODEL = "qwen/qwen3-32b"

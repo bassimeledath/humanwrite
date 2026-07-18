@@ -1,11 +1,11 @@
 {
-  "updated_at": "2026-07-18T04:53:54Z",
+  "updated_at": "2026-07-18T05:35:53Z",
   "phase": "M2 — fresh-instrument and estimator rebuild",
   "headline": "Stronger 4B MMD-witness confirmation is underway",
-  "summary": "Matched 4B confirmation training is complete: SFT and MMD-witness each ran 1,024 steps over 2,048 examples and 256,466 teacher-forced tokens. The fresh 640-document evaluation bank and its untouched 128-prompt/256-reference/two-floor split are frozen, and both BGE-small and Nemotron-8B human embeddings are complete. Prompt briefs reached 123/128; a bounded recovery is retrying only the five missing rows before candidate-blind protocol qualification and scoring.",
+  "summary": "Matched 4B confirmation training is complete: SFT and MMD-witness each ran 1,024 steps over 2,048 examples and 256,466 teacher-forced tokens. The fresh 640-document evaluation bank and both BGE-small and Nemotron-8B human embeddings are complete. Prompt-brief recovery added four rows and reached 127/128; the final persistent row is being isolated before candidate-blind protocol qualification, output generation, and scoring.",
   "run_state": "active",
   "budget": {
-    "modal_cap_usd": 40,
+    "modal_cap_usd": 200,
     "modal_committed_usd": 4.890506,
     "openrouter_cap_usd": 100,
     "openrouter_spend_usd": 1.328778
@@ -25,6 +25,18 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "22:35",
+      "title": "Independent 4K/16K/46K scale ladder frozen",
+      "detail": "The user approved a bounded data-scale extension. Each scale restarts from the same initial 4B adapter and uses its own nested corpus and witness, avoiding the exposure confound of one continuing checkpoint run. A hard 16,384-document gate blocks 46,080 unless validity, displacement, quality non-regression, and at least one dual-embedder or human-style signal pass. The internal Modal cap is now 200 dollars; OpenRouter remains capped at 100 dollars.",
+      "tone": "active"
+    },
+    {
+      "at": "22:03",
+      "title": "Prompt-brief recovery reached 127 of 128",
+      "detail": "The bounded retry processed the five missing identities for 0.005576 dollars: four passed and one failed. All 127 accepted rows remain committed. The final row is now an isolated recovery problem; tuning artifacts and the untouched evaluation panel remain valid.",
+      "tone": "active"
+    },
     {
       "at": "21:53",
       "title": "Fresh evaluation panel and dual human embeddings completed",
