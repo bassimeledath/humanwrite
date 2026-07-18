@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import base64
+from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import json
 import os
@@ -18,8 +19,6 @@ from urllib import request as urlrequest
 import modal
 
 from .policy import (
-    MONTHLY_API_CAP_USD,
-    MONTHLY_GPU_CAP_USD,
     PolicyError,
     append_event,
     authorized,
@@ -57,6 +56,7 @@ BRIEF_FALLBACK_MODEL = "anthropic/claude-haiku-4.5"
 CLEANING_MODEL = "qwen/qwen3-32b"
 LOWER_VARIANCE_BRIEF_PROTOCOL = "dftr.lower_variance_briefs.two_provider.v1"
 LOWER_VARIANCE_OUTLINE_MODEL = "openai/gpt-5-mini"
+LOWER_VARIANCE_BRIEF_CONCURRENCY = 6
 
 state_volume = modal.Volume.from_name("humanwrite-gateway-state", create_if_missing=True)
 checkpoint_volume = modal.Volume.from_name("humanwrite-checkpoints", create_if_missing=True)
@@ -95,6 +95,19 @@ worker_image = (
 app = modal.App(APP_NAME)
 
 
+@app.function(
+    image=base_image,
+    volumes={"/state": state_volume},
+    max_containers=1,
+    timeout=60,
+)
+def record_event(event: dict) -> None:
+    """Serialize gateway event writes across independently running workers."""
+    state_volume.reload()
+    append_event(STATE_PATH, event)
+    state_volume.commit()
+
+
 def _events() -> list[dict]:
     try:
         state_volume.reload()
@@ -104,8 +117,7 @@ def _events() -> list[dict]:
 
 
 def _record(event: dict) -> None:
-    append_event(STATE_PATH, event)
-    state_volume.commit()
+    record_event.remote(event)
 
 
 def _notify(event: str, details: dict) -> None:
@@ -659,6 +671,44 @@ def lower_variance_brief_synthesis_worker(run_id: str, payload: dict) -> dict:
             raise TypeError("provider response was not a JSON object")
         return value, float(usage_cost)
 
+    def synthesize_one(source: dict) -> tuple[dict | None, Exception | None, float]:
+        fingerprint = str(source["fingerprint"])
+        emitted = None
+        last_error: Exception | None = None
+        record_spent = 0.0
+        for _attempt in range(2):
+            try:
+                metadata, metadata_cost = provider_json(
+                    model=QWEN_MODEL,
+                    prompt=_lower_variance_metadata_prompt(source),
+                    schema_name="lower_variance_brief_metadata",
+                    schema=qwen_metadata_response_schema(),
+                )
+                record_spent += metadata_cost
+                outline, outline_cost = provider_json(
+                    model=OUTLINE_MODEL,
+                    prompt=_lower_variance_outline_prompt(
+                        source, force_empty=fingerprint in empty_ids
+                    ),
+                    schema_name="lower_variance_outline",
+                    schema=outline_response_schema(
+                        force_empty_outline=fingerprint in empty_ids
+                    ),
+                )
+                record_spent += outline_cost
+                emitted = merge_brief(
+                    source=source,
+                    qwen_metadata=metadata,
+                    outline_response=outline,
+                    force_empty_outline=fingerprint in empty_ids,
+                    qwen_model=QWEN_MODEL,
+                    outline_model=OUTLINE_MODEL,
+                )
+                break
+            except Exception as exc:
+                last_error = exc
+        return emitted, last_error, record_spent
+
     try:
         if api["protocol"] != LOWER_VARIANCE_BRIEF_PROTOCOL:
             raise ValueError("lower-variance brief protocol mismatch")
@@ -693,63 +743,36 @@ def lower_variance_brief_synthesis_worker(run_id: str, payload: dict) -> dict:
                     force_empty_outline=fingerprint in empty_ids,
                 )
                 completed.add(fingerprint)
-        with output_path.open("a", encoding="utf-8") as sink:
-            for source in records:
-                fingerprint = str(source["fingerprint"])
-                if fingerprint in completed:
-                    continue
+        pending = [
+            source for source in records if str(source["fingerprint"]) not in completed
+        ]
+        with (
+            output_path.open("a", encoding="utf-8") as sink,
+            ThreadPoolExecutor(max_workers=LOWER_VARIANCE_BRIEF_CONCURRENCY) as pool,
+        ):
+            for start in range(0, len(pending), LOWER_VARIANCE_BRIEF_CONCURRENCY):
                 if spent >= cost_cap:
                     break
-                emitted = None
-                last_error: Exception | None = None
-                for _attempt in range(2):
-                    try:
-                        metadata, metadata_cost = provider_json(
-                            model=QWEN_MODEL,
-                            prompt=_lower_variance_metadata_prompt(source),
-                            schema_name="lower_variance_brief_metadata",
-                            schema=qwen_metadata_response_schema(),
-                        )
-                        spent += metadata_cost
-                        if spent >= cost_cap:
-                            raise RuntimeError("API cost cap reached between provider stages")
-                        outline, outline_cost = provider_json(
-                            model=OUTLINE_MODEL,
-                            prompt=_lower_variance_outline_prompt(
-                                source, force_empty=fingerprint in empty_ids
-                            ),
-                            schema_name="lower_variance_outline",
-                            schema=outline_response_schema(
-                                force_empty_outline=fingerprint in empty_ids
-                            ),
-                        )
-                        spent += outline_cost
-                        emitted = merge_brief(
-                            source=source,
-                            qwen_metadata=metadata,
-                            outline_response=outline,
-                            force_empty_outline=fingerprint in empty_ids,
-                            qwen_model=QWEN_MODEL,
-                            outline_model=OUTLINE_MODEL,
-                        )
-                        break
-                    except Exception as exc:
-                        last_error = exc
-                if emitted is None:
-                    failed += 1
-                    detail = re.sub(r"\s+", " ", str(last_error or "unknown"))[:200]
-                    with log_path.open("a", encoding="utf-8") as logs:
-                        logs.write(
-                            f"record failure id={fingerprint} error={type(last_error).__name__} "
-                            f"detail={detail}\n"
-                        )
-                    continue
-                sink.write(json.dumps(emitted, ensure_ascii=False, sort_keys=True) + "\n")
-                sink.flush()
-                completed.add(fingerprint)
-                processed += 1
-                if processed % 25 == 0:
-                    checkpoint_volume.commit()
+                chunk = pending[start : start + LOWER_VARIANCE_BRIEF_CONCURRENCY]
+                results = list(pool.map(synthesize_one, chunk))
+                for source, (emitted, last_error, record_spent) in zip(chunk, results):
+                    fingerprint = str(source["fingerprint"])
+                    spent += record_spent
+                    if emitted is None:
+                        failed += 1
+                        detail = re.sub(r"\s+", " ", str(last_error or "unknown"))[:200]
+                        with log_path.open("a", encoding="utf-8") as logs:
+                            logs.write(
+                                f"record failure id={fingerprint} "
+                                f"error={type(last_error).__name__} detail={detail}\n"
+                            )
+                        continue
+                    sink.write(json.dumps(emitted, ensure_ascii=False, sort_keys=True) + "\n")
+                    sink.flush()
+                    completed.add(fingerprint)
+                    processed += 1
+                checkpoint_volume.commit()
+                if processed and (processed % 24 == 0 or spent - reported >= 0.02):
                     _record({
                         "kind": "api_cost",
                         "run_id": run_id,
@@ -757,7 +780,10 @@ def lower_variance_brief_synthesis_worker(run_id: str, payload: dict) -> dict:
                     })
                     reported = spent
                     with log_path.open("a", encoding="utf-8") as logs:
-                        logs.write(f"processed={processed} api_cost_usd={spent:.6f}\n")
+                        logs.write(
+                            f"processed={processed} api_cost_usd={spent:.6f} "
+                            f"concurrency={LOWER_VARIANCE_BRIEF_CONCURRENCY}\n"
+                        )
         checkpoint_volume.commit()
         status = "completed" if len(completed) == len(records) and not failed else "failed"
     except Exception as exc:

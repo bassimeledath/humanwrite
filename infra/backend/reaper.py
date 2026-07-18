@@ -88,5 +88,6 @@ def reap() -> dict:
         })
         killed.append({"run_id": run_id, "reason": reason})
         _notify(killed[-1])
-    state_volume.commit()
+    if killed:
+        state_volume.commit()
     return {"checked": len(run_ids), "killed": killed}
