@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-18T23:35:00Z",
+  "updated_at": "2026-07-18T23:45:00Z",
   "phase": "M2 — 4B data-scale ladder through 16K",
-  "headline": "4K briefs reached 4,024; bounded 72-row recovery is running",
-  "summary": "The immutable 4,096-document corpus remains frozen. Initial brief run `dftr-1784403322-896f3681` durably produced 4,024 valid briefs and terminated with 72 ordinary provider or strict-validator misses. The same frozen config and output URI were relaunched as bounded resume `dftr-1784417670-e1bb510b`, which revalidates existing rows and attempts only missing identities. Fine-tuning has not started yet; matched 4B SFT and MMD-witness preparation begins as soon as all 4,096 briefs validate. The speculative 16K path remains paused.",
+  "headline": "4K briefs reached 4,074; final 22-row retry is running",
+  "summary": "The immutable 4,096-document corpus remains frozen. Initial brief synthesis produced 4,024 valid rows; bounded resume `dftr-1784417670-e1bb510b` recovered 50 of the remaining 72 and left 22 strict validator or provider-filter misses. Final bounded retry `dftr-1784418273-0bb9e6ef` is running against the same frozen config and canonical output. Fine-tuning has not started yet because the exact 4,096-row contract remains mandatory. The event watcher has sufficient continuation capacity to validate completion and begin the matched 4B SFT/MMD-witness handoff.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 100,
@@ -25,6 +25,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "16:45",
+      "title": "Brief recovery reduced gap to 22; final retry launched",
+      "detail": "The first bounded recovery preserved 50 additional valid briefs and left 22 missing identities. Run `dftr-1784418273-0bb9e6ef` is retrying only those rows under the unchanged provider and validation contract before fine-tuning.",
+      "tone": "active"
+    },
     {
       "at": "16:35",
       "title": "4K brief pass reached 4,024; bounded recovery launched",
