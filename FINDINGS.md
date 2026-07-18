@@ -2603,3 +2603,74 @@ finishes first, validate the 128 prompt briefs before any candidate
 generation. If the cleaner finishes first, use surfaced `output_uri` and
 `output_sha256` if present; otherwise launch the pinned train-prefix freeze
 validator before any 4,096-document training or brief-synthesis step.
+
+## [2026-07-18] M2 / scale-ladder-prompt-brief-terminal-repair
+HYPOTHESIS: The failed scale-ladder prompt-brief run is recoverable without a
+new protocol, panel, or side channel if the committed partial artifact is
+still canonical. Because the fixed-code brief worker validates any existing
+rows before emitting new ones, rerunning the same frozen 128-source config and
+output URI should safely recheck the 125 committed briefs and attempt only the
+three missing identities.
+SETUP: Terminal-transition audit on Saturday, July 18, 2026. The repo used the
+sanctioned gateway credential pattern already recorded in `.operator/autonomy/`
+to inspect terminal state for failed brief run `dftr-1784376478-461b4d1b` and
+the still-running clean-train run `dftr-1784358360-4f83b039`. Gateway status
+showed the prompt-brief artifact remained at
+`modal-volume://humanwrite-checkpoints/data/m2-scale-ladder-v1/scale-dev-panels/prompt_briefs-128.jsonl`
+with `output_sha256=8860fdb48ee2db3563f5516727732b47ebec46462beb32e7a5636233676c3b76`,
+`records_processed=125`, `records_failed=3`, and `actual_api_cost_usd=0.115273`.
+Approved logs identified the three failing fingerprints and validator causes.
+No code change was required. The repo then resubmitted the same pinned config
+`configs/m2/m2_scale_ladder_eval_prompt_briefs_v1.yaml` under the same open
+comparison `M2-scale-ladder-eval-prompt-briefs-v1`, producing resume run
+`dftr-1784377434-a4c6dae1` at git SHA
+`897582552789560fa04342857be9ce301a20d673`. An immediate follow-up status
+check confirmed the retry is running rather than failing on existing-row
+validation. The 16K cleaner was rechecked once and remained healthy at
+`processed=8696 total_completed=8696 api_cost_usd=3.340495`.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Terminal prompt-brief failure classified | PASS | The failure was ordinary provider/validator behavior, not a stale handoff or panel-corruption event: `01cf7bcac18b7c0f289b0d042d2c9553bfc07c31c029290caed23616adbf94de` and `75e5a5aeec5d46cfe5d88516beb45edf93cac37aacec8efb507128c892c4b990` returned Qwen metadata with the wrong fingerprint; `b92f8d3fe2009484c193138800854bd9e53552cd82369b0107765ea69b9367b1` failed `user_prompt lacks source-grounded topic terms`. |
+| Partial artifact preserved | PASS | Status still binds the 125-row partial output to the sanctioned volume URI and SHA, so the fixed-code worker can treat it as the sole committed state. |
+| Bounded repair route | PASS | Relaunching the same 128-source config and output URI means the worker must validate the existing 125 rows against the full source set before it can skip them, and it can only generate the three missing identities. |
+| Resume launch | PASS | Promo resume run `dftr-1784377434-a4c6dae1` launched successfully with the same config hash `b10ef5c537f253804f0f7280f427f889a9e130cffe8e47031597573ecdac0f6e` and entered `running` state immediately. |
+| 16K cleaner health recheck | PASS | The independent clean-train run `dftr-1784358360-4f83b039` remained active and advanced from the earlier 8,300-row snapshot to `8,696` accepted rows at `3.340495` dollars cumulative API spend. |
+| Budget boundary after repair | PASS | Gateway budget now reports Modal committed `$16.769555/$100` and OpenRouter spend `$28.953598/$100`, leaving ample room inside both user-approved caps. |
+DECISION: Keep autonomy enabled. The missed work here was a recoverable data-
+preparation failure, and the sanctioned repair is now in flight. No code or
+protocol mutation was justified because the generic worker already supports
+safe resume semantics over a committed partial artifact. The 46K cell remains
+blocked by the preregistered 16K gate, and Measurement-v4 remains blocked by
+the Nemotron manipulation-check miss.
+NEXT: Wake on the next terminal transition from
+`dftr-1784377434-a4c6dae1` or `dftr-1784358360-4f83b039`. If the resume run
+finishes first, validate whether all 128 prompt briefs are now present before
+any 4K/16K candidate generation. If the cleaner finishes first, launch the
+pinned train-prefix freeze validator against the surfaced clean-train output
+before any 4,096-document training job.
+
+## [2026-07-18] M2 / scale-ladder-prompt-brief-resume-complete
+HYPOTHESIS: If the partial 125-row prompt-brief artifact was canonical, the
+bounded resume launch should terminate successfully after validating the
+committed rows and filling only the three missing identities, producing a
+whole 128-brief panel without any new protocol or panel mutation.
+SETUP: Immediate follow-up status audit after launch of resume run
+`dftr-1784377434-a4c6dae1`. The repo queried the sanctioned gateway once more
+to confirm whether the retry still needed monitoring before finalizing
+`progress/autonomy.json`. No new compute was launched beyond the already-
+running clean-train ladder.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Resume terminal result | PASS | Run `dftr-1784377434-a4c6dae1` reached `completed` at `2026-07-18T12:24:35Z` with `records_processed=3`, `records_failed=0`, and `actual_api_cost_usd=0.00468`. |
+| Whole prompt-brief artifact restored | PASS | Completed status surfaces the same sanctioned output URI and an updated `output_sha256=24d55ae6695930b07030fbe6c4d88b47cb24fee2bfa217d42968ce9703f278f0`, which implies the worker revalidated the existing 125 rows and closed the remaining three identities. |
+| Candidate-blind boundary preserved | PASS | The repair reused the frozen 128-source config and existing output path; no candidate output was generated or opened, and no panel membership changed. |
+| Remaining active remote work | PASS | After prompt-brief completion, the only active asynchronous run is still the 16,384-document cleaner `dftr-1784358360-4f83b039`. |
+DECISION: Keep autonomy enabled, but reduce monitoring to the 16K cleaner
+only. Scale-dev prompt-brief preparation is complete. The next sanctioned step
+is still blocked on the clean-train artifact finishing and then being frozen
+into immutable 4,096/16,384 prefixes before any 4K training launch.
+NEXT: Wake only on terminal transition from `dftr-1784358360-4f83b039`. When
+it completes, validate the clean-train artifact and launch the pinned
+train-prefix freeze workflow before any downstream 4K/16K candidate training.
