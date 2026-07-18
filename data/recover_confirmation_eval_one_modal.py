@@ -17,6 +17,7 @@ OUTPUT_PATH = ROOT / "prompt_briefs-128.jsonl"
 MANIFEST_PATH = ROOT / "prompt_brief-recovery-one-manifest.json"
 TARGET_ID = "86ec05ce26e8c33856df67dd2a1a3b644237220c0d1056c24b25608f6dd0a2a2"
 REQUIRED_TERMS = "high wind warning; south winds; power interruptions"
+FALLBACK_OUTLINE_MODEL = "anthropic/claude-haiku-4.5"
 
 source_root = Path(__file__).resolve().parent
 image = (
@@ -136,7 +137,7 @@ def recover() -> dict:
             )
             cost += spent
             outline, spent = provider_json(
-                OUTLINE_MODEL,
+                FALLBACK_OUTLINE_MODEL,
                 outline_prompt,
                 f"confirmation_recovery_outline_{attempt}",
                 outline_schema,
@@ -168,7 +169,11 @@ def recover() -> dict:
         "target_id": TARGET_ID,
         "errors": errors,
         "provider_cost_usd": round(cost, 6),
-        "provider_roles": {"metadata": QWEN_MODEL, "outline": OUTLINE_MODEL},
+        "provider_roles": {
+            "metadata": QWEN_MODEL,
+            "outline": FALLBACK_OUTLINE_MODEL,
+            "primary_outline_model_filtered": OUTLINE_MODEL,
+        },
         "source_sha256": hashlib.sha256(text.encode("utf-8")).hexdigest(),
         "recovery_mode": "exact-source-weather.v1",
     }
