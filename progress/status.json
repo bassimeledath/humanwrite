@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-18T19:42:00Z",
+  "updated_at": "2026-07-18T20:08:00Z",
   "phase": "M2 — 4B data-scale ladder through 16K",
-  "headline": "4K and 16K training briefs are now synthesizing in parallel",
-  "summary": "The clean-train corpus reached exactly 16,384 accepted documents without weakening the frozen 80-220-word or provenance rules. Qualification run `dftr-1784403212-e147e7cb` passed and froze immutable 4,096 and 16,384 corpora with SHA-256 values `3c1c4340...bf219eef` and `72df8b03...f041684d`. Faithful two-provider training-brief jobs are now running concurrently: `dftr-1784403322-896f3681` for 4,096 documents and `dftr-1784403322-b50767c0` for 16,384 documents. Each uses Qwen3-32B for prompt/use-case/style metadata and GPT-5-mini for outlines with exactly 25 percent empty outlines. Fine-tuning has not started yet; the 4K matched SFT and MMD-witness arms launch after the 4K briefs validate, without waiting for 16K brief completion.",
+  "headline": "4K briefs prioritized; speculative 16K synthesis paused",
+  "summary": "The immutable 4,096 and 16,384 cleaned corpora remain safely frozen. To get the earliest meaningful model result, 16K brief run `dftr-1784403322-b50767c0` was cancelled after durably committing 480 valid rows; it can resume later without regeneration. The 4K brief run `dftr-1784403322-896f3681` remains active and has reached 599 valid rows with 11 ordinary retryable failures. Its provider reservation is 15 dollars, and the released 16K reservation leaves 60.337952 dollars of API headroom. Once all 4,096 briefs validate, the matched 4B SFT and MMD-witness fine-tuning path launches without waiting for any 16K work.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 100,
@@ -25,6 +25,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "13:08",
+      "title": "4K signal path prioritized; 16K brief job safely paused",
+      "detail": "The 16K synthesis job was cancelled after 480 durable briefs so it can resume later if the 4K result justifies scale-up. The 4K job continues alone at eight concurrent two-provider workers and has 599 valid briefs; matched fine-tuning follows its validation.",
+      "tone": "active"
+    },
     {
       "at": "12:42",
       "title": "Parallel 4K/16K training-brief synthesis launched",
