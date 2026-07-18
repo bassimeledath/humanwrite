@@ -57,6 +57,7 @@ CLEANING_MODEL = "qwen/qwen3-32b"
 LOWER_VARIANCE_BRIEF_PROTOCOL = "dftr.lower_variance_briefs.two_provider.v1"
 LOWER_VARIANCE_OUTLINE_MODEL = "openai/gpt-5-mini"
 LOWER_VARIANCE_BRIEF_CONCURRENCY = 8
+DOCUMENT_CLEANING_CONCURRENCY = 8
 
 state_volume = modal.Volume.from_name("humanwrite-gateway-state", create_if_missing=True)
 checkpoint_volume = modal.Volume.from_name("humanwrite-checkpoints", create_if_missing=True)
@@ -1086,6 +1087,58 @@ def document_cleaning_worker(run_id: str, payload: dict) -> dict:
     status = "failed"
     log_path = Path("/state/logs") / f"{run_id}.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)
+
+    def clean_one(record: dict, api_key: str) -> tuple[dict | None, Exception | None, float]:
+        source_text = str(record.get("completion") or "")
+        source_fingerprint = str(record.get("fingerprint") or "")
+        record_spent = 0.0
+        try:
+            response = requests.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                    "HTTP-Referer": "https://github.com/bassimeledath/humanwrite",
+                    "X-OpenRouter-Title": "Humanwrite FineWeb line cleaning",
+                },
+                json={
+                    "model": CLEANING_MODEL,
+                    "messages": [{"role": "user", "content": numbered_cleaning_prompt(source_text)}],
+                    "response_format": cleaning_response_format(),
+                    "reasoning": {"effort": "minimal", "exclude": True},
+                    "max_completion_tokens": 2000,
+                },
+                timeout=180,
+            )
+            response.raise_for_status()
+            body = response.json()
+            usage_cost = (body.get("usage") or {}).get("cost")
+            if usage_cost is None:
+                raise RuntimeError("OpenRouter response omitted usage.cost")
+            record_spent = float(usage_cost)
+            choice = body["choices"][0]
+            if choice.get("finish_reason") != "stop":
+                raise RuntimeError(f"provider finish_reason={choice.get('finish_reason')}")
+            value = json.loads(str(choice["message"]["content"]).strip())
+            cleaned = apply_line_selection(value, source_text=source_text)
+            word_count = len(re.findall(r"[^\W_]+(?:['’][^\W_]+)?", cleaned))
+            limits = config["quality"]
+            if not int(limits["min_word_count"]) <= word_count <= int(limits["max_word_count"]):
+                raise ValueError("cleaned document violates word-count bounds")
+            emitted = dict(record)
+            emitted.update({
+                "source_fingerprint": source_fingerprint,
+                "source_word_count": record.get("word_count"),
+                "completion": cleaned,
+                "fingerprint": hashlib.sha256(cleaned.encode("utf-8")).hexdigest(),
+                "word_count": word_count,
+                "cleaning_model": CLEANING_MODEL,
+                "cleaning_mode": "ordered_original_line_subset.v1",
+            })
+            return emitted, None, record_spent
+        except Exception as exc:
+            return None, exc, record_spent
+
     try:
         if config["api"]["model"] != CLEANING_MODEL:
             raise ValueError("document cleaning requires the frozen Qwen3-32B route")
@@ -1107,71 +1160,42 @@ def document_cleaning_worker(run_id: str, payload: dict) -> dict:
                         raise ValueError("existing cleaning output has invalid provenance")
                     completed.add(source_id)
         api_key = os.environ["OPENROUTER_API_KEY"]
-        with output_path.open("a", encoding="utf-8") as sink:
-            for record in records:
-                if len(completed) >= target_records:
+        pending = [record for record in records if str(record.get("fingerprint") or "") not in completed]
+        with (
+            output_path.open("a", encoding="utf-8") as sink,
+            ThreadPoolExecutor(max_workers=DOCUMENT_CLEANING_CONCURRENCY) as pool,
+        ):
+            for offset in range(0, len(pending), DOCUMENT_CLEANING_CONCURRENCY):
+                if len(completed) >= target_records or spent >= cost_cap:
                     break
-                source_fingerprint = str(record.get("fingerprint") or "")
-                if source_fingerprint in completed:
-                    continue
-                if spent >= cost_cap:
-                    break
-                source_text = str(record.get("completion") or "")
-                try:
-                    response = requests.post(
-                        "https://openrouter.ai/api/v1/chat/completions",
-                        headers={
-                            "Authorization": f"Bearer {api_key}",
-                            "Content-Type": "application/json",
-                            "HTTP-Referer": "https://github.com/bassimeledath/humanwrite",
-                            "X-OpenRouter-Title": "Humanwrite FineWeb line cleaning",
-                        },
-                        json={
-                            "model": CLEANING_MODEL,
-                            "messages": [{"role": "user", "content": numbered_cleaning_prompt(source_text)}],
-                            "response_format": cleaning_response_format(),
-                            "reasoning": {"effort": "minimal", "exclude": True},
-                            "max_completion_tokens": 2000,
-                        },
-                        timeout=180,
-                    )
-                    response.raise_for_status()
-                    body = response.json()
-                    usage_cost = (body.get("usage") or {}).get("cost")
-                    if usage_cost is None:
-                        raise RuntimeError("OpenRouter response omitted usage.cost")
-                    spent += float(usage_cost)
-                    choice = body["choices"][0]
-                    if choice.get("finish_reason") != "stop":
-                        raise RuntimeError(f"provider finish_reason={choice.get('finish_reason')}")
-                    value = json.loads(str(choice["message"]["content"]).strip())
-                    cleaned = apply_line_selection(value, source_text=source_text)
-                    word_count = len(re.findall(r"[^\W_]+(?:['’][^\W_]+)?", cleaned))
-                    limits = config["quality"]
-                    if not int(limits["min_word_count"]) <= word_count <= int(limits["max_word_count"]):
-                        raise ValueError("cleaned document violates word-count bounds")
-                    emitted = dict(record)
-                    emitted.update({
-                        "source_fingerprint": source_fingerprint,
-                        "source_word_count": record.get("word_count"),
-                        "completion": cleaned,
-                        "fingerprint": hashlib.sha256(cleaned.encode("utf-8")).hexdigest(),
-                        "word_count": word_count,
-                        "cleaning_model": CLEANING_MODEL,
-                        "cleaning_mode": "ordered_original_line_subset.v1",
-                    })
-                    sink.write(json.dumps(emitted, ensure_ascii=False, sort_keys=True) + "\n")
-                    sink.flush()
-                    completed.add(source_fingerprint)
-                    processed += 1
-                except Exception as exc:
-                    failed += 1
-                    with log_path.open("a", encoding="utf-8") as logs:
-                        logs.write(f"record failure id={source_fingerprint} error={type(exc).__name__} detail={str(exc)[:160]}\n")
-                if processed and processed % 50 == 0:
-                    checkpoint_volume.commit()
+                batch = pending[offset : offset + DOCUMENT_CLEANING_CONCURRENCY]
+                results = [future.result() for future in [pool.submit(clean_one, record, api_key) for record in batch]]
+                for record, (emitted, error, record_spent) in zip(batch, results):
+                    spent += record_spent
+                    source_fingerprint = str(record.get("fingerprint") or "")
+                    if len(completed) >= target_records:
+                        continue
+                    if emitted is None:
+                        failed += 1
+                        with log_path.open("a", encoding="utf-8") as logs:
+                            logs.write(
+                                f"record failure id={source_fingerprint} "
+                                f"error={type(error).__name__} detail={str(error)[:160]}\n"
+                            )
+                    else:
+                        sink.write(json.dumps(emitted, ensure_ascii=False, sort_keys=True) + "\n")
+                        sink.flush()
+                        completed.add(source_fingerprint)
+                        processed += 1
+                checkpoint_volume.commit()
+                if processed and (processed % 50 == 0 or spent - reported >= 0.02):
                     _record({"kind": "api_cost", "run_id": run_id, "cost_usd": round(spent - reported, 6)})
                     reported = spent
+                    with log_path.open("a", encoding="utf-8") as logs:
+                        logs.write(
+                            f"processed={processed} total_completed={len(completed)} "
+                            f"api_cost_usd={spent:.6f} concurrency={DOCUMENT_CLEANING_CONCURRENCY}\n"
+                        )
         checkpoint_volume.commit()
         status = "completed" if len(completed) == target_records else "failed"
     except Exception as exc:
