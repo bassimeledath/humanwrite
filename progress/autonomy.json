@@ -1,12 +1,14 @@
 {
   "schema": "humanwrite.autonomy_control.v1",
-  "enabled": false,
-  "generation": 21,
-  "objective": "PAUSED by user before GPU witness generation or fine-tuning, pending independent review of hardcoded contracts, implementation, and sampled 4K data.",
+  "enabled": true,
+  "generation": 22,
+  "objective": "Run the independently reviewed 4K chain: exact-token normalization, baseline witness, 64-step MMD timing gate, then matched full SFT and MMD-witness arms if gates pass.",
   "poll_interval_seconds": 600,
   "max_codex_wakes_per_24h": 16,
   "audit_recent_continuation_seconds": 3600,
   "codex_timeout_seconds": 7200,
   "wake_policy": "once_per_new_terminal_transition",
-  "monitored_runs": []
+  "monitored_runs": [
+    {"run_id": "dftr-1784429472-96f16f75"}
+  ]
 }

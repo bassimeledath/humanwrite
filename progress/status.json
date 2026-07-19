@@ -1,12 +1,12 @@
 {
-  "updated_at": "2026-07-19T02:38:03Z",
+  "updated_at": "2026-07-19T02:52:18Z",
   "phase": "M2 — 4B data-scale ladder through 16K",
-  "headline": "Awaiting independent review; bounded two-poll continuation is armed",
-  "summary": "The immutable 4,096-document brief artifact remains complete at SHA `0c35745e5a352a63fef17bee246e2c1822cf54a609e0c41e05327754db135d47`, and no GPU witness or fine-tuning run has launched. A dedicated local watcher will check exactly twice for `~/Downloads/feedback-claude-humanwrite.md`, at approximately 30 and 60 minutes after 19:38 PDT. If found, one high-reasoning Codex continuation will independently reconcile the feedback, repair verified correctness defects, run preflight tests, and launch the approved 4K witness/training handoff only if the repaired pipeline is mechanically safe.",
-  "run_state": "paused",
+  "headline": "Independent review repaired; exact-token 4K chain is running",
+  "summary": "The independent review returned FIX-THEN-RUN. Its launch-blocking token-length, runtime, support-matching, and witness-durability findings were repaired and the focused path passed 21/21 tests. Exact-token normalization is now running as `dftr-1784429472-96f16f75`; terminal continuation will generate the 4K baseline witness, run a 64-step H100 MMD timing gate, and launch matched full SFT/MMD arms only if those gates pass.",
+  "run_state": "running",
   "budget": {
     "modal_cap_usd": 100,
-    "modal_committed_usd": 16.77882,
+    "modal_committed_usd": 17.5593,
     "openrouter_cap_usd": 100,
     "openrouter_spend_usd": 28.483027
   },
@@ -15,7 +15,7 @@
     {"name": "Reaper", "detail": "Five-minute independent enforcement", "status": "online"},
     {"name": "Sealed evaluator", "detail": "Private endpoint and hidden split ready", "status": "online"},
     {"name": "Progress server", "detail": "Local live dashboard", "status": "online"},
-    {"name": "Feedback watcher", "detail": "Exactly two checks at 30-minute cadence", "status": "online"}
+    {"name": "Autonomy coordinator", "detail": "Zero-token 10-minute terminal watcher plus 90-minute safety audit", "status": "online"}
   ],
   "milestones": [
     {"id": "setup", "label": "Setup", "detail": "Harness, sources, storage, and guardrails", "status": "complete"},
@@ -26,6 +26,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "19:52",
+      "title": "Review blockers repaired; exact-token normalization launched",
+      "detail": "The full independent report was reconciled before GPU tuning. Exact Qwen-token target normalization, pinned/verified runtime, 128-token support matching, incremental witness diagnostics, generic arm resume, explicit generation bounds, and a 64-step H100 MMD timing gate are now committed at `457eb01`. Focused tests passed 21/21. Smoke run `dftr-1784429472-96f16f75` is normalizing all 4,096 frozen briefs; no tuned candidate exists yet.",
+      "tone": "active"
+    },
     {
       "at": "19:38",
       "title": "Two-check independent-feedback watcher armed",
