@@ -3022,3 +3022,30 @@ NEXT: Commit the repair, preregister
 sanctioned wrapper, and monitor only that new run. Launch the matched 4K SFT
 and MMD-witness full arms only if the fresh smoke completes without a contract
 or runtime failure.
+
+## [2026-07-19] M2 / M2-scale-ladder-4b-4096-timing-smoke-l40s-v1-launch-audit
+HYPOTHESIS: Once the wrapper-log collision is repaired and the 4K ladder is
+realigned to `L40S`, the fresh smoke should either begin normal training or
+fail with a new concrete transport/runtime defect that can be independently
+validated before any full-arm launch. A launch failure before Python startup is
+not a model result.
+SETUP: Preregistered
+`M2-scale-ladder-4b-4096-timing-smoke-l40s-v1`, submitted
+`configs/m2/m2_scale_ladder_4b_4096_timing_smoke_l40s_v1.yaml` through the
+sanctioned wrapper, then inspected the sanctioned status and worker log for
+`dftr-1784435621-a7cf08e3`.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Fresh smoke launch | PASS | Wrapper accepted the repaired `L40S` config and created run `dftr-1784435621-a7cf08e3` with `reserved_cost_usd=$0.78048` under the same capped smoke budget. |
+| Terminal validity | FAIL | Sanctioned status shows the run failed after only `1.334` accelerator-seconds, `tokens=0`, and `actual_cost_usd=$0.000868`, so it never became a usable timing result. |
+| Root cause | FAIL | Sanctioned worker log contains `[dftr] wrapper failure: CalledProcessError ... git checkout --detach 2ff023680785feb444fd217c6b39de922cc327f8 ... exit status 128`. The remote worker could not check out the new repair commit because it had not yet been pushed to origin. |
+| Scientific interpretation | PASS | This is a wrapper transport failure before experiment startup, not evidence about MMD-witness or the 4K ladder. |
+DECISION: Keep the repaired `L40S` smoke comparison open but discard run
+`dftr-1784435621-a7cf08e3` as invalid. The next safe action is operational:
+push the committed repair SHA to origin, then relaunch the same config so the
+worker can resolve the requested checkout.
+NEXT: Push branch `swarmy/humanwrite-next-cycle`, relaunch
+`M2-scale-ladder-4b-4096-timing-smoke-l40s-v1`, and monitor only the fresh run
+ID from that pushed commit. Do not open the matched 4K full arms until the
+relaunch survives startup and produces a real timing signal.

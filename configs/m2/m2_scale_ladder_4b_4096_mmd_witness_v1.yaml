@@ -612,4 +612,4 @@ execution:
 workflow:
   protocol_version: dftr.m2.lower_variance_confirmation.v2
   step: train_lower_variance
-  method_contract_sha256: a30a817e00f5a3d8ea300853eab0161163d7c4c29566e2e8edeb82c9c417b150
+  method_contract_sha256: a65e3c972358a0593488f2bc66084e04f1b1b6a982566843d3b550d1c9a6abd7
