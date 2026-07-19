@@ -47,7 +47,7 @@ from .cleaning_contract import (
     cleaning_response_format,
     numbered_cleaning_prompt,
 )
-from .openrouter_contract import structured_chat_request
+from .openrouter_contract import chat_request, structured_chat_request
 from .volume_paths import (
     checkpoint_volume_path,
     missing_run_artifact_metadata,
@@ -988,7 +988,35 @@ def rewrite_synthesis_worker(run_id: str, payload: dict) -> dict:
             "X-OpenRouter-Title": "Humanwrite M3 rewrite task construction",
         }
 
-        def send(payload: dict) -> tuple[dict, float]:
+        def parse_json_object(content: str, *, stage: str) -> dict[str, object]:
+            candidate = content.strip()
+            if candidate.startswith("```"):
+                candidate = candidate.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+            try:
+                value = json.loads(candidate)
+            except json.JSONDecodeError as exc:
+                start = candidate.find("{")
+                end = candidate.rfind("}")
+                if start < 0 or end <= start:
+                    raise RuntimeError(f"{stage} decode failed: {exc}") from exc
+                try:
+                    value = json.loads(candidate[start : end + 1])
+                except json.JSONDecodeError as inner:
+                    raise RuntimeError(f"{stage} decode failed: {inner}") from inner
+            if not isinstance(value, dict):
+                raise TypeError(f"{stage} provider response was not a JSON object")
+            return value
+
+        def raw_json_prompt() -> str:
+            return (
+                f"{prompt}\n\n"
+                "Return only one JSON object with no markdown or commentary. "
+                "It must satisfy this exact JSON schema.\n"
+                f"schema_name: {schema_name}\n"
+                f"schema_json: {json.dumps(schema, sort_keys=True, separators=(',', ':'))}"
+            )
+
+        def send(payload: dict, *, stage: str) -> tuple[dict, float]:
             response = requests.post(
                 "https://openrouter.ai/api/v1/chat/completions",
                 headers=headers,
@@ -997,12 +1025,24 @@ def rewrite_synthesis_worker(run_id: str, payload: dict) -> dict:
             )
             if not response.ok:
                 detail = re.sub(r"\s+", " ", response.text)[:600]
-                raise RuntimeError(f"provider HTTP {response.status_code}: {detail}")
+                raise RuntimeError(f"{stage} provider HTTP {response.status_code}: {detail}")
             body = response.json()
             usage_cost = (body.get("usage") or {}).get("cost")
             if usage_cost is None:
-                raise RuntimeError("OpenRouter response omitted usage.cost")
+                raise RuntimeError(f"{stage} OpenRouter response omitted usage.cost")
             return body, float(usage_cost)
+
+        def decode(body: dict, *, stage: str) -> tuple[dict, float]:
+            usage_cost = (body.get("usage") or {}).get("cost")
+            if usage_cost is None:
+                raise RuntimeError(f"{stage} OpenRouter response omitted usage.cost")
+            choice = body["choices"][0]
+            if choice.get("finish_reason") != "stop":
+                raise RuntimeError(f"{stage} finish_reason={choice.get('finish_reason')}")
+            content = choice["message"].get("content")
+            if not isinstance(content, str):
+                raise TypeError(f"{stage} provider message content was not a string")
+            return parse_json_object(content, stage=stage), float(usage_cost)
 
         request_payload = structured_chat_request(
             model=model,
@@ -1011,7 +1051,7 @@ def rewrite_synthesis_worker(run_id: str, payload: dict) -> dict:
             max_completion_tokens=max_tokens,
         )
         try:
-            body, usage_cost = send(request_payload)
+            return decode(send(request_payload, stage="json_schema")[0], stage="json_schema")
         except RuntimeError as exc:
             message = str(exc)
             if not (
@@ -1020,32 +1060,34 @@ def rewrite_synthesis_worker(run_id: str, payload: dict) -> dict:
                 and "No endpoints found that can handle the requested parameters" in message
             ):
                 raise
-            body, usage_cost = send(
+        try:
+            body, _usage_cost = send(
                 structured_chat_request(
                     model=model,
                     prompt=prompt,
                     response_format={"type": "json_object"},
                     max_completion_tokens=min(max_tokens, 1200),
                     plugins=[{"id": "response-healing"}],
-                )
+                ),
+                stage="json_object",
             )
-
-        usage_cost = (body.get("usage") or {}).get("cost")
-        if usage_cost is None:
-            raise RuntimeError("OpenRouter response omitted usage.cost")
-        choice = body["choices"][0]
-        if choice.get("finish_reason") != "stop":
-            raise RuntimeError(f"provider finish_reason={choice.get('finish_reason')}")
-        content = choice["message"].get("content")
-        if not isinstance(content, str):
-            raise TypeError("provider message content was not a string")
-        content = content.strip()
-        if content.startswith("```"):
-            content = content.split("\n", 1)[1].rsplit("```", 1)[0]
-        value = json.loads(content)
-        if not isinstance(value, dict):
-            raise TypeError("provider response was not a JSON object")
-        return value, float(usage_cost)
+            return decode(body, stage="json_object")
+        except Exception as json_object_exc:
+            try:
+                body, _usage_cost = send(
+                    chat_request(
+                        model=model,
+                        prompt=raw_json_prompt(),
+                        max_completion_tokens=min(max_tokens, 1200),
+                    ),
+                    stage="raw_json_prompt",
+                )
+                return decode(body, stage="raw_json_prompt")
+            except Exception as raw_exc:
+                raise RuntimeError(
+                    "qwen transport fallback exhausted: "
+                    f"json_object={json_object_exc}; raw_json_prompt={raw_exc}"
+                ) from raw_exc
 
     try:
         if api["protocol"] != PROTOCOL or PROTOCOL != M3_REWRITE_TASK_PROTOCOL:

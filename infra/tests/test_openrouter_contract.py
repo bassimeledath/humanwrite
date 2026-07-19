@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from backend.openrouter_contract import structured_chat_request
+from backend.openrouter_contract import chat_request, structured_chat_request
 
 
 def test_structured_chat_request_requires_parameter_compatible_routing() -> None:
@@ -38,3 +38,14 @@ def test_structured_chat_request_preserves_optional_plugins() -> None:
     )
 
     assert request["plugins"] == [{"id": "response-healing"}]
+
+
+def test_chat_request_allows_unstructured_qwen_fallback() -> None:
+    request = chat_request(
+        model="qwen/qwen3-32b",
+        prompt="Return only JSON.",
+        max_completion_tokens=192,
+    )
+
+    assert "response_format" not in request
+    assert request["provider"] == {"require_parameters": True}
