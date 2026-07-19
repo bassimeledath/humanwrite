@@ -121,7 +121,11 @@ def milestone_signature(
                 reached.append((run_id, percentage))
     if not reached:
         return None
-    payload = {"generation": generation, "milestones": sorted(reached)}
+    # Unlike terminal transitions, a reached running milestone can remain in
+    # the monitored set after a continuation increments the control generation.
+    # Keep this signature generation-independent so it cannot wake repeatedly.
+    _ = generation
+    payload = {"milestones": sorted(reached)}
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 

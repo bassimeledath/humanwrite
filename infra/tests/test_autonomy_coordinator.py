@@ -76,6 +76,14 @@ def test_progress_below_milestone_does_not_wake():
     assert reason == "waiting_for_event_transition"
 
 
+def test_reached_progress_milestone_is_stable_across_generation_changes():
+    monitored = [{"run_id": "run-a", "progress_target": 200}]
+    statuses = {"run-a": {"status": "running", "records_processed": 100}}
+    assert milestone_signature(3, monitored, statuses) == milestone_signature(
+        4, monitored, statuses
+    )
+
+
 def test_terminal_transition_wakes_once():
     statuses = {"run-a": {"status": "completed"}, "run-b": {"status": "running"}}
     signature = terminal_signature(3, statuses)
