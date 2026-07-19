@@ -1,8 +1,8 @@
 {
   "schema": "humanwrite.autonomy_control.v1",
   "enabled": false,
-  "generation": 30,
-  "objective": "The Sunday, July 19, 2026 terminal-transition cycle finished its bounded async work: the completed 4K held-out generation pair is validated locally and the deployed gateway now surfaces scorer-ready output URIs and signed receipts for `generate_lower_variance`. No active async run remains, and the next safe step is a fresh local implementation plus preregistration of a frozen scale-ladder non-training scoring protocol before any new scoring or 16K launch.",
+  "generation": 31,
+  "objective": "The decisive 4K scoring cycle completed. Directional proximity and judge metrics favor MMD-witness, but the frozen hard-validity gate stops automatic 16K launch because the treatment contains a real Unicode replacement-character defect. No active run remains.",
   "poll_interval_seconds": 600,
   "max_codex_wakes_per_24h": 16,
   "audit_recent_continuation_seconds": 3600,

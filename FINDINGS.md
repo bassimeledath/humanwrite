@@ -3260,3 +3260,37 @@ NEXT: When work resumes, bind a frozen scale-ladder scoring protocol to
 `data/m2-scale-ladder-v1/scale-dev-panels/panel_bundle.json`, the locally
 validated SFT/MMD output artifacts, and independent non-training embeddings
 before opening any scoring or the authorized 16K follow-up.
+
+## [2026-07-19] M2 / M2-scale-ladder-4b-4096-scoring-v1
+HYPOTHESIS: The completed 4K MMD-witness treatment can avoid the frozen
+diagnostic stop conditions relative to matched SFT on the scale-development
+panel, while moving independent distribution and blinded writing endpoints in
+the human direction.
+SETUP: Bound the exact 128-prompt SFT/MMD outputs and the frozen 256/128/128
+human panels in
+`configs/m2/m2_scale_ladder_4k_scoring_contract_v1.json`. The rule was inherited
+from the candidate-blind July 17 scale-ladder preregistration. BGE-small and
+Llama-Embed-Nemotron-8B embedded 768 texts per family in parallel. GPT-5.4-mini
+performed 128 blinded human-style and 128 blinded overall-quality comparisons.
+A pre-result judge transport failure (`finish_reason=length`, no A/B choice) was
+repaired by restoring the already-proven 512-token response allowance; no
+scientific field changed.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Artifact and evaluator binding | PASS | All panel, output, embedder revision, randomization, and tokenizer hashes matched the frozen contract. |
+| Independent MMD direction | FAVORABLE / INCONCLUSIVE | BGE improved by `0.00007694` (`3.6%`, paired `p=0.3434`); Nemotron improved by `0.00005050` (`6.0%`, paired `p=0.3301`). |
+| Token unigram L2 | FAVORABLE | Improved from `0.013137` to `0.012551`, a `4.5%` reduction. |
+| Blinded human style | FAVORABLE / INCONCLUSIVE | MMD-witness won `70/128 = 54.7%`; one-sided improvement `p=0.1655`. |
+| Blinded overall quality | NEUTRAL / FAVORABLE | MMD-witness won `66/128 = 51.6%`; it was not significantly worse. |
+| Treatment displacement | PARTIAL | `32.0%` of treatment outputs differ from SFT; byte identity remains `68.0%`. |
+| Surface validity | FAIL | Treatment unexpected-non-Latin rate was `8.6%` versus SFT `4.7%`; both arms had one replacement-character row. The treatment's real replacement defect violates the frozen zero-tolerance hard-validity rule. |
+| Frozen 4K decision | STOP | Sole stop reason: `MMD_WITNESS_hard_validity_failure`. |
+DECISION: Do not launch 16K automatically. The experiment shows consistent but
+small favorable writing-proximity trends, not a reliable human-writing gain,
+and it violates the prospectively frozen validity gate. The matching SFT defect
+means this is not clean evidence of treatment-specific harm, but the rule cannot
+be waived after opening results.
+NEXT: Either retire this exact ladder or preregister a separate, identical-across-
+arms byte-safe decoding experiment on a new untouched panel. Do not filter this
+panel, change thresholds, or use it for further selection.

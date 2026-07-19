@@ -1,0 +1,178 @@
+{
+  "artifact_schema": "dftr.m2.scale_ladder_4k_score.v1",
+  "byte_identity_with_control": 0.6796875,
+  "contract_sha256": "23e2efbf9d805f8683663c8806b639b4a5cf2bf561c089b20de9aa8cf98ccb50",
+  "distribution": {
+    "artifact_schema": "dftr.measurement.distribution_report.v3",
+    "distribution_reference_role": "unpaired_semantic_reference",
+    "families": {
+      "bge-small-v1": {
+        "bandwidth_sha256": "29449e7e02a531007b25b496045cd138a70774c947fde15546903c6acf01438e",
+        "bandwidths": [
+          0.0655535703029731,
+          0.2622142812118924,
+          1.0488571248475695,
+          4.195428499390278,
+          16.781713997561113
+        ],
+        "control_absolute_test": {
+          "absolute_value_transform": false,
+          "alternative": "mmd2_greater_than_exchangeability_null",
+          "exceedances": 0,
+          "mode": "monte_carlo_plus_one",
+          "permutations": 9999,
+          "pvalue": 0.0001,
+          "seed": 104002,
+          "statistic": 0.002125963413517118,
+          "tail": "right"
+        },
+        "control_mmd2": 0.002125963413517118,
+        "model_id": "BAAI/bge-small-en-v1.5",
+        "model_revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+        "paired_treatment_test": {
+          "alternative": "treatment_lower",
+          "assignments": 9999,
+          "effect": -7.694164397109571e-05,
+          "effect_definition": "treatment_mmd2_minus_control_mmd2",
+          "effective_prompt_clusters": 128,
+          "extreme_assignments": 3433,
+          "mode": "monte_carlo_plus_one",
+          "pvalue": 0.3434,
+          "seed": 104003,
+          "tail": "left"
+        },
+        "treatment_absolute_test": {
+          "absolute_value_transform": false,
+          "alternative": "mmd2_greater_than_exchangeability_null",
+          "exceedances": 0,
+          "mode": "monte_carlo_plus_one",
+          "permutations": 9999,
+          "pvalue": 0.0001,
+          "seed": 104001,
+          "statistic": 0.0020490217695461332,
+          "tail": "right"
+        },
+        "treatment_minus_control": -7.694164397098469e-05,
+        "treatment_mmd2": 0.0020490217695461332
+      },
+      "nemotron-8b-v1": {
+        "bandwidth_sha256": "4b5fdd7923b391eafe91a6aa49a76465fbf159ed21fc9209e713c5e3df4151a2",
+        "bandwidths": [
+          0.10713291905528086,
+          0.4285316762211234,
+          1.7141267048844937,
+          6.856506819537975,
+          27.4260272781519
+        ],
+        "control_absolute_test": {
+          "absolute_value_transform": false,
+          "alternative": "mmd2_greater_than_exchangeability_null",
+          "exceedances": 3,
+          "mode": "monte_carlo_plus_one",
+          "permutations": 9999,
+          "pvalue": 0.0004,
+          "seed": 104012,
+          "statistic": 0.0008411680275146605,
+          "tail": "right"
+        },
+        "control_mmd2": 0.0008411680275146605,
+        "model_id": "nvidia/llama-embed-nemotron-8b",
+        "model_revision": "aa3b43a495a9b280d1bdb716da37c54bb495d630",
+        "paired_treatment_test": {
+          "alternative": "treatment_lower",
+          "assignments": 9999,
+          "effect": -5.049854826222333e-05,
+          "effect_definition": "treatment_mmd2_minus_control_mmd2",
+          "effective_prompt_clusters": 128,
+          "extreme_assignments": 3300,
+          "mode": "monte_carlo_plus_one",
+          "pvalue": 0.3301,
+          "seed": 104013,
+          "tail": "left"
+        },
+        "treatment_absolute_test": {
+          "absolute_value_transform": false,
+          "alternative": "mmd2_greater_than_exchangeability_null",
+          "exceedances": 5,
+          "mode": "monte_carlo_plus_one",
+          "permutations": 9999,
+          "pvalue": 0.0006,
+          "seed": 104011,
+          "statistic": 0.0007906694792525482,
+          "tail": "right"
+        },
+        "treatment_minus_control": -5.049854826211231e-05,
+        "treatment_mmd2": 0.0007906694792525482
+      }
+    },
+    "family_count": 2,
+    "panel_design_sha256": "32697e9afd69c1013af6214012286b931b5a7405380357efa01b2f3b49dbae6f",
+    "primary_direction": "lower_mmd_is_better",
+    "primary_direction_agreement": true,
+    "prompt_source_role": "quality_and_adherence_only"
+  },
+  "four_k_gate": {
+    "decision": "stop",
+    "rule_source": "research_reviews/mmd_witness_scale_ladder_preregistration_2026-07-17.md#4096-gate",
+    "stop_reasons": [
+      "MMD_WITNESS_hard_validity_failure"
+    ]
+  },
+  "hard_validity": {
+    "MMD_WITNESS": {
+      "empty_rate": 0.0,
+      "pass": false,
+      "replacement_character_rate": 0.0078125,
+      "unexpected_non_latin_rate": 0.0859375,
+      "unique_fraction": 1.0
+    },
+    "SFT": {
+      "empty_rate": 0.0,
+      "pass": false,
+      "replacement_character_rate": 0.0078125,
+      "unexpected_non_latin_rate": 0.046875,
+      "unique_fraction": 1.0
+    }
+  },
+  "judge": {
+    "human_style": {
+      "pvalue_treatment_worse": 0.8747800596903703,
+      "trials": 128,
+      "win_rate": 0.546875,
+      "wins": 70
+    },
+    "overall_quality": {
+      "pvalue_treatment_worse": 0.67064935772968,
+      "trials": 128,
+      "win_rate": 0.515625,
+      "wins": 66
+    }
+  },
+  "panel_design_sha256": "32697e9afd69c1013af6214012286b931b5a7405380357efa01b2f3b49dbae6f",
+  "repeated_bigram_rate": {
+    "MMD_WITNESS": 0.045183719653468624,
+    "SFT": 0.04187954363194784
+  },
+  "status": "completed",
+  "token_unigram_l2": {
+    "by_arm": {
+      "MMD_WITNESS": {
+        "human_tokens": 44039,
+        "l2": 0.012551120839560673,
+        "normalization": "corpus_relative_frequency",
+        "sample_tokens": 15960,
+        "tokenizer_policy": "caller_frozen",
+        "vocabulary_size": 11893
+      },
+      "SFT": {
+        "human_tokens": 44039,
+        "l2": 0.013137373424422708,
+        "normalization": "corpus_relative_frequency",
+        "sample_tokens": 16010,
+        "tokenizer_policy": "caller_frozen",
+        "vocabulary_size": 11898
+      }
+    },
+    "treatment_minus_control": -0.0005862525848620345
+  }
+}

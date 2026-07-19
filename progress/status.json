@@ -1,9 +1,9 @@
 {
-  "updated_at": "2026-07-19T06:20:04Z",
+  "updated_at": "2026-07-19T07:25:11Z",
   "phase": "M2 — 4B data-scale ladder through 16K",
-  "headline": "Held-out 4K generation artifacts are validated and the scorer handoff for this workflow is now live",
-  "summary": "Sanctioned status on Sunday, July 19, 2026 confirmed the relaunched 4K held-out generation pair completed cleanly: SFT-generation run `dftr-1784440682-c648bc57` completed at `2026-07-19T06:03:26.731823Z` after `314.483` accelerator-seconds for `$0.20454` with `tokens=16384`, and MMD-witness-generation run `dftr-1784440682-36bfe848` completed at `2026-07-19T06:04:08.622314Z` after `358.666` accelerator-seconds for `$0.233277` with `tokens=16384`. The audit found one more real orchestration gap rather than a scientific failure: the deployed gateway still withheld `output_uri`/`output_sha256` and signed wrapper receipts for completed `generate_lower_variance` runs even though the same metadata already existed for older generation routes. That handoff was repaired in the repo, focused tests passed `27/27` across infra and experiment suites, and the Modal gateway was redeployed to the existing production URL. Post-deploy sanctioned status for the same completed run IDs now surfaces output URIs, output SHAs, and wrapper-receipt SHAs, and the exact outputs, manifests, receipts, plus the frozen scale-dev panel bundle and prompt-source artifacts were downloaded into `.operator/scale_ladder/` and byte-validated locally. No non-training scoring or 16K launch was opened because there is still no frozen scale-ladder scoring protocol bound to this exact panel and artifact set.",
-  "run_state": "idle",
+  "headline": "4K scoring complete: favorable trend, frozen validity gate stops 16K",
+  "summary": "The missing scorer was implemented, tested, preregistered, and run. MMD-witness improved BGE MMD by 3.6%, Nemotron MMD by 6.0%, token L2 by 4.5%, human-style preference to 54.7%, and overall-quality preference to 51.6%, but none is statistically decisive and 68% of outputs remain identical. The frozen 4K gate returns STOP solely because MMD-witness produced one real Unicode replacement-character defect; SFT also produced one on a different prompt. Automatic 16K launch is therefore disabled pending a decision to retire this ladder or preregister a separate byte-safe decoding experiment on a new panel.",
+  "run_state": "blocked",
   "budget": {
     "modal_cap_usd": 100,
     "modal_committed_usd": 22.252709,
@@ -26,6 +26,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "00:25",
+      "title": "Decisive 4K score completed",
+      "detail": "Two independent embedding families and 256 blinded GPT-5.4-mini comparisons completed under the frozen scale-ladder rule. Both MMDs, token L2, human style (70/128), and overall quality (66/128) moved favorably but inconclusively. The treatment had 68% byte identity, 8.6% unexpected-non-Latin rows, and one genuine replacement-character row; the latter triggers the preregistered hard-validity stop. The exact ladder cannot advance automatically to 16K.",
+      "tone": "blocked"
+    },
     {
       "at": "23:20",
       "title": "4K generation artifacts validated and scorer handoff repaired",
