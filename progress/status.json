@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-19T02:52:18Z",
+  "updated_at": "2026-07-19T02:55:00Z",
   "phase": "M2 — 4B data-scale ladder through 16K",
-  "headline": "Independent review repaired; exact-token 4K chain is running",
-  "summary": "The independent review returned FIX-THEN-RUN. Its launch-blocking token-length, runtime, support-matching, and witness-durability findings were repaired and the focused path passed 21/21 tests. Exact-token normalization is now running as `dftr-1784429472-96f16f75`; terminal continuation will generate the 4K baseline witness, run a 64-step H100 MMD timing gate, and launch matched full SFT/MMD arms only if those gates pass.",
+  "headline": "Exact-token repair passed; 4K baseline witness is running",
+  "summary": "Exact-token normalization completed for all 4,096 rows at SHA `723ebf559a4139c49454f5898a0e51120cdf424bd3cd12e39466c6758d25217b`, correcting 4,079 provider estimates. Pinned baseline-witness run `dftr-1784429664-02939bdc` is now generating one EOS-aware 128-token training-only rollout per brief. On success, autonomy runs the 64-step H100 MMD timing gate and launches matched full arms only if it passes.",
   "run_state": "running",
   "budget": {
     "modal_cap_usd": 100,
@@ -26,6 +26,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "19:55",
+      "title": "All 4K lengths normalized; baseline witness launched",
+      "detail": "Normalization run `dftr-1784429472-96f16f75` completed in 15.756 accelerator-seconds for `$0.010248`. It produced 4,096 exact Qwen-token targets (median 161, range 88-359) and corrected 4,079 provider estimates. Preregistered witness run `dftr-1784429664-02939bdc` is now active under the pinned 128-token sampling and runtime contract.",
+      "tone": "active"
+    },
     {
       "at": "19:52",
       "title": "Review blockers repaired; exact-token normalization launched",
