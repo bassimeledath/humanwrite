@@ -99,6 +99,12 @@ M3_REWRITE_GENERATION_METHOD_KEYS = (
     "checkpoint",
     "generation",
 )
+M3_REWRITE_EMBEDDING_PROTOCOL = "humanwrite.m3.rewrite_embedding_score.v1"
+M3_REWRITE_EMBEDDING_STEP = "score_m3_rewrite_embeddings"
+M3_REWRITE_EMBEDDING_FAMILIES = {
+    "bge-small-v1": {"model_id": "BAAI/bge-small-en-v1.5", "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a", "prompt_name": None, "batch_size": 32, "max_tokens": 512},
+    "nemotron-8b-v1": {"model_id": "nvidia/llama-embed-nemotron-8b", "revision": "aa3b43a495a9b280d1bdb716da37c54bb495d630", "prompt_name": "document", "batch_size": 4, "max_tokens": 512},
+}
 LOWER_VARIANCE_TRAIN_PROTOCOL = "dftr.m2.lower_variance_three_arm.v1"
 LOWER_VARIANCE_CONFIRMATION_PROTOCOL = "dftr.m2.lower_variance_confirmation.v2"
 LOWER_VARIANCE_TRAIN_PROTOCOLS = {
@@ -1108,6 +1114,31 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
             or payload.get("dft_a64_readiness") is not None
         ):
             raise PolicyError("M3 rewrite generation requires the frozen 14B wrapper protocol")
+    if workflow_step == M3_REWRITE_EMBEDDING_STEP:
+        workflow = config.get("workflow") or {}
+        data = config.get("data") or {}
+        representation = config.get("representation") or {}
+        if (
+            set(config) != {"artifact_schema", "run", "compute", "data", "representation", "output", "workflow"}
+            or config.get("artifact_schema") != M3_REWRITE_EMBEDDING_PROTOCOL
+            or workflow != {"protocol_version": M3_REWRITE_EMBEDDING_PROTOCOL, "step": M3_REWRITE_EMBEDDING_STEP}
+            or task_kind != "experiment"
+            or budget_class != "screen"
+            or config.get("compute") != {"gpu": "L40S", "gpus": 1, "timeout_min": 120}
+            or (config.get("run") or {}).get("arm") != "HUMANWRITE14-vs-SFT14-two-family-MMD"
+            or representation != {
+                "families": M3_REWRITE_EMBEDDING_FAMILIES,
+                "normalization": "explicit_float32_l2.v1",
+                "bandwidth_source": "two_disjoint_128-document_unused-human-floors",
+                "bandwidth_scales": [0.25, 0.5, 1.0, 2.0, 4.0],
+            }
+            or data.get("clean_pool_records") != 640
+            or data.get("panel_records") != 256
+            or any(not str(data.get(field) or "").startswith("/checkpoints/") for field in ("clean_pool_path", "panel_path", "sft_path", "treatment_path"))
+            or any(not re.fullmatch(r"[0-9a-f]{64}", str(data.get(field) or "")) for field in ("clean_pool_sha256", "panel_sha256", "sft_sha256", "treatment_sha256"))
+            or config.get("output") != {"report_filename": "rewrite_embedding_score.json", "embedding_filename_template": "{family_id}.npz"}
+        ):
+            raise PolicyError("M3 rewrite embedding score requires the frozen two-family protocol")
     if workflow_step == "replay_equivalence":
         replay_workflow = config.get("workflow") or {}
         protocol_version = str(replay_workflow.get("protocol_version"))

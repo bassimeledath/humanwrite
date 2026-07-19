@@ -178,6 +178,20 @@ is evaluated separately for each judge family; automatic protected-literal
 checks remain a harder deterministic sentinel, not a substitute for semantic
 review.
 
+### Frozen embedding evaluation
+
+The two distribution families are `BAAI/bge-small-en-v1.5` revision
+`5c38ec7c405ec4b44b94cc5a9bb96e735b38267a` and
+`nvidia/llama-embed-nemotron-8b` revision
+`aa3b43a495a9b280d1bdb716da37c54bb495d630`. Both use normalized float32
+sentence-transformers embeddings at maximum 512 tokens; Nemotron uses its
+`document` prompt. Kernel bandwidths are derived only from two deterministic,
+disjoint 128-document human floors selected from the 384 cleaned documents not
+used in the 256-row evaluation panel. Candidate and human-reference MMD values
+use the same five human-only RBF scales (`0.25, 0.5, 1, 2, 4` times the median
+positive floor distance). Raw role embeddings are retained as compressed,
+hash-bound artifacts. Candidate outputs cannot affect bandwidth selection.
+
 ## Frozen promotion gates
 
 ### 4K to 16K

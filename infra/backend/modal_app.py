@@ -105,6 +105,7 @@ worker_image = (
         "requests>=2.32,<3",
         "cryptography>=42,<47",
         "scikit-learn>=1.4,<2",
+        "sentence-transformers==5.2.2",
     )
     .add_local_dir(source_root, remote_path="/root/infra_backend", copy=True)
     .add_local_dir(data_root, remote_path="/root/data", copy=True)

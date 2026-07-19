@@ -77,6 +77,11 @@ from experiments.m3.rewrite_generate_14b import (
     STEP as M3_REWRITE_GENERATION_STEP,
     run as run_m3_rewrite_generation,
 )
+from experiments.m3.rewrite_embedding_score import (
+    SCHEMA as M3_REWRITE_EMBEDDING_SCHEMA,
+    STEP as M3_REWRITE_EMBEDDING_STEP,
+    run as run_m3_rewrite_embedding_score,
+)
 from experiments.tier0.metrics import batch_diagnostics
 
 
@@ -283,6 +288,10 @@ def main(argv: list[str] | None = None) -> int:
         raise ValueError("M3 rewrite generation protocol requires generate_m3_rewrite_candidates")
     if step == M3_REWRITE_GENERATION_STEP and protocol != M3_REWRITE_GENERATION_SCHEMA:
         raise ValueError("generate_m3_rewrite_candidates requires its frozen M3 protocol")
+    if protocol == M3_REWRITE_EMBEDDING_SCHEMA and step != M3_REWRITE_EMBEDDING_STEP:
+        raise ValueError("M3 rewrite embedding protocol requires score_m3_rewrite_embeddings")
+    if step == M3_REWRITE_EMBEDDING_STEP and protocol != M3_REWRITE_EMBEDDING_SCHEMA:
+        raise ValueError("score_m3_rewrite_embeddings requires its frozen M3 protocol")
     if protocol == PREPARE_DFT_SCHEMA:
         manifest = run_prepare_dft(config, args.run_id)
     elif protocol == DFT_SCHEMA:
@@ -311,6 +320,8 @@ def main(argv: list[str] | None = None) -> int:
         manifest = run_m3_rewrite_4k(config, args.run_id)
     elif protocol == M3_REWRITE_GENERATION_SCHEMA:
         manifest = run_m3_rewrite_generation(config, args.run_id)
+    elif protocol == M3_REWRITE_EMBEDDING_SCHEMA:
+        manifest = run_m3_rewrite_embedding_score(config, args.run_id)
     elif (
         str(workflow.get("protocol_version", "")).casefold().startswith("m1")
         or str(workflow.get("step", "")).casefold() == "replay_equivalence"
