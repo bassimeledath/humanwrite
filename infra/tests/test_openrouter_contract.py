@@ -1,6 +1,10 @@
 from __future__ import annotations
 
-from backend.openrouter_contract import chat_request, structured_chat_request
+from backend.openrouter_contract import (
+    chat_request,
+    schema_transport_fallback_allowed,
+    structured_chat_request,
+)
 
 
 def test_structured_chat_request_requires_parameter_compatible_routing() -> None:
@@ -52,3 +56,17 @@ def test_chat_request_allows_unstructured_qwen_fallback() -> None:
     assert request["provider"] == {"require_parameters": True}
     assert request["max_tokens"] == 192
     assert "max_completion_tokens" not in request
+
+
+def test_schema_transport_fallback_is_limited_to_compatibility_failures() -> None:
+    assert schema_transport_fallback_allowed(
+        "anthropic/claude-haiku-4.5",
+        "json_schema provider HTTP 400: output_config.format.schema rejects maxItems",
+    )
+    assert schema_transport_fallback_allowed(
+        "qwen/qwen3-32b",
+        "provider HTTP 404: No endpoints found that can handle the requested parameters",
+    )
+    assert not schema_transport_fallback_allowed(
+        "anthropic/claude-haiku-4.5", "provider HTTP 401: invalid API key"
+    )

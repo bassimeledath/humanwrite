@@ -47,7 +47,11 @@ from .cleaning_contract import (
     cleaning_response_format,
     numbered_cleaning_prompt,
 )
-from .openrouter_contract import chat_request, structured_chat_request
+from .openrouter_contract import (
+    chat_request,
+    schema_transport_fallback_allowed,
+    structured_chat_request,
+)
 from .volume_paths import (
     checkpoint_volume_path,
     missing_run_artifact_metadata,
@@ -1054,11 +1058,7 @@ def rewrite_synthesis_worker(run_id: str, payload: dict) -> dict:
             return decode(send(request_payload, stage="json_schema")[0], stage="json_schema")
         except RuntimeError as exc:
             message = str(exc)
-            if not (
-                model == "qwen/qwen3-32b"
-                and "provider HTTP 404" in message
-                and "No endpoints found that can handle the requested parameters" in message
-            ):
+            if not schema_transport_fallback_allowed(model, message):
                 raise
         try:
             body, _usage_cost = send(
@@ -1066,8 +1066,7 @@ def rewrite_synthesis_worker(run_id: str, payload: dict) -> dict:
                     model=model,
                     prompt=prompt,
                     response_format={"type": "json_object"},
-                    max_completion_tokens=min(max_tokens, 1200),
-                    plugins=[{"id": "response-healing"}],
+                    max_completion_tokens=max_tokens,
                 ),
                 stage="json_object",
             )
@@ -1078,7 +1077,7 @@ def rewrite_synthesis_worker(run_id: str, payload: dict) -> dict:
                     chat_request(
                         model=model,
                         prompt=raw_json_prompt(),
-                        max_completion_tokens=min(max_tokens, 1200),
+                        max_completion_tokens=max_tokens,
                     ),
                     stage="raw_json_prompt",
                 )

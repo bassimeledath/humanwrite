@@ -4,6 +4,16 @@ from __future__ import annotations
 from typing import Any
 
 
+def schema_transport_fallback_allowed(model: str, message: str) -> bool:
+    """Identify routing/schema dialect failures safe for post-validated JSON fallback."""
+    text = str(message)
+    return (
+        "No endpoints found that can handle the requested parameters" in text
+        or "output_config.format.schema" in text
+        or "response_format" in text and "provider HTTP 400" in text
+    )
+
+
 def chat_request(
     *,
     model: str,
