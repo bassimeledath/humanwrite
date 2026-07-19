@@ -123,7 +123,15 @@ def verifier_response_schema() -> dict[str, Any]:
     }
 
 
-def generator_prompt(source: dict[str, Any], assignment: dict[str, str]) -> str:
+def generator_prompt(
+    source: dict[str, Any],
+    assignment: dict[str, str],
+    *,
+    attempt: int = 1,
+    previous_error: str = "",
+) -> str:
+    if type(attempt) is not int or attempt < 1:
+        raise RewriteTaskError("generation attempt must be a positive integer")
     target = str(source["completion"])
     template = assignment["template_id"]
     template_guidance = {
@@ -132,14 +140,28 @@ def generator_prompt(source: dict[str, Any], assignment: dict[str, str]) -> str:
         "verbose_transitions": "Use wordier transitions and explanatory connective language.",
         "corporate_expository": "Use safe, professional, corporate-expository phrasing.",
     }[template]
+    recovery = ""
+    if attempt > 1:
+        error = re.sub(r"\s+", " ", str(previous_error or "unspecified validation failure"))[:220]
+        recovery = (
+            f"\nThis is recovery attempt {attempt}. The previous candidate failed validation: {error}. "
+            "Correct that failure. In particular, produce a genuinely different draft: reorganize "
+            "at least one sentence or clause and replace enough unprotected wording that the source "
+            "cannot be byte-identical to the target. Keep every protected literal and fact exact. "
+            "Keep the source between roughly 85% and 115% of the target length.\n"
+        )
     return (
         "Create a realistic AI-written version of the human passage below for a rewriting "
         "training task. Preserve every fact, name, number, date, quotation, URL, and intent. "
         "Do not summarize, add facts, remove details, change language, or mention this task. "
         "Keep length close to the original. The result should remain usable prose, not a parody. "
+        "Even if the target is already polished, do not copy it verbatim: produce an alternate "
+        "draft with meaning-preserving changes to sentence structure, transitions, and unprotected "
+        "wording. Preserve exact quotations and other literal values verbatim. "
         f"Stylistic variant: {template}. {template_guidance} "
         "Also provide a short, natural user instruction asking a writing assistant to improve "
-        "the source while preserving its meaning. Repeat document_fingerprint exactly.\n\n"
+        "the source while preserving its meaning. Repeat document_fingerprint exactly."
+        f"{recovery}\n\n"
         f"document_fingerprint: {source['fingerprint']}\n\nHUMAN TARGET:\n{target}"
     )
 

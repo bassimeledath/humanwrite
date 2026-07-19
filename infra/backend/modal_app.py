@@ -1072,10 +1072,15 @@ def rewrite_synthesis_worker(run_id: str, payload: dict) -> dict:
                 try:
                     generated, generation_cost = provider_json(
                         model=assignment["generator_model"],
-                        prompt=generator_prompt(source, assignment),
+                        prompt=generator_prompt(
+                            source,
+                            assignment,
+                            attempt=attempt,
+                            previous_error=str(last_error or ""),
+                        ),
                         schema_name="m3_rewrite_source",
                         schema=generator_response_schema(),
-                        max_tokens=2500,
+                        max_tokens=3500,
                     )
                     record_spent += generation_cost
                     generated["generation_attempt"] = attempt
@@ -1084,7 +1089,7 @@ def rewrite_synthesis_worker(run_id: str, payload: dict) -> dict:
                         prompt=verifier_prompt(source, generated),
                         schema_name="m3_rewrite_verification",
                         schema=verifier_response_schema(),
-                        max_tokens=1400,
+                        max_tokens=2000,
                     )
                     record_spent += verification_cost
                     return (

@@ -9,6 +9,7 @@ from data.rewrite_tasks import (
     RewriteTaskError,
     assemble_rewrite_task,
     deterministic_assignment,
+    generator_prompt,
     protected_literals,
     render_rewrite_prompt,
     rewrite_source_records,
@@ -66,6 +67,22 @@ def test_assignment_is_stable_and_cross_provider() -> None:
     first = deterministic_assignment(FINGERPRINT)
     assert first == deterministic_assignment(FINGERPRINT)
     assert first["generator_model"] != first["verifier_model"]
+
+
+def test_recovery_prompt_forces_nonidentical_length_matched_rewrite() -> None:
+    assignment = deterministic_assignment(FINGERPRINT)
+    first = generator_prompt(source(), assignment)
+    recovery = generator_prompt(
+        source(),
+        assignment,
+        attempt=2,
+        previous_error="non-noop rewrite source equals target",
+    )
+    assert "do not copy it verbatim" in first
+    assert "recovery attempt 2" in recovery
+    assert "cannot be byte-identical" in recovery
+    assert "85% and 115%" in recovery
+    assert FINGERPRINT in recovery
 
 
 def test_protected_literals_cover_factual_surface() -> None:
