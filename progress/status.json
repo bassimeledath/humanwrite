@@ -1,14 +1,14 @@
 {
-  "updated_at": "2026-07-19T14:01:32Z",
+  "updated_at": "2026-07-19T14:08:12Z",
   "phase": "M3 — rewriting-first Qwen3-14B program",
-  "headline": "Qwen3-14B loaded; measured prompt-cap repair is in the H100 smoke",
-  "summary": "Run `dftr-1784468746-c1ddb6b8` proved that the pinned Qwen3-14B weights load on one H100 in 11 seconds, then stopped before training because one untouched generation prompt measured 642 tokens against the obsolete 640-token cap. Exact local qualification found all 128 examples valid with a maximum complete sequence of 852/1,024 tokens. Commit `ebb76e1` prospectively raised only the prompt guard to 768; commit `1a88bd7` also completed the matched 4K SFT14/HUMANWRITE14 trainer; and this turn aligned the smoke config materializer to the same 768-token contract. Targeted local materializer/smoke/4K config tests returned 9 passes, with one additional smoke unit not rerun in this shell because ephemeral test deps lacked `torch`. Corrected smoke `dftr-1784469584-5ace5380` is active; bulk 4K construction remains gated only on its mechanical result.",
+  "headline": "Qwen3-14B smoke passed; three 4K/evaluation constructors now run concurrently",
+  "summary": "Corrected smoke `dftr-1784469584-5ace5380` completed 16/16 optimizer steps over all 128 examples, produced both checkpoint boundaries, finite losses and gradients, and terminal manifest SHA `18caa3a9631e709162d60f0369edbdd126850574ef88014051a45ec5d65563c7` for `$0.283263`. The latest gateway is deployed. API rewrite construction `dftr-1784470057-7ab3e04f`, base-Qwen draft construction `dftr-1784470064-bf4ab7d8`, and the domain-disjoint fresh evaluation source `dftr-1784469891-83dfc7b5` are active concurrently. SHA-bound evaluation cleaning is already implemented for the source handoff.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 100,
-    "modal_committed_usd": 24.097387,
+    "modal_committed_usd": 32.27905,
     "openrouter_cap_usd": 100,
-    "openrouter_spend_usd": 29.267185
+    "openrouter_spend_usd": 41.267185
   },
   "services": [
     {"name": "GPU gateway", "detail": "Constrained launch API", "status": "online"},
@@ -26,6 +26,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "07:08",
+      "title": "14B mechanical gate passed; parallel 4K construction started",
+      "detail": "The repaired smoke completed all 16 steps and 21,062 teacher-forced completion tokens with finite loss/gradients, exact 128-example exposure, step-8 and step-16 checkpoints, and manifest SHA `18caa3a9631e709162d60f0369edbdd126850574ef88014051a45ec5d65563c7`; actual cost was `$0.283263`. The updated gateway is deployed, and three independent jobs now run together: 2,048 API rewrite pairs, 819 four-candidate base-Qwen drafts, and a new public evaluation source drawn from a previously unused FineWeb shard with all prior manifests excluded.",
+      "tone": "active"
+    },
     {
       "at": "07:00",
       "title": "14B model load passed; two-token prompt-cap defect repaired and relaunched",
