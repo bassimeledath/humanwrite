@@ -232,6 +232,48 @@ ASSUMPTIONS:
   during the read-only explorer/implementer pass, but not adapted after seeing
   experimental outcomes.
 
+## [2026-07-19] M3 / M3-rewrite-tasks-128-smoke-v2
+HYPOTHESIS: The frozen Qwen/Claude rewrite-task smoke was still scientifically
+alive and only needed infrastructure repair: if the partial artifact was
+validated in place, the same frozen 96 rewrite identities could be resumed to
+completion without reopening the task mixture or weakening acceptance gates.
+Because the 96-row output is prefix-stable and append-only, a resumed run is
+decision-valid if it preserves the same output URI and revalidates the already
+committed rows before attempting the missing identities.
+SETUP: Read-only audit plus bounded infrastructure repair on Sunday, July 19,
+2026. Evidence came from sanctioned gateway status, direct checkpoint-volume
+downloads of `rewrite-tasks-96-smoke-v2.jsonl` and the frozen 128-source input
+slice, deterministic-assignment analysis over the 96 rewrite identities, the
+checkpoint-volume log fix committed in `d1c8465`, and a transport-probe rerun
+`dftr-1784452195-a78ec24b` launched against the same `M3-rewrite-tasks-128-smoke-v2`
+config hash `4052e33f2772f63e8a7dd6d98242a9947867006648a88ace64dc7ee064fe4189`
+and canonical output URI. After that probe exposed the exact transport error,
+commit `d654ba1` added a Qwen-only transport fallback from strict
+`json_schema` to `json_object` plus response-healing and a realistic token cap,
+still under the same frozen models, identities, validators, and output URI.
+The current live resume run is `dftr-1784452317-f7c09b8c`.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Partial v2 artifact validated | PASS | Direct checkpoint download matched sanctioned SHA `25b311668679cde7d39d710b2c1f9643828c9b5767be8f243174d25e93cc5d8e` and contained 42 valid rows. |
+| Deterministic assignment diagnosis | PASS | The frozen 96-row rewrite slice assigns 42 Claude-generator rows and 54 Qwen-generator rows; the validated v2 artifact contained exactly the 42 Claude-assigned rows and zero Qwen-assigned rows. |
+| Original API-worker observability | FAIL | Sanctioned `/logs/{run_id}` was blank for rewrite/API workers because they wrote `worker.log` outside `/checkpoints/runs/<run_id>`, so terminal counters existed without per-record evidence. |
+| First repair: sanctioned checkpoint logging + parameter-compatible routing | PASS | Commit `d1c8465` moved API-worker logs onto the checkpoint volume and added OpenRouter `provider.require_parameters=true`; focused infra tests passed `73/73`, and the gateway was redeployed. |
+| Probe rerun failure mode | FAIL | Rerun `dftr-1784452195-a78ec24b` wrote checkpoint-backed logs showing repeated `provider HTTP 404` errors: `No endpoints found that can handle the requested parameters` on the remaining Qwen-assigned rows. This falsified the hypothesis that simple routing hardening alone would recover the missing half. |
+| Second repair: Qwen transport fallback | PASS | Commit `d654ba1` preserved the same frozen task contract but changed only the Qwen request transport on that exact 404: strict `json_schema` now falls back to `json_object` + `response-healing` with `max_completion_tokens <= 1200`; focused infra tests passed `74/74`, and the gateway was redeployed. |
+| Active bounded resume | PASS | Run `dftr-1784452317-f7c09b8c` is active on git SHA `d654ba153f5502b830c271c9bf081f1689e318a4` against the unchanged output URI and will skip the 42 already-validated rows. |
+DECISION: keep the M3 smoke active. The first rerun produced a defensible
+infrastructure diagnosis rather than a scientific result: the missing half of
+the corpus is blocked on Qwen transport compatibility, not on content
+preservation or a failed scientific gate. The sanctioned path is now narrow
+and evidence-rich enough to justify one more in-place resume against the same
+frozen artifact.
+NEXT: Validate terminal outcome of `dftr-1784452317-f7c09b8c`. If it completes
+96/96, materialize the full rewrite artifact and launch the already-built
+Qwen3-14B mechanical SFT smoke. If it still cannot recover the Qwen-assigned
+54 rows under the narrowed fallback, stop and record a defensible negative
+infrastructure conclusion for this exact M3 smoke before spending GPU budget.
+
 ## [2026-07-15] M1 / repository-readiness
 HYPOTHESIS: The signed-off M0 checkout contains enough constrained surfaces to
 instantiate M1 without touching Tier 1, and any missing M1-specific artifacts

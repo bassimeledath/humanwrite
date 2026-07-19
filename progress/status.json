@@ -1,14 +1,14 @@
 {
-  "updated_at": "2026-07-19T08:38:20Z",
+  "updated_at": "2026-07-19T09:12:38Z",
   "phase": "M3 — rewriting-first Qwen3-14B program",
-  "headline": "14B rewrite task-construction smoke running under autonomous control",
-  "summary": "The rewriting-first Qwen3-14B protocol is frozen and deployed. Its 128-record construction smoke is generating and independently verifying 96 rewrite pairs before any GPU training spend. On success, the event-driven coordinator will validate the artifacts and continue through matched 4K and gated 16K training/evaluation without routine user prompts; a 46K extension is allowed only if the frozen 16K gate passes.",
+  "headline": "M3 rewrite smoke rerunning with a narrowed Qwen transport fallback",
+  "summary": "The scheduled audit turned the failed M3 rewrite-smoke handoff into a concrete infrastructure diagnosis. Direct checkpoint validation showed the frozen v2 artifact contains exactly 42 valid rows, all from the Claude-assigned half of the 96 rewrite identities, while the Qwen-assigned 54 rows were missing. The sanctioned `/logs` path for API workers was blank because those workers wrote outside `/checkpoints/runs/<run_id>`, so commit `d1c8465` repaired checkpoint-backed logging and hardened OpenRouter routing with `provider.require_parameters=true`. A bounded probe rerun then produced the decisive failure message on the missing Qwen rows: OpenRouter returned HTTP 404 `No endpoints found that can handle the requested parameters`. Commit `d654ba1` now preserves the same frozen models, identities, validators, and output URI but narrows only the Qwen transport to a `json_object` plus `response-healing` fallback when strict `json_schema` has no compatible endpoint. Resume run `dftr-1784452317-f7c09b8c` is active on git SHA `d654ba1`; the next continuation should validate whether the remaining 54 identities begin completing or whether the smoke is blocked on provider capability before any 14B GPU spend.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 100,
     "modal_committed_usd": 22.252709,
     "openrouter_cap_usd": 100,
-    "openrouter_spend_usd": 31.949823
+    "openrouter_spend_usd": 32.075207
   },
   "services": [
     {"name": "GPU gateway", "detail": "Constrained launch API", "status": "online"},
@@ -26,6 +26,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "02:12",
+      "title": "Qwen transport failure isolated; narrowed fallback resume is active",
+      "detail": "The failed M3 smoke was not a stale monitor target. Direct checkpoint downloads validated the v2 artifact SHA `25b311668679cde7d39d710b2c1f9643828c9b5767be8f243174d25e93cc5d8e` and showed 42 committed rows, exactly matching the 42 Claude-assigned identities in the frozen 96-row rewrite slice, with all 54 Qwen-assigned identities still missing. The audit also found the sanctioned `/logs` route was blind for API workers because they wrote outside `/checkpoints/runs/<run_id>`, so commit `d1c8465` moved API-worker logs onto the checkpoint volume and added OpenRouter `provider.require_parameters=true`; focused infra tests passed `73/73`, the gateway was redeployed, and probe rerun `dftr-1784452195-a78ec24b` preserved the same output URI. That probe made the underlying blocker explicit: checkpoint-backed logs showed repeated OpenRouter HTTP 404 `No endpoints found that can handle the requested parameters` on the missing Qwen rows. Commit `d654ba1` now keeps the same frozen task contract but narrows only the Qwen transport from strict `json_schema` to `json_object` plus `response-healing` with a realistic token cap when the strict route has no compatible endpoint. Focused infra tests passed `74/74`, the gateway was redeployed, and resume run `dftr-1784452317-f7c09b8c` is active on git SHA `d654ba1` against the unchanged output URI. API spend is now `$32.075207/$100`; GPU commitment remains `$22.252709/$100`.",
+      "tone": "active"
+    },
     {
       "at": "01:38",
       "title": "14B training smoke built while task synthesis resumes",
