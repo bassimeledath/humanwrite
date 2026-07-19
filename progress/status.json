@@ -1,9 +1,9 @@
 {
-  "updated_at": "2026-07-19T09:31:25Z",
+  "updated_at": "2026-07-19T12:58:17Z",
   "phase": "M3 — rewriting-first Qwen3-14B program",
-  "headline": "M3 blocked on sanctioned Qwen provider availability",
-  "summary": "The autonomous M3 cycle reached a defensible stop under the frozen protocol. Commit `5f60327` added a third Qwen-only raw-text JSON fallback and passed `15/15` focused tests; the constrained gateway was redeployed, and the first relaunch `dftr-1784453338-8343264e` was identified as a stale-worker deploy race because it still emitted the old bare `provider HTTP 404` log format. The clean post-deploy rerun `dftr-1784453394-116e6e29` then proved the patched worker was live by logging `qwen transport fallback exhausted`, yet it still terminated with `records_processed=0`, `records_failed=54`, `actual_api_cost_usd=0.0`, and the same output SHA `25b311668679cde7d39d710b2c1f9643828c9b5767be8f243174d25e93cc5d8e`. No 14B training spend was opened. Because the frozen M3 contract requires matched Qwen/Claude exposure, there is no authorized next asynchronous launch without user approval to change the provider/model contract.",
-  "run_state": "blocked",
+  "headline": "False provider stop overturned; corrected Qwen transport rerun active",
+  "summary": "The prior autonomous stop was incorrect. OpenRouter advertises Qwen3-32B structured output and `max_tokens`, but the shared request helper sent the OpenAI-specific `max_completion_tokens` while requiring parameter-compatible routing. That guaranteed the observed no-endpoint response, including every fallback. Commit `7c2cea4` corrected the transport field, 88 focused tests passed, the gateway was redeployed, and rerun `dftr-1784465875-9957cfca` is active on the same frozen identities and 42-row validated partial artifact. Autonomy is re-enabled; a complete 96-row result will advance directly to the already-built Qwen3-14B H100 mechanical training smoke.",
+  "run_state": "active",
   "budget": {
     "modal_cap_usd": 100,
     "modal_committed_usd": 22.252709,
@@ -22,10 +22,16 @@
     {"id": "M0", "label": "M0", "detail": "Data pipeline and GPU contract smoke test", "status": "complete"},
     {"id": "M1", "label": "M1", "detail": "4B three-seed directional confirmation passed", "status": "complete"},
     {"id": "M2", "label": "M2", "detail": "4B reconstruction and 4K lower-variance screen completed; evidence weak and mixed", "status": "complete"},
-    {"id": "M3", "label": "M3", "detail": "Rewriting-first Qwen3-14B task construction, matched training, and fresh evaluation", "status": "blocked"},
+    {"id": "M3", "label": "M3", "detail": "Rewriting-first Qwen3-14B task construction, matched training, and fresh evaluation", "status": "active"},
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "05:58",
+      "title": "Incorrect provider stop overturned; Qwen rerun active",
+      "detail": "A manual review of the autonomous reviewer found the decisive transport bug: Qwen3-32B advertises `max_tokens`, while every strict and fallback request sent `max_completion_tokens` together with `provider.require_parameters=true`. The code therefore filtered out the available endpoint and misclassified the result as provider unavailability. Commit `7c2cea4` fixes the portable token-limit field, focused verification passes `88/88`, the gateway is redeployed, and run `dftr-1784465875-9957cfca` is active against the unchanged frozen Qwen/Claude identities. No method or promotion gate changed.",
+      "tone": "active"
+    },
     {
       "at": "09:31",
       "title": "Post-deploy Qwen fallback exhausted; autonomy disabled",
@@ -667,5 +673,5 @@
     {"at": "17:46", "title": "Storage created", "detail": "Gateway state, checkpoints, sealed state, and sealed artifacts volumes are online.", "tone": "complete"},
     {"at": "17:40", "title": "Engineering checks passed", "detail": "Harness, infrastructure, and private evaluator suites are green.", "tone": "complete"}
   ],
-  "next_action": "Wait for the zero-token watcher to observe terminal state for repaired Qwen/Claude run `dftr-1784450281-877f65a7`; then validate all 96 rewrite artifacts, bind their SHA into the completed 14B LoRA mechanical-smoke config, and launch the H100 smoke automatically."
+  "next_action": "Let the zero-token watcher validate corrected transport run `dftr-1784465875-9957cfca`; on a complete 96-row artifact, bind its SHA into the prepared Qwen3-14B H100 mechanical-smoke config and launch automatically."
 }

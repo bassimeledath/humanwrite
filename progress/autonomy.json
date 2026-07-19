@@ -1,13 +1,18 @@
 {
   "schema": "humanwrite.autonomy_control.v1",
-  "enabled": false,
-  "generation": 37,
+  "enabled": true,
+  "generation": 38,
   "objective": "Run the preregistered M3 rewriting-first Qwen3-14B program autonomously through the 128-record task-construction smoke, matched 4K screen, gated 16K confirmation, and optional 46K extension only if the frozen 16K promotion gate passes. Diagnose and repair recoverable implementation or infrastructure failures without routine user sign-off. Stay within the existing $100 API and $100 GPU caps; do not launch Tier 3 detectors or raise either cap.",
-  "disabled_reason": "Post-deploy Qwen raw-text fallback still failed on all 54 frozen Qwen rewrite identities with zero recovered rows and zero API cost; advancing now would require changing the frozen provider/model contract.",
   "poll_interval_seconds": 600,
   "max_codex_wakes_per_24h": 16,
   "audit_recent_continuation_seconds": 3600,
   "codex_timeout_seconds": 7200,
   "wake_policy": "once_per_new_terminal_transition",
-  "monitored_runs": []
+  "monitored_runs": [
+    {
+      "run_id": "dftr-1784465875-9957cfca",
+      "comparison": "M3-rewrite-tasks-128-smoke-v2",
+      "purpose": "Verify corrected max_tokens transport on the remaining 54 frozen Qwen identities, then launch the prepared Qwen3-14B H100 mechanical smoke if all 96 tasks validate"
+    }
+  ]
 }
