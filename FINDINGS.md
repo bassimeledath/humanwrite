@@ -2825,3 +2825,31 @@ handoff. If it fails again, inspect whether the remaining six are persistent
 provider/validator misses and decide whether the current faithful-brief method
 family has reached a defensible negative conclusion at the 4K data cell
 rather than reopening panels or relaxing quality rules.
+
+## [2026-07-18] M2 / scale-ladder-4k-briefs-complete-pause
+HYPOTHESIS: The last six missing 4K brief identities can close under the same
+frozen protocol, but whether to proceed into GPU witness generation and matched
+4B fine-tuning is no longer an autonomous decision if the user has explicitly
+paused the pipeline for independent review.
+SETUP: Follow-up validation after the continuity-repair commit. The sanctioned
+gateway status for `dftr-1784419062-7c7e2b47` was rechecked through the
+keychain-backed coordinator path. At the same time, `progress/autonomy.json`
+changed outside this turn to `enabled=false`, `generation=21`, objective
+`PAUSED by user before GPU witness generation or fine-tuning, pending
+independent review of hardcoded contracts, implementation, and sampled 4K
+data.`
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Final 4K retry completion | PASS | Run `dftr-1784419062-7c7e2b47` completed with `records_processed=6`, `records_failed=0`, `actual_api_cost_usd=$0.007393`, and output SHA `0c35745e5a352a63fef17bee246e2c1822cf54a609e0c41e05327754db135d47`. |
+| Exact 4K brief contract | PASS | The canonical 4K brief artifact is now whole at 4,096 validated rows under the unchanged output URI `modal-volume://humanwrite-checkpoints/data/m2-scale-ladder-v1/train-briefs-4096.jsonl`. |
+| Remaining remote work | PASS | None. No asynchronous run remains active after the final retry completed. |
+| User-authority gate | PASS | `progress/autonomy.json` now explicitly pauses the pipeline before witness generation or fine-tuning, so launching the next GPU jobs would override a direct user stop signal. |
+| Budget boundary at park | PASS | Approved budget remained inside cap at Modal committed `$16.778820/$100` and OpenRouter spend `$28.483027/$100`. |
+DECISION: Preserve the user pause and park the pipeline. Do not launch the 4K
+baseline witness, matched 4B SFT control, or matched 4B MMD-witness arm until
+the user re-enables autonomy after the requested independent review.
+NEXT: Wait for user authority. The next scientific action, once explicitly
+re-enabled, is to validate the completed 4K brief artifact and then launch the
+pinned baseline-witness plus matched 4B training handoff from the frozen 4,096
+row corpus.

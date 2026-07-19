@@ -1,14 +1,14 @@
 {
-  "updated_at": "2026-07-18T23:59:43Z",
+  "updated_at": "2026-07-19T00:02:00Z",
   "phase": "M2 — 4B data-scale ladder through 16K",
-  "headline": "4K briefs reached 4,090; final 6-row retry is running",
-  "summary": "The immutable 4,096-document corpus remains frozen. Initial brief synthesis produced 4,024 valid rows; bounded resume `dftr-1784417670-e1bb510b` recovered 50, retry `dftr-1784418273-0bb9e6ef` recovered 4 more, and safe-excerpt retry `dftr-1784418784-df1cd806` recovered 12 more for 4,090 validated briefs total. Final bounded retry `dftr-1784419062-7c7e2b47` is now the only active remote job, attempting the remaining six identities under the unchanged provider and validation contract. Fine-tuning has not started yet because the exact 4,096-row contract remains mandatory; the watcher has been retargeted from the stale failed run to the real active retry.",
-  "run_state": "active",
+  "headline": "4K brief artifact reached 4,096; autonomy paused before witness generation",
+  "summary": "The immutable 4,096-document corpus is now complete. Initial brief synthesis produced 4,024 valid rows; bounded retries recovered 50, then 4, then 12, and final retry `dftr-1784419062-7c7e2b47` closed the remaining six identities under the unchanged provider and validation contract. The canonical 4K brief artifact is whole with output SHA `0c35745e5a352a63fef17bee246e2c1822cf54a609e0c41e05327754db135d47`. No GPU witness generation or 4B fine-tuning was launched because `progress/autonomy.json` was externally rewritten to a user pause pending independent review of the 4K contracts, implementation, and sampled data.",
+  "run_state": "paused",
   "budget": {
     "modal_cap_usd": 100,
     "modal_committed_usd": 16.77882,
     "openrouter_cap_usd": 100,
-    "openrouter_spend_usd": 43.475634
+    "openrouter_spend_usd": 28.483027
   },
   "services": [
     {"name": "GPU gateway", "detail": "Constrained launch API", "status": "online"},
@@ -25,6 +25,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "17:01",
+      "title": "Final six 4K briefs completed; autonomy paused before witness and tuning",
+      "detail": "Run `dftr-1784419062-7c7e2b47` completed with `records_processed=6`, `records_failed=0`, `actual_api_cost_usd=$0.007393`, and output SHA `0c35745e5a352a63fef17bee246e2c1822cf54a609e0c41e05327754db135d47`, closing the exact 4,096-row brief contract. Before the next GPU steps were launched, `progress/autonomy.json` was externally rewritten to `enabled=false` with a user pause pending independent review of the 4K contracts, implementation, and sampled data, so the pipeline is now parked rather than advancing to witness generation or fine-tuning.",
+      "tone": "blocked"
+    },
     {
       "at": "16:57",
       "title": "Safe-excerpt retry reduced the 4K brief gap to six; monitor retargeted",
