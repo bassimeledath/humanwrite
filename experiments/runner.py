@@ -64,6 +64,7 @@ from experiments.m3.rewrite_sft_smoke import (
 )
 from experiments.m3.baseline_drafts import (
     SCHEMA as M3_BASELINE_DRAFT_SCHEMA,
+    SCHEMA_V2 as M3_BASELINE_DRAFT_SCHEMA_V2,
     STEP as M3_BASELINE_DRAFT_STEP,
     run as run_m3_baseline_drafts,
 )
@@ -276,9 +277,10 @@ def main(argv: list[str] | None = None) -> int:
         raise ValueError("M3 rewrite SFT smoke protocol requires train_m3_rewrite_sft_smoke")
     if step == M3_REWRITE_SFT_SMOKE_STEP and protocol != M3_REWRITE_SFT_SMOKE_SCHEMA:
         raise ValueError("train_m3_rewrite_sft_smoke requires its frozen M3 protocol")
-    if protocol == M3_BASELINE_DRAFT_SCHEMA and step != M3_BASELINE_DRAFT_STEP:
+    m3_baseline_draft_protocols = {M3_BASELINE_DRAFT_SCHEMA, M3_BASELINE_DRAFT_SCHEMA_V2}
+    if protocol in m3_baseline_draft_protocols and step != M3_BASELINE_DRAFT_STEP:
         raise ValueError("M3 baseline-draft protocol requires generate_m3_baseline_drafts")
-    if step == M3_BASELINE_DRAFT_STEP and protocol != M3_BASELINE_DRAFT_SCHEMA:
+    if step == M3_BASELINE_DRAFT_STEP and protocol not in m3_baseline_draft_protocols:
         raise ValueError("generate_m3_baseline_drafts requires its frozen M3 protocol")
     if protocol == M3_REWRITE_4K_SCHEMA and step != M3_REWRITE_4K_STEP:
         raise ValueError("M3 4K rewrite-training protocol requires train_m3_rewrite_4k")
@@ -314,7 +316,7 @@ def main(argv: list[str] | None = None) -> int:
         manifest = run_lower_variance(config, args.run_id)
     elif protocol == M3_REWRITE_SFT_SMOKE_SCHEMA:
         manifest = run_m3_rewrite_sft_smoke(config, args.run_id)
-    elif protocol == M3_BASELINE_DRAFT_SCHEMA:
+    elif protocol in m3_baseline_draft_protocols:
         manifest = run_m3_baseline_drafts(config, args.run_id)
     elif protocol == M3_REWRITE_4K_SCHEMA:
         manifest = run_m3_rewrite_4k(config, args.run_id)
