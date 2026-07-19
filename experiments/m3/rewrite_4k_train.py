@@ -672,7 +672,9 @@ def run(config: dict[str, Any], run_id: str) -> dict[str, Any]:
         "completion_tokens": total_completion_tokens,
         "moment_coefficient": moment_coefficient,
         "stage_1_adapter": str(root / "stage-1-adapter"),
+        "stage_1_adapter_sha256": _file_sha256(root / "stage-1-adapter" / "adapter_model.safetensors"),
         "stage_2_adapter": str(root / "stage-2-adapter"),
+        "stage_2_adapter_sha256": _file_sha256(root / "stage-2-adapter" / "adapter_model.safetensors"),
     }
     write_json(root / "run_manifest.json", manifest)
     return manifest

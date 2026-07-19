@@ -66,6 +66,17 @@ M3_REWRITE_4K_METHOD_KEYS = (
     "objectives",
     "generation",
 )
+M3_REWRITE_GENERATION_PROTOCOL = "humanwrite.m3.rewrite_generate_14b.v1"
+M3_REWRITE_GENERATION_STEP = "generate_m3_rewrite_candidates"
+M3_REWRITE_GENERATION_METHOD_KEYS = (
+    "artifact_schema",
+    "run",
+    "compute",
+    "model",
+    "data",
+    "checkpoint",
+    "generation",
+)
 LOWER_VARIANCE_TRAIN_PROTOCOL = "dftr.m2.lower_variance_three_arm.v1"
 LOWER_VARIANCE_CONFIRMATION_PROTOCOL = "dftr.m2.lower_variance_confirmation.v2"
 LOWER_VARIANCE_TRAIN_PROTOCOLS = {
@@ -718,6 +729,7 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
         M3_REWRITE_SFT_SMOKE_STEP,
         M3_BASELINE_DRAFT_STEP,
         M3_REWRITE_4K_STEP,
+        M3_REWRITE_GENERATION_STEP,
     } and revision_is_unresolved(
         (config.get("model") or {}).get("revision")
     ):
@@ -1019,6 +1031,60 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
             or payload.get("dft_a64_readiness") is not None
         ):
             raise PolicyError("M3 4K rewrite training requires the frozen 14B wrapper protocol")
+    if workflow_step == M3_REWRITE_GENERATION_STEP:
+        workflow = config.get("workflow") or {}
+        method_payload = {
+            key: config.get(key) for key in M3_REWRITE_GENERATION_METHOD_KEYS
+        }
+        method_payload.update(
+            protocol_version=workflow.get("protocol_version"), step=workflow.get("step")
+        )
+        data = config.get("data") or {}
+        checkpoint = config.get("checkpoint") or {}
+        arm = str(checkpoint.get("arm") or "")
+        trained = arm in {"SFT14", "HUMANWRITE14"}
+        if (
+            set(config) != set(M3_REWRITE_GENERATION_METHOD_KEYS) | {"workflow"}
+            or config.get("artifact_schema") != M3_REWRITE_GENERATION_PROTOCOL
+            or workflow.get("protocol_version") != M3_REWRITE_GENERATION_PROTOCOL
+            or set(workflow) != {"protocol_version", "step", "method_contract_sha256"}
+            or canonical_hash(method_payload) != workflow.get("method_contract_sha256")
+            or task_kind != "experiment"
+            or budget_class != "screen"
+            or config.get("model")
+            != {
+                "base": QWEN3_14B_MODEL,
+                "revision": QWEN3_14B_REVISION,
+                "torch_dtype": "bfloat16",
+            }
+            or config.get("compute") != {"gpu": "H100", "gpus": 1, "timeout_min": 120}
+            or arm not in {"BASE", "SFT14", "HUMANWRITE14"}
+            or (config.get("run") or {}).get("arm") != f"{arm}-fresh-rewrite-generation"
+            or data.get("panel_path")
+            != "/checkpoints/data/m3-rewriting-14b-v1/fresh-rewrite-eval-panel-256-v1.jsonl"
+            or data.get("records") != 256
+            or not re.fullmatch(r"[0-9a-f]{64}", str(data.get("panel_sha256") or ""))
+            or set(checkpoint)
+            != {"arm", "training_manifest_path", "training_manifest_sha256"}
+            or (
+                trained
+                and (
+                    not str(checkpoint.get("training_manifest_path") or "").startswith("/checkpoints/")
+                    or not re.fullmatch(
+                        r"[0-9a-f]{64}", str(checkpoint.get("training_manifest_sha256") or "")
+                    )
+                )
+            )
+            or (
+                not trained
+                and (
+                    checkpoint.get("training_manifest_path") is not None
+                    or checkpoint.get("training_manifest_sha256") is not None
+                )
+            )
+            or payload.get("dft_a64_readiness") is not None
+        ):
+            raise PolicyError("M3 rewrite generation requires the frozen 14B wrapper protocol")
     if workflow_step == "replay_equivalence":
         replay_workflow = config.get("workflow") or {}
         protocol_version = str(replay_workflow.get("protocol_version"))

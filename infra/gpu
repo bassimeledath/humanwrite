@@ -327,6 +327,13 @@ def _validate_submit(config: dict, budget_class: str) -> tuple[str, dict]:
             validate_config(config)
         except Exception as exc:
             _die(f"REJECTED: M3 4K rewrite training config invalid: {exc}")
+    if workflow_step == "generate_m3_rewrite_candidates":
+        try:
+            from experiments.m3.rewrite_generate_14b import validate_config
+
+            validate_config(config)
+        except Exception as exc:
+            _die(f"REJECTED: M3 rewrite generation config invalid: {exc}")
     if workflow_step == "replay_equivalence":
         replay_workflow = config.get("workflow") or {}
         protocol_version = str(replay_workflow.get("protocol_version"))
