@@ -267,6 +267,39 @@ def _gradient_norm(parameters) -> float:
     return float(total.sqrt().cpu())
 
 
+def _component_gradient_stats(ce_buffers, moment_buffers) -> tuple[float, float, float | None]:
+    import torch
+
+    if not ce_buffers or (moment_buffers is not None and len(moment_buffers) != len(ce_buffers)):
+        raise M3Rewrite4KError("component gradient buffers are invalid")
+    device = ce_buffers[0].device
+    ce_square = torch.zeros((), dtype=torch.float64, device=device)
+    moment_square = torch.zeros((), dtype=torch.float64, device=device)
+    dot = torch.zeros((), dtype=torch.float64, device=device)
+    for index, ce_gradient in enumerate(ce_buffers):
+        ce = ce_gradient.detach().double()
+        ce_square += ce.square().sum()
+        if moment_buffers is not None:
+            moment = moment_buffers[index].detach().double()
+            moment_square += moment.square().sum()
+            dot += (ce * moment).sum()
+    ce_norm = float(ce_square.sqrt().cpu())
+    if moment_buffers is None:
+        return ce_norm, 0.0, None
+    moment_norm = float(moment_square.sqrt().cpu())
+    denominator = math.sqrt(float(ce_square.cpu()) * float(moment_square.cpu()))
+    cosine = float(dot.cpu()) / denominator if denominator > 0 else None
+    return ce_norm, moment_norm, cosine
+
+
+def _accumulate_component(buffers, gradients) -> None:
+    if len(buffers) != len(gradients):
+        raise M3Rewrite4KError("component gradient arity mismatch")
+    for buffer, gradient in zip(buffers, gradients):
+        if gradient is not None:
+            buffer.add_(gradient.detach())
+
+
 def _source_text(row: dict[str, Any]) -> str:
     prompt = str(row["prompt"])
     marker = "SOURCE TEXT:\n"
@@ -505,6 +538,12 @@ def run(config: dict[str, Any], run_id: str) -> dict[str, Any]:
             weight_decay=config["training"]["weight_decay"],
         )
         optimizer.zero_grad(set_to_none=True)
+        ce_gradient_buffers = [torch.zeros_like(parameter) for parameter in parameters]
+        moment_gradient_buffers = (
+            [torch.zeros_like(parameter) for parameter in parameters]
+            if config["objectives"]["moment_enabled"]
+            else None
+        )
         stage_indices = schedule[(stage - 1) * 2048 : stage * 2048]
         microbatch = config["training"]["microbatch_size"]
         accumulation = config["training"]["gradient_accumulation_steps"]
@@ -542,11 +581,35 @@ def run(config: dict[str, Any], run_id: str) -> dict[str, Any]:
             loss = ce_loss + moment_coefficient * moment_loss
             if not bool(torch.isfinite(loss).item()):
                 raise M3Rewrite4KError("non-finite 4K training loss")
-            (loss / accumulation).backward()
+            ce_gradients = torch.autograd.grad(
+                ce_loss / accumulation,
+                parameters,
+                retain_graph=config["objectives"]["moment_enabled"],
+                allow_unused=True,
+            )
+            _accumulate_component(ce_gradient_buffers, ce_gradients)
+            del ce_gradients
+            if config["objectives"]["moment_enabled"]:
+                moment_gradients = torch.autograd.grad(
+                    moment_coefficient * moment_loss / accumulation,
+                    parameters,
+                    allow_unused=True,
+                )
+                assert moment_gradient_buffers is not None
+                _accumulate_component(moment_gradient_buffers, moment_gradients)
+                del moment_gradients
             total_completion_tokens += sum(batch["completion_tokens"])
             if batch_number % accumulation:
                 continue
             global_step += 1
+            ce_gradient_norm, moment_gradient_norm, component_cosine = _component_gradient_stats(
+                ce_gradient_buffers, moment_gradient_buffers
+            )
+            for parameter, ce_gradient in zip(parameters, ce_gradient_buffers):
+                parameter.grad = ce_gradient.clone()
+            if moment_gradient_buffers is not None:
+                for parameter, moment_gradient in zip(parameters, moment_gradient_buffers):
+                    parameter.grad.add_(moment_gradient)
             preclip = torch.nn.utils.clip_grad_norm_(
                 parameters, config["training"]["gradient_clip_norm"]
             )
@@ -561,11 +624,20 @@ def run(config: dict[str, Any], run_id: str) -> dict[str, Any]:
                     "ce_loss": float(ce_loss.detach()),
                     "moment_loss": float(moment_loss.detach()),
                     "moment_coefficient": moment_coefficient,
+                    "ce_gradient_norm": ce_gradient_norm,
+                    "moment_gradient_norm": moment_gradient_norm,
+                    "ce_moment_gradient_cosine": component_cosine,
                     "preclip_gradient_norm": float(preclip),
+                    "gradient_clipped": float(preclip) > config["training"]["gradient_clip_norm"],
                     "completion_tokens_total": total_completion_tokens,
                     "mean_witness_weight": float(weights.float().mean()),
                 }
             )
+            for buffer in ce_gradient_buffers:
+                buffer.zero_()
+            if moment_gradient_buffers is not None:
+                for buffer in moment_gradient_buffers:
+                    buffer.zero_()
             if global_step % config["training"]["checkpoint_every"] == 0:
                 checkpoint = root / "checkpoints" / f"step-{global_step}"
                 checkpoint.mkdir(parents=True, exist_ok=False)

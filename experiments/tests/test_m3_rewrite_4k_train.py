@@ -7,6 +7,8 @@ import pytest
 from backend.policy import canonical_hash as policy_hash, validate_launch
 from experiments.m3.rewrite_4k_train import (
     M3Rewrite4KError,
+    _accumulate_component,
+    _component_gradient_stats,
     build_config,
     deterministic_schedule,
     validate_config,
@@ -61,3 +63,15 @@ def test_sft_disables_both_distribution_terms() -> None:
     assert sft["objectives"]["witness_enabled"] is False
     assert treatment["objectives"]["moment_enabled"] is True
     assert treatment["objectives"]["witness_enabled"] is True
+
+
+def test_component_gradient_accumulation_and_cosine_are_exact() -> None:
+    torch = pytest.importorskip("torch")
+    ce = [torch.zeros(2), torch.zeros(1)]
+    moment = [torch.zeros(2), torch.zeros(1)]
+    _accumulate_component(ce, [torch.tensor([3.0, 4.0]), torch.tensor([0.0])])
+    _accumulate_component(moment, [torch.tensor([4.0, -3.0]), torch.tensor([0.0])])
+    ce_norm, moment_norm, cosine = _component_gradient_stats(ce, moment)
+    assert ce_norm == pytest.approx(5.0)
+    assert moment_norm == pytest.approx(5.0)
+    assert cosine == pytest.approx(0.0)
