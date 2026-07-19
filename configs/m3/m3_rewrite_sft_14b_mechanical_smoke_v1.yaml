@@ -45,7 +45,7 @@ training:
   learning_rate: 2.0e-05
   weight_decay: 0.0
   gradient_clip_norm: 1.0
-  max_prompt_tokens: 640
+  max_prompt_tokens: 768
   max_completion_tokens: 383
   max_sequence_tokens: 1024
   checkpoint_every: 8
@@ -55,4 +55,4 @@ training:
 workflow:
   protocol_version: humanwrite.m3.rewrite_sft_14b_smoke.v1
   step: train_m3_rewrite_sft_smoke
-  method_contract_sha256: d6a384652cf225f991f04b2046eb2aff427485f7d2d77665c90f201baee2f63d
+  method_contract_sha256: 0e9f3eda79d1db328194ec53f7e3f64cf992aedcac578a5560e2d5bbb555d170

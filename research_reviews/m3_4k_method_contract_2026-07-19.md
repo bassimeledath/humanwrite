@@ -41,7 +41,7 @@ Both arms start independently from the same pinned Qwen3-14B base and use:
 - a prospectively seeded permutation, split at the 2,048-example boundary;
 - microbatch 2, gradient accumulation 4, effective batch 8;
 - AdamW, learning rate `2e-5`, zero weight decay, gradient clipping at 1.0;
-- maximum prompt/completion/sequence lengths 640/383/1,024 tokens;
+- maximum prompt/completion/sequence lengths 768/383/1,024 tokens;
 - merge the stage-1 LoRA into the base, initialize a fresh rank-32 LoRA, reset
   optimizer state, and run stage 2;
 - checkpoint every 128 optimizer steps and at both stage boundaries.
@@ -74,7 +74,8 @@ fixed 512-item training-only subset. No evaluation input is used. Build paired
 features from:
 
 1. the target-minus-source and policy-output-minus-source embedding residuals
-   under pinned `BAAI/bge-small-en-v1.5`; and
+   under `BAAI/bge-small-en-v1.5` revision
+   `5c38ec7c405ec4b44b94cc5a9bb96e735b38267a`; and
 2. twelve preregistered surface features: token count, sentence count,
    paragraph count, mean and standard deviation of sentence length,
    type-token ratio, comma, semicolon, colon, parenthesis, em-dash, and newline
@@ -88,6 +89,18 @@ Stage 2 samples without replacement from the frozen second half, and multiplies
 each example's cross-entropy and moment term by its witness weight. This combines
 topic-residualized embedding and surface evidence; semantic MMD alone never sets
 weights.
+
+The 512 stage-boundary rewrites use greedy decoding, normal EOS stopping,
+thinking disabled, and at most 383 new tokens. The subset is the 512 smallest
+SHA-256-ranked fingerprints among non-noop rewrite tasks; this ranking is fixed
+before training outcomes exist.
+
+The prompt cap was prospectively corrected from 640 to 768 after the mechanical
+smoke loaded Qwen3-14B successfully but rejected one untouched generation prompt
+measured at 642 tokens. Exact local-tokenizer qualification found all 128 smoke
+prompts at or below 642 tokens and all complete sequences at or below 852 tokens.
+No corpus text, completion, optimizer setting, or outcome was changed; the
+1,024-token total-sequence guard remains binding.
 
 ## Fresh 256-item evaluation panel
 
