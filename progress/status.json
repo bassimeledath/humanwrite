@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-19T13:01:36Z",
+  "updated_at": "2026-07-19T13:05:16Z",
   "phase": "M3 — rewriting-first Qwen3-14B program",
   "headline": "False provider stop overturned; corrected Qwen transport rerun active",
-  "summary": "The prior autonomous stop was incorrect. Commit `7c2cea4` fixed the nonportable token-limit field and proved Qwen routing reaches a real endpoint. That exposed a second transport-only issue: Claude's structured-output implementation rejects numeric range keywords in the verifier schema. Commit `6317995` removes those schema keywords while enforcing the identical `[0,1]` bound after decoding, and focused tests pass. Rerun `dftr-1784466066-bc38cdab` is active on the same frozen identities and validated 42-row partial artifact. A complete 96-row result will advance directly to the already-built Qwen3-14B H100 mechanical training smoke.",
+  "summary": "The prior autonomous stop was incorrect. The portable `max_tokens` fix proved Qwen routing reaches a real endpoint; subsequent logs isolated provider-specific JSON-schema dialect restrictions in Claude. Commit `ab8eab7` now retries only schema/routing compatibility failures through `json_object` or raw JSON while retaining all deterministic post-decode acceptance checks, and removes the previous 1,200-token fallback clamp. Run `dftr-1784466296-33f8cb96` is active on the same frozen identities and validated 42-row partial artifact. The complete task-to-H100 SHA-binding handoff is checked in and preregistered.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 100,
@@ -26,6 +26,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "06:05",
+      "title": "Provider-neutral JSON fallback deployed and resumed",
+      "detail": "Commit `ab8eab7` generalizes fallback only for explicit schema/routing compatibility failures, preserves the full deterministic verifier after decoding, and removes the truncating 1,200-token fallback cap. Focused tests pass `80/80`; run `dftr-1784466296-33f8cb96` is active. The deterministic terminal-SHA materializer and preregistration for the Qwen3-14B H100 mechanical smoke were also committed at `da28756`.",
+      "tone": "active"
+    },
     {
       "at": "06:01",
       "title": "Portable verifier schema deployed; rewrite smoke resumed",
@@ -679,5 +685,5 @@
     {"at": "17:46", "title": "Storage created", "detail": "Gateway state, checkpoints, sealed state, and sealed artifacts volumes are online.", "tone": "complete"},
     {"at": "17:40", "title": "Engineering checks passed", "detail": "Harness, infrastructure, and private evaluator suites are green.", "tone": "complete"}
   ],
-  "next_action": "Let the zero-token watcher validate portable-schema run `dftr-1784466066-bc38cdab`; on a complete 96-row artifact, bind its SHA into the prepared Qwen3-14B H100 mechanical-smoke config and launch automatically."
+  "next_action": "Let the zero-token watcher validate provider-neutral fallback run `dftr-1784466296-33f8cb96`; on a complete 96-row artifact, materialize the SHA-bound Qwen3-14B H100 config and launch automatically."
 }
