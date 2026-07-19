@@ -14,6 +14,7 @@ from typing import Any
 import numpy as np
 
 from data.m3_scientific_corpus import BASE_MODEL, BASE_REVISION
+from data.rewrite_tasks import contains_unexpected_non_latin
 from experiments.m1.contracts import write_json, write_jsonl
 from experiments.m2.representation import canonical_hash
 from experiments.m3.objectives import (
@@ -372,6 +373,34 @@ def _attach_lora(model, config: dict[str, Any]):
     )
 
 
+def validate_witness_rollouts(outputs: list[str]) -> dict[str, Any]:
+    """Enforce the preregistered 10% malformed/unexpected-language stop."""
+
+    if len(outputs) != 512:
+        raise M3Rewrite4KError("witness rollout cardinality mismatch")
+    empty = [not str(text).strip() for text in outputs]
+    replacement = ["�" in str(text) for text in outputs]
+    unexpected = [contains_unexpected_non_latin(str(text)) for text in outputs]
+    malformed = [
+        left or middle or right
+        for left, middle, right in zip(empty, replacement, unexpected)
+    ]
+    result = {
+        "records": len(outputs),
+        "empty_count": sum(empty),
+        "replacement_character_count": sum(replacement),
+        "unexpected_non_latin_count": sum(unexpected),
+        "malformed_or_unexpected_count": sum(malformed),
+        "malformed_or_unexpected_rate": sum(malformed) / len(outputs),
+        "stop_threshold_exclusive": 0.10,
+    }
+    if result["malformed_or_unexpected_rate"] > 0.10:
+        raise M3Rewrite4KError(
+            "witness rollouts exceed malformed/unexpected-language stop threshold"
+        )
+    return result
+
+
 def _witness_stage2_weights(model, tokenizer, rows, schedule, config, root):
     import torch
 
@@ -402,6 +431,7 @@ def _witness_stage2_weights(model, tokenizer, rows, schedule, config, root):
                     generated[0, encoded["input_ids"].shape[1] :], skip_special_tokens=True
                 ).strip()
             )
+    rollout_validity = validate_witness_rollouts(outputs)
     stage2 = schedule[2048:]
     weighted_indices = [
         index
@@ -428,6 +458,7 @@ def _witness_stage2_weights(model, tokenizer, rows, schedule, config, root):
             "weight_min": float(weights.min()),
             "weight_max": float(weights.max()),
             "weight_mean": float(weights.mean()),
+            "rollout_validity": rollout_validity,
         },
     )
     model.train()
@@ -693,5 +724,6 @@ __all__ = [
     "per_example_cross_entropy",
     "prepare_batch",
     "run",
+    "validate_witness_rollouts",
     "validate_config",
 ]

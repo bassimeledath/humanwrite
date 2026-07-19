@@ -11,6 +11,7 @@ from experiments.m3.rewrite_4k_train import (
     _component_gradient_stats,
     build_config,
     deterministic_schedule,
+    validate_witness_rollouts,
     validate_config,
 )
 
@@ -75,3 +76,19 @@ def test_component_gradient_accumulation_and_cosine_are_exact() -> None:
     assert ce_norm == pytest.approx(5.0)
     assert moment_norm == pytest.approx(5.0)
     assert cosine == pytest.approx(0.0)
+
+
+def test_witness_rollout_validity_enforces_exclusive_ten_percent_stop() -> None:
+    at_boundary = ["Normal English prose."] * 461 + ["English then ภาษาไทย"] * 51
+    report = validate_witness_rollouts(at_boundary)
+    assert report["malformed_or_unexpected_count"] == 51
+    assert report["malformed_or_unexpected_rate"] <= 0.10
+
+    over_boundary = ["Normal English prose."] * 460 + ["English then ภาษาไทย"] * 52
+    with pytest.raises(M3Rewrite4KError, match="stop threshold"):
+        validate_witness_rollouts(over_boundary)
+
+
+def test_witness_rollout_validity_rejects_wrong_cardinality() -> None:
+    with pytest.raises(M3Rewrite4KError, match="cardinality"):
+        validate_witness_rollouts(["Normal English prose."] * 511)
