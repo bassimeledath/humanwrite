@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 import re
 from typing import Any, Mapping
@@ -11,6 +12,9 @@ API_PROGRESS_TASK_KINDS = {
     "rewrite_synthesis",
     "rewrite_judging",
 }
+M3_BASELINE_DRAFT_PROGRESS_PATH = Path(
+    "/checkpoints/data/m3-rewriting-14b-v1/baseline-draft-candidates-4096-v1.progress.json"
+)
 _PROGRESS_RE = re.compile(
     r"processed=(?P<processed>\d+)"
     r"(?: total_completed=(?P<total_completed>\d+))?"
@@ -42,14 +46,41 @@ def running_api_progress(log_path: Path) -> dict[str, Any]:
     return progress
 
 
+def running_sidecar_progress(progress_path: Path) -> dict[str, Any]:
+    if not progress_path.is_file():
+        return {}
+    try:
+        payload = json.loads(progress_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    if not isinstance(payload, dict):
+        return {}
+    processed = payload.get("records_completed", payload.get("records_processed"))
+    if isinstance(processed, int) and processed >= 0:
+        return {"records_processed": processed}
+    return {}
+
+
+def _default_sidecar_progress_path(state: Mapping[str, Any]) -> Path | None:
+    if str(state.get("workflow_step") or "") == "generate_m3_baseline_drafts":
+        return M3_BASELINE_DRAFT_PROGRESS_PATH
+    return None
+
+
 def enrich_running_api_state(state: Mapping[str, Any], log_path: Path) -> dict[str, Any]:
     enriched = dict(state)
-    if (
-        enriched.get("status") != "running"
-        or enriched.get("task_kind") not in API_PROGRESS_TASK_KINDS
-    ):
+    if enriched.get("status") != "running":
         return enriched
-    progress = running_api_progress(log_path)
+    if enriched.get("task_kind") in API_PROGRESS_TASK_KINDS:
+        progress = running_api_progress(log_path)
+    else:
+        progress_path_value = str(enriched.get("progress_path") or "").strip()
+        progress_path = (
+            Path(progress_path_value)
+            if progress_path_value
+            else _default_sidecar_progress_path(enriched)
+        )
+        progress = running_sidecar_progress(progress_path) if progress_path else {}
     enriched.update(progress)
     if progress.get("actual_api_cost_usd") is not None:
         enriched["cost_usd"] = progress["actual_api_cost_usd"]

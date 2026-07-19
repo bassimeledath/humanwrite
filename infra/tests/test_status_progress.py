@@ -2,7 +2,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from backend.status_progress import enrich_running_api_state, running_api_progress
+from backend import status_progress
+from backend.status_progress import (
+    enrich_running_api_state,
+    running_api_progress,
+    running_sidecar_progress,
+)
 
 
 def test_running_api_progress_reads_latest_cumulative_snapshot(tmp_path: Path):
@@ -37,6 +42,15 @@ def test_running_api_progress_handles_missing_or_failure_only_logs(tmp_path: Pat
         encoding="utf-8",
     )
     assert running_api_progress(failure_only) == {"records_failed": 1}
+
+
+def test_running_sidecar_progress_reads_records_completed(tmp_path: Path):
+    progress_path = tmp_path / "baseline.progress.json"
+    progress_path.write_text(
+        '{"run_id":"dftr-test","records_completed":64}\n',
+        encoding="utf-8",
+    )
+    assert running_sidecar_progress(progress_path) == {"records_processed": 64}
 
 
 def test_enrich_running_api_state_only_mutates_running_api_tasks(tmp_path: Path):
@@ -75,3 +89,22 @@ def test_enrich_running_rewrite_synthesis_state(tmp_path: Path):
     enriched = enrich_running_api_state(state, log_path)
     assert enriched["records_processed"] == 108
     assert enriched["actual_api_cost_usd"] == 1.25
+
+
+def test_enrich_running_baseline_draft_state_reads_progress_sidecar(
+    tmp_path: Path,
+    monkeypatch,
+):
+    progress_path = tmp_path / "baseline.progress.json"
+    progress_path.write_text(
+        '{"run_id":"dftr-test","records_completed":96}\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(status_progress, "M3_BASELINE_DRAFT_PROGRESS_PATH", progress_path)
+    state = {
+        "status": "running",
+        "task_kind": "experiment",
+        "workflow_step": "generate_m3_baseline_drafts",
+    }
+    enriched = enrich_running_api_state(state, tmp_path / "missing.log")
+    assert enriched["records_processed"] == 96

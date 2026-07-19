@@ -159,6 +159,15 @@ def _log_path(run_id: str) -> Path:
     return run_worker_log_path(run_id, CHECKPOINT_PATH)
 
 
+def _progress_path(task_kind: str, config: dict[str, Any], workflow_step: str) -> str | None:
+    if task_kind != "experiment" or workflow_step != "generate_m3_baseline_drafts":
+        return None
+    output_path = str(((config.get("data") or {}).get("output_path") or "")).strip()
+    if not output_path.startswith("/checkpoints/"):
+        return None
+    return str(Path(output_path).with_suffix(".progress.json"))
+
+
 def _run_logged_subprocess(
     *,
     command: list[str],
@@ -2179,6 +2188,7 @@ def gateway():
             raise HTTPException(status_code=402, detail="monthly GPU budget exhausted")
         if not has_api_capacity(events, policy.api_reserved_cost_usd):
             raise HTTPException(status_code=402, detail="monthly API budget exhausted")
+        workflow_step = str((payload.get("config") or {}).get("workflow", {}).get("step") or "")
         launch = {
             "kind": "run",
             "run_id": run_id,
@@ -2192,10 +2202,13 @@ def gateway():
             "api_reserved_cost_usd": policy.api_reserved_cost_usd,
             "config_hash": payload["config_hash"],
             "git_sha": payload["git_sha"],
-            "workflow_step": str((payload.get("config") or {}).get("workflow", {}).get("step") or ""),
+            "workflow_step": workflow_step,
             "billing_month": datetime.now(timezone.utc).strftime("%Y-%m"),
             "started_at": time.time(),
         }
+        progress_path = _progress_path(policy.task_kind, payload.get("config") or {}, workflow_step)
+        if progress_path:
+            launch["progress_path"] = progress_path
         _record(launch)
         worker_payload = dict(payload)
         worker_payload.update({
