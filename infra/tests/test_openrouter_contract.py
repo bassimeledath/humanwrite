@@ -13,7 +13,8 @@ def test_structured_chat_request_requires_parameter_compatible_routing() -> None
 
     assert request["provider"] == {"require_parameters": True}
     assert request["messages"] == [{"role": "user", "content": "Return JSON."}]
-    assert request["max_completion_tokens"] == 512
+    assert request["max_tokens"] == 512
+    assert "max_completion_tokens" not in request
 
 
 def test_structured_chat_request_preserves_optional_reasoning() -> None:
@@ -49,3 +50,5 @@ def test_chat_request_allows_unstructured_qwen_fallback() -> None:
 
     assert "response_format" not in request
     assert request["provider"] == {"require_parameters": True}
+    assert request["max_tokens"] == 192
+    assert "max_completion_tokens" not in request

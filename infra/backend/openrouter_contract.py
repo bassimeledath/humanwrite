@@ -19,7 +19,11 @@ def chat_request(
     request: dict[str, Any] = {
         "model": model,
         "messages": [{"role": "user", "content": prompt}],
-        "max_completion_tokens": max_completion_tokens,
+        # OpenRouter's Qwen and Gemini routes advertise the portable
+        # chat-completions field `max_tokens`, not the OpenAI-specific
+        # `max_completion_tokens`. With require_parameters enabled, using the
+        # latter incorrectly eliminates otherwise compatible endpoints.
+        "max_tokens": max_completion_tokens,
     }
     if response_format is not None:
         request["response_format"] = response_format
