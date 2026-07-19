@@ -11,6 +11,7 @@ from data.m3_scientific_corpus import (
     assemble_scientific_training_corpus,
     mask_protected_literals,
     restore_protected_literals,
+    render_scientific_rewrite_prompt,
     scientific_assignment,
     scientific_generator_prompt,
     scientific_manifest,
@@ -138,6 +139,18 @@ def test_placeholder_prompt_round_trips_protected_values_and_exposes_token_targe
     )
     assert "97 tokenizer tokens" in prompt
     assert all(placeholder in prompt for placeholder in mapping)
+
+
+def test_rewrite_prompt_uses_validated_row_length_when_clean_source_omits_it() -> None:
+    item = source(3)
+    item.pop("target_length")
+    row = {
+        "rewrite_instruction": "Rewrite naturally.",
+        "input_text": "A complete source passage that should be rewritten.",
+        "target_length": 97,
+    }
+    prompt = render_scientific_rewrite_prompt(row, item)
+    assert "TARGET LENGTH: approximately 97 tokens" in prompt
 
 
 def test_scientific_rewrite_rejects_identity_and_provider_drift() -> None:

@@ -117,11 +117,14 @@ def render_noop_prompt(source: dict[str, Any]) -> str:
 def render_scientific_rewrite_prompt(row: dict[str, Any], source: dict[str, Any]) -> str:
     instruction = str(row.get("rewrite_instruction") or "").strip()
     input_text = str(row.get("input_text") or "").strip()
+    target_length = row.get("target_length", source.get("target_length"))
+    if type(target_length) is not int or target_length < 1:
+        raise M3ScientificCorpusError("scientific rewrite prompt requires token target length")
     return (
         "MODE: REWRITE\n"
         f"INSTRUCTION: {instruction}\n"
         f"REQUESTED STYLE: {source.get('style') or 'natural prose appropriate to the request'}\n"
-        f"TARGET LENGTH: approximately {int(source['target_length'])} tokens\n"
+        f"TARGET LENGTH: approximately {target_length} tokens\n"
         "PRESERVE EXACTLY: names, numbers, dates, quotations, URLs, and factual claims.\n\n"
         f"SOURCE TEXT:\n{input_text}\n\n"
         "RETURN: only the revised passage."

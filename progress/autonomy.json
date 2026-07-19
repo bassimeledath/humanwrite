@@ -1,7 +1,7 @@
 {
   "schema": "humanwrite.autonomy_control.v1",
   "enabled": true,
-  "generation": 65,
+  "generation": 66,
   "objective": "Run the preregistered M3 rewriting-first Qwen3-14B program autonomously through the 128-record task-construction smoke, matched 4K screen, gated 16K confirmation, and optional 46K extension only if the frozen 16K promotion gate passes. Diagnose and repair recoverable implementation or infrastructure failures without routine user sign-off. Stay within the existing $100 API and $100 GPU caps; do not launch Tier 3 detectors or raise either cap.",
   "poll_interval_seconds": 600,
   "max_codex_wakes_per_24h": 16,
@@ -23,11 +23,6 @@
       "progress_target": 819,
       "progress_milestones": [0.5, 0.75],
       "purpose": "Resume from the 333 preserved identities and generate four valid pinned Qwen3-14B baseline-draft candidates for each of the 819 frozen baseline-rewrite identities. Protocol v2 deterministically skips empty or replacement-character candidates under a 12-attempt cap and has a 300-minute timeout. At 819, bind the terminal candidate SHA and launch Qwen3-32B verification."
-    },
-    {
-      "run_id": "dftr-1784478993-2a966ae2",
-      "comparison": "M3-rewriting-14b-fresh-eval-inputs-v1",
-      "purpose": "Run one deterministic placeholder-and-length repair pass on only the three identities missing from the validated 221/224 artifact. Restore protected bytes before independent verification and preserve every original gate. At 224, assemble the 32 deterministic no-op cases into the frozen 256-row panel and preserve its SHA."
     }
   ]
 }

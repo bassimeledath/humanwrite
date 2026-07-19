@@ -1,14 +1,14 @@
 {
-  "updated_at": "2026-07-19T17:16:00Z",
+  "updated_at": "2026-07-19T17:23:00Z",
   "phase": "M3 — rewriting-first Qwen3-14B program",
-  "headline": "Placeholder recovery is active on the final 3 evaluation identities",
-  "summary": "Literal-inventory v3 recovered 12/15 hard cases and ended at 221/224 for `$0.209914`. The last three had two long-literal mismatches and one length failure. Prospective v4 run `dftr-1784478993-2a966ae2` masks protected spans with deterministic placeholders, restores the exact bytes before independent verification, and gives the exact token range; every original validator and identity remains unchanged. The 4K API and 14B draft constructors remain healthy. No scientific quality result exists yet because matched training has not started.",
+  "headline": "Fresh 256-row evaluation panel is complete, validated, and SHA-frozen",
+  "summary": "Placeholder v4 recovered all final three identities with zero failures for `$0.012356`. The 224 API inputs passed identity, category, provider-balance, normalized-nonidentity, and surface-divergence audit; the resulting 256-row panel has exact categories 128 natural-AI, 48 fact-dense, 48 light-edit, and 32 no-op, 256 unique domains, maximum human-reference sequence length 726, and SHA `b04d85b0bcde09cfc0db2bb166a4d4ea13e967576f716dd7bd1e4843d25af25a`. It is uploaded and round-trip verified. The 4K API constructor is at least 1,049/2,048 and 14B drafts at least 429/819. No quality result exists yet because matched training has not started.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 100,
     "modal_committed_usd": 53.621732,
     "openrouter_cap_usd": 100,
-    "openrouter_spend_usd": 51.910962
+    "openrouter_spend_usd": 47.523267
   },
   "services": [
     {"name": "GPU gateway", "detail": "Constrained launch API", "status": "online"},
@@ -26,6 +26,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "10:23",
+      "title": "Fresh public evaluation panel completed and frozen",
+      "detail": "V4 run `dftr-1784478993-2a966ae2` recovered all final three inputs with zero failures for `$0.012356`, completing the API artifact at SHA `234479cf513d10a1f5011b87a677d4b609137435ee4f27ec1ea5bbc096680c9f`. Audit confirmed 224 unique identities, exact 128/48/48 API categories, 112/112 provider balance, zero normalized identities, and maximum multi-provider surface similarity 0.8014. A local target-length handoff defect was repaired before freezing; 16 focused tests pass. The uploaded 256-row panel round-trips at SHA `b04d85b0bcde09cfc0db2bb166a4d4ea13e967576f716dd7bd1e4843d25af25a`, with exact 128/48/48/32 categories, 256 unique domains, and maximum sequence length 726.",
+      "tone": "complete"
+    },
     {
       "at": "10:16",
       "title": "Deterministic placeholder recovery launched for final three eval rows",
