@@ -7,13 +7,13 @@
   "max_codex_wakes_per_24h": 16,
   "audit_recent_continuation_seconds": 3600,
   "codex_timeout_seconds": 7200,
-  "wake_policy": "once_per_new_terminal_or_50_percent_progress_transition",
+  "wake_policy": "once_per_new_terminal_or_coarse_progress_transition",
   "monitored_runs": [
     {
       "run_id": "dftr-1784472298-ca6141da",
       "comparison": "M3-rewriting-14b-4096-scientific-screen-v2",
       "progress_target": 4096,
-      "progress_milestones": [0.5],
+      "progress_milestones": [0.5, 0.75],
       "purpose": "Complete and validate 2,048 surface-divergent Gemini/Claude rewrite inputs with independent Qwen3-32B verification. Exclude the defective v1 artifact. If terminal partial, relaunch the exact v2 config and new URI without weakening the normalized-nonidentity or multi-provider <0.95 surface-similarity gates."
     },
     {
@@ -25,7 +25,7 @@
       "run_id": "dftr-1784472492-97038c7d",
       "comparison": "M3-rewriting-14b-fresh-eval-inputs-v1",
       "progress_target": 224,
-      "progress_milestones": [0.5],
+      "progress_milestones": [0.5, 0.75],
       "purpose": "Complete and validate the exact 224 surface-divergent, cross-provider, Qwen-verified fresh evaluation inputs from clean-pool SHA f6a0a094. If terminal partial, relaunch unchanged. At 224, assemble the 32 deterministic no-op cases into the frozen 256-row panel and preserve its SHA for paired generation and two-family judging."
     }
   ]
