@@ -47,6 +47,11 @@ from experiments.m2.scale_ladder_witness import (
     SCALE_LADDER_WITNESS_STEP,
     run_scale_ladder_witness,
 )
+from experiments.m2.scale_ladder_token_lengths import (
+    TOKEN_LENGTH_SCHEMA,
+    TOKEN_LENGTH_STEP,
+    run_token_length_normalization,
+)
 from experiments.tier0.metrics import batch_diagnostics
 
 
@@ -211,6 +216,10 @@ def main(argv: list[str] | None = None) -> int:
         raise ValueError("scale-ladder witness protocol requires generate_scale_ladder_witness")
     if step == SCALE_LADDER_WITNESS_STEP and protocol != SCALE_LADDER_WITNESS_SCHEMA:
         raise ValueError("generate_scale_ladder_witness requires the frozen scale-ladder witness protocol")
+    if protocol == TOKEN_LENGTH_SCHEMA and step != TOKEN_LENGTH_STEP:
+        raise ValueError("token-length protocol requires normalize_scale_ladder_token_lengths")
+    if step == TOKEN_LENGTH_STEP and protocol != TOKEN_LENGTH_SCHEMA:
+        raise ValueError("normalize_scale_ladder_token_lengths requires its frozen protocol")
     lower_variance_protocols = {
         LOWER_VARIANCE_SCHEMA,
         LOWER_VARIANCE_CONFIRMATION_SCHEMA,
@@ -233,6 +242,8 @@ def main(argv: list[str] | None = None) -> int:
         manifest = run_scale_ladder_train_prefixes(config, args.run_id)
     elif protocol == SCALE_LADDER_WITNESS_SCHEMA:
         manifest = run_scale_ladder_witness(config, args.run_id)
+    elif protocol == TOKEN_LENGTH_SCHEMA:
+        manifest = run_token_length_normalization(config, args.run_id)
     elif protocol in lower_variance_protocols:
         manifest = run_lower_variance(config, args.run_id)
     elif (

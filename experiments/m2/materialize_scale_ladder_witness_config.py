@@ -43,13 +43,15 @@ def materialize(briefs_sha256: str, output_path: Path) -> dict:
         },
         "initial_adapter": dict(INITIAL_ADAPTER),
         "data": {
-            "briefs_path": "/checkpoints/data/m2-scale-ladder-v1/train-briefs-4096.jsonl",
+            "briefs_path": "/checkpoints/data/m2-scale-ladder-v1/train-briefs-4096-token-normalized-v1.jsonl",
             "briefs_sha256": briefs_sha256,
             "expected_documents": 4096,
             "output_dir": "/checkpoints/data/m2-scale-ladder-v1/witness-4096-v1",
             "prompt_format": "USER:\n{brief}\nASSISTANT:",
             "prompt_schema_version": FULL_BRIEF_SCHEMA,
             "prompt_serializer_sha256": FULL_BRIEF_SERIALIZER_SHA256,
+            "generation_batch_size": 8,
+            "prompt_max_length": 1024,
         },
         "generation": dict(CONFIRMATION_GENERATION_CONTRACT),
         "runtime": {

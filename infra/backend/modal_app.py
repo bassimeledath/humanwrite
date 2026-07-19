@@ -85,11 +85,11 @@ worker_image = (
     .pip_install(
         "pyyaml",
         "huggingface-hub>=0.33,<1",
-        "torch>=2.7,<3",
+        "torch==2.13.0",
         "transformers==4.57.6",
         "datasets>=3.6,<5",
         "accelerate>=1.8,<2",
-        "peft>=0.16,<1",
+        "peft==0.19.1",
         "requests>=2.32,<3",
         "cryptography>=42,<47",
         "scikit-learn>=1.4,<2",

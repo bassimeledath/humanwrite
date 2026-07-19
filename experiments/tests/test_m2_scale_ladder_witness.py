@@ -17,6 +17,7 @@ from experiments.m2.scale_ladder_witness import (
     SCALE_LADDER_WITNESS_STEP,
     ScaleLadderWitnessError,
     validate_scale_ladder_witness_config,
+    verify_runtime,
     witness_contract_payload,
 )
 
@@ -52,6 +53,8 @@ def config() -> dict:
             "prompt_format": "USER:\n{brief}\nASSISTANT:",
             "prompt_schema_version": FULL_BRIEF_SCHEMA,
             "prompt_serializer_sha256": FULL_BRIEF_SERIALIZER_SHA256,
+            "generation_batch_size": 8,
+            "prompt_max_length": 1024,
         },
         "generation": dict(CONFIRMATION_GENERATION_CONTRACT),
         "runtime": {
@@ -81,3 +84,15 @@ def test_scale_ladder_witness_config_is_exact_and_hash_bound():
     with pytest.raises(ScaleLadderWitnessError):
         validate_scale_ladder_witness_config(changed)
 
+
+def test_witness_runtime_mismatch_fails_loudly_before_model_loading():
+    value = config()
+    with pytest.raises(ScaleLadderWitnessError, match="runtime version mismatch"):
+        verify_runtime(
+            value,
+            {
+                "torch_version": "unexpected",
+                "transformers_version": "4.57.6",
+                "peft_version": "0.19.1",
+            },
+        )

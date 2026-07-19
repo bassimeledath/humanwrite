@@ -19,6 +19,7 @@ from experiments.m2.lower_variance_train import (
     canonical_hash,
 )
 from experiments.m2.representation import load_source_peft_and_tokenizer
+from experiments.m2.dft import _directory_file_map
 
 
 SCALE_LADDER_WITNESS_SCHEMA = "dftr.m2.scale_ladder_baseline_witness.v1"
@@ -28,6 +29,31 @@ SAFE_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 
 class ScaleLadderWitnessError(ValueError):
     pass
+
+
+def observed_runtime_versions() -> dict[str, str]:
+    import peft
+    import torch
+    import transformers
+
+    return {
+        "torch_version": torch.__version__,
+        "transformers_version": transformers.__version__,
+        "peft_version": peft.__version__,
+    }
+
+
+def verify_runtime(config: dict[str, Any], observed: dict[str, str] | None = None) -> dict[str, str]:
+    observed = observed or observed_runtime_versions()
+    expected = {
+        field: config["runtime"][field]
+        for field in ("torch_version", "transformers_version", "peft_version")
+    }
+    if observed != expected:
+        raise ScaleLadderWitnessError(
+            f"runtime version mismatch: expected {expected} observed {observed}"
+        )
+    return observed
 
 
 def _sha(path: Path) -> str:
@@ -101,6 +127,7 @@ def validate_scale_ladder_witness_config(config: dict[str, Any]) -> dict[str, An
     if set(data) != {
         "briefs_path", "briefs_sha256", "expected_documents", "output_dir",
         "prompt_format", "prompt_schema_version", "prompt_serializer_sha256",
+        "generation_batch_size", "prompt_max_length",
     }:
         raise ScaleLadderWitnessError("scale-ladder witness data contract is invalid")
     if (
@@ -110,6 +137,8 @@ def validate_scale_ladder_witness_config(config: dict[str, Any]) -> dict[str, An
         or data.get("prompt_schema_version") != FULL_BRIEF_SCHEMA
         or data.get("prompt_serializer_sha256") != FULL_BRIEF_SERIALIZER_SHA256
         or data.get("prompt_format") != "USER:\n{brief}\nASSISTANT:"
+        or data.get("generation_batch_size") != 8
+        or data.get("prompt_max_length") != 1024
     ):
         raise ScaleLadderWitnessError("scale-ladder witness corpus binding is invalid")
     for field in ("briefs_sha256",):
@@ -145,6 +174,7 @@ def run_scale_ladder_witness(config: dict[str, Any], run_id: str) -> dict[str, A
     if not SAFE_ID_RE.fullmatch(str(run_id)):
         raise ScaleLadderWitnessError("run_id is not a safe artifact identifier")
     import torch
+    observed_runtime = verify_runtime(config)
 
     os.environ["CUBLAS_WORKSPACE_CONFIG"] = config["runtime"]["cublas_workspace_config"]
     torch.use_deterministic_algorithms(True)
@@ -157,8 +187,11 @@ def run_scale_ladder_witness(config: dict[str, Any], run_id: str) -> dict[str, A
     output_dir = Path(data["output_dir"])
     if not briefs_path.is_file() or _sha(briefs_path) != data["briefs_sha256"]:
         raise ScaleLadderWitnessError("scale-ladder witness brief hash mismatch")
-    if output_dir.exists():
-        raise ScaleLadderWitnessError("scale-ladder witness output already exists")
+    manifest_path = output_dir / "baseline-generated-4096.manifest.json"
+    output_path = output_dir / "baseline-generated-4096.jsonl"
+    partial_path = output_dir / "baseline-generated-4096.partial.jsonl"
+    if manifest_path.exists() or output_path.exists():
+        raise ScaleLadderWitnessError("completed scale-ladder witness output already exists")
     for filename, expected in (
         ("adapter_model.safetensors", config["initial_adapter"]["adapter_model_sha256"]),
         ("adapter_config.json", config["initial_adapter"]["adapter_config_sha256"]),
@@ -166,6 +199,11 @@ def run_scale_ladder_witness(config: dict[str, Any], run_id: str) -> dict[str, A
         path = Path(config["initial_adapter"]["path"]) / filename
         if not path.is_file() or _sha(path) != expected:
             raise ScaleLadderWitnessError(f"initial adapter hash mismatch: {filename}")
+    adapter_path = Path(config["initial_adapter"]["path"])
+    if canonical_hash(_directory_file_map(adapter_path, "scale-ladder source adapter")) != config[
+        "initial_adapter"
+    ]["file_manifest_sha256"]:
+        raise ScaleLadderWitnessError("initial adapter complete file manifest mismatch")
     rows = [json.loads(line) for line in briefs_path.read_text(encoding="utf-8").splitlines() if line.strip()]
     if len(rows) != data["expected_documents"]:
         raise ScaleLadderWitnessError("scale-ladder witness brief cardinality mismatch")
@@ -175,19 +213,30 @@ def run_scale_ladder_witness(config: dict[str, Any], run_id: str) -> dict[str, A
 
     model, tokenizer = load_source_peft_and_tokenizer(config)
     model.eval()
-    batch_size = 8
+    batch_size = int(data["generation_batch_size"])
+    prompt_max_length = int(data["prompt_max_length"])
     generated: list[dict[str, Any]] = []
-    with torch.inference_mode():
+    empty_indices: list[int] = []
+    output_dir.mkdir(parents=True, exist_ok=True)
+    with partial_path.open("w", encoding="utf-8") as sink, torch.inference_mode():
         for start in range(0, len(rows), batch_size):
             batch = rows[start:start + batch_size]
             encoded = tokenizer(
                 [_render_lower_variance_prompt(row, config) for row in batch],
-                padding=True, truncation=True, max_length=1024, return_tensors="pt",
+                padding=True,
+                truncation=True,
+                max_length=prompt_max_length,
+                return_tensors="pt",
             )
             encoded = {key: value.to(model.device) for key, value in encoded.items()}
             sequences = model.generate(
-                **encoded, do_sample=True, temperature=1.0, top_p=1.0, top_k=0,
-                max_new_tokens=128, eos_token_id=tokenizer.eos_token_id,
+                **encoded,
+                do_sample=True,
+                temperature=float(config["generation"]["temperature"]),
+                top_p=float(config["generation"]["top_p"]),
+                top_k=int(config["generation"]["top_k"]),
+                max_new_tokens=int(config["generation"]["max_new_tokens"]),
+                eos_token_id=tokenizer.eos_token_id,
                 pad_token_id=tokenizer.pad_token_id, use_cache=True,
             )
             continuation = sequences[:, encoded["input_ids"].shape[1]:]
@@ -195,21 +244,26 @@ def run_scale_ladder_witness(config: dict[str, Any], run_id: str) -> dict[str, A
             for offset, text in enumerate(texts):
                 text = text.strip()
                 if not text:
-                    raise ScaleLadderWitnessError(f"empty generation at row {start + offset}")
-                generated.append({
+                    empty_indices.append(start + offset)
+                    continue
+                emitted = {
                     "prompt_id": prompt_ids[start + offset],
                     "source_fingerprint": prompt_ids[start + offset],
                     "generated_completion": text,
                     "sampling_seed": int(config["run"]["seed"]),
                     "batch_index": start // batch_size,
-                })
+                }
+                generated.append(emitted)
+                sink.write(json.dumps(emitted, ensure_ascii=False, sort_keys=True) + "\n")
+            sink.flush()
             if start == 0 or (start + len(batch)) % 256 == 0:
                 print(f"witness generated={start + len(batch)}/{len(rows)}", flush=True)
 
-    output_dir.mkdir(parents=True)
-    output_path = output_dir / "baseline-generated-4096.jsonl"
-    payload = "".join(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n" for row in generated)
-    output_path.write_text(payload, encoding="utf-8")
+    if empty_indices:
+        raise ScaleLadderWitnessError(
+            f"empty generations at rows {empty_indices}; partial artifact retained"
+        )
+    partial_path.replace(output_path)
     manifest = {
         "artifact_schema": "dftr.m2.lower_variance_baseline_witness.v2",
         "scientific_role": "training_only_not_evaluation",
@@ -221,11 +275,14 @@ def run_scale_ladder_witness(config: dict[str, Any], run_id: str) -> dict[str, A
         "generation_contract": config["generation"],
         "generation_contract_sha256": canonical_hash(config["generation"]),
         "sampling_seed": int(config["run"]["seed"]),
+        "observed_runtime": observed_runtime,
+        "generation_batch_size": batch_size,
+        "prompt_max_length": prompt_max_length,
         "output_path": str(output_path),
-        "output_sha256": hashlib.sha256(payload.encode("utf-8")).hexdigest(),
+        "output_sha256": _sha(output_path),
         "config_sha256": canonical_hash(config),
     }
-    (output_dir / "baseline-generated-4096.manifest.json").write_text(
+    manifest_path.write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
@@ -240,6 +297,7 @@ def run_scale_ladder_witness(config: dict[str, Any], run_id: str) -> dict[str, A
 
 __all__ = [
     "SCALE_LADDER_WITNESS_SCHEMA", "SCALE_LADDER_WITNESS_STEP",
+    "observed_runtime_versions", "verify_runtime",
     "run_scale_ladder_witness", "validate_scale_ladder_witness_config",
     "witness_contract_payload",
 ]

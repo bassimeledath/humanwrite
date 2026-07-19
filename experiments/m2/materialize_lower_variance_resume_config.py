@@ -34,8 +34,8 @@ def materialize(
     config = yaml.safe_load(source_config.read_text(encoding="utf-8"))
     validate_lower_variance_config(config)
     arm = str(config["execution"]["arm"])
-    if arm != "TOKEN_MOMENT" or any(config["resume"].values()):
-        raise ValueError("recovery materializer requires the original token-moment config")
+    if any(config["resume"].values()):
+        raise ValueError("recovery materializer requires an original non-resume config")
     required = (
         checkpoint_dir / "adapter_model.safetensors",
         checkpoint_dir / "adapter_config.json",
@@ -50,7 +50,7 @@ def materialize(
         "adapter_config_sha256": _sha(required[1]),
         "training_state_sha256": _sha(required[2]),
         "file_manifest_sha256": canonical_hash(
-            _directory_file_map(checkpoint_dir, "token-moment durable resume")
+            _directory_file_map(checkpoint_dir, f"{arm} durable resume")
         ),
         "source_config_sha256": source_config_sha256,
     }

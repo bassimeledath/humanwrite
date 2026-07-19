@@ -1047,13 +1047,16 @@ def _run_arm(
         optimizer.zero_grad(set_to_none=True)
         gradient_components = {
             "uniform_sft": component_gradient_norm(components["uniform_sft"], trainable),
-            "token_moment": component_gradient_norm(
-                components["token_moment_component"], trainable
+            "token_moment": (
+                component_gradient_norm(components["token_moment_component"], trainable)
+                if arm_id == "TOKEN_MOMENT"
+                else 0.0
             ),
-            "witness_delta": component_gradient_norm(
-                components["witness_delta_component"], trainable
+            "witness_delta": (
+                component_gradient_norm(components["witness_delta_component"], trainable)
+                if arm_id == "MMD_WITNESS"
+                else 0.0
             ),
-            "total": component_gradient_norm(components["total"], trainable),
         }
         components["total"].backward()
         preclip_norm = torch.nn.utils.clip_grad_norm_(
@@ -1061,6 +1064,7 @@ def _run_arm(
         )
         if not bool(torch.isfinite(preclip_norm).item()):
             raise LowerVarianceTrainError("lower-variance gradient is non-finite")
+        gradient_components["total"] = float(preclip_norm)
         optimizer.step()
         optimizer_examples += batch_size
         teacher_forced_tokens += int(batch["completion_token_counts"].sum().item())

@@ -2853,3 +2853,54 @@ NEXT: Wait for user authority. The next scientific action, once explicitly
 re-enabled, is to validate the completed 4K brief artifact and then launch the
 pinned baseline-witness plus matched 4B training handoff from the frozen 4,096
 row corpus.
+
+## [2026-07-18] M2 / 1K confirmation outcome backfill
+HYPOTHESIS: The matched 1,024-row MMD-witness arm could displace the initial
+adapter and improve independently measured proximity to human writing over a
+matched SFT continuation.
+SETUP: Matched Qwen3-4B SFT and MMD-witness arms, 1,024 training briefs, two
+complete epochs, 128-token teacher-forced horizon, followed by a fresh blinded
+128-prompt evaluation with independent BGE and Nemotron representations and
+randomized human-style/overall-quality comparisons.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Mechanical training | PASS | Both arms completed 1,024 steps, 2,048 examples, and 256,466 completion tokens; combined H100 cost was `$2.36196`. |
+| Witness-gradient gate | PASS | First-64 median witness-to-uniform gradient ratio was `0.096835`, inside `[0.05, 0.30]`; all-step median was `0.080187`. |
+| Human-style direction | INCONCLUSIVE | MMD-witness won `54.7%` of human-style comparisons and `53.1%` overall, but the differences were not significant. |
+| Independent distribution direction | INCONCLUSIVE | Candidate-minus-control improvement was `0.000032` under BGE MMD and `0.000461` under Nemotron MMD; neither cleared promotion. |
+| Lexical metric | FAIL | Token 1-gram L2 worsened by `0.000858`. |
+| Policy displacement | FAIL | Treatment and control were byte-identical on `78%` of evaluation outputs. |
+DECISION: The 1K result is not a promotion. It provides weak favorable human
+preference and embedding directions, but insufficient displacement and a
+lexical regression. It justifies one bounded, cleaner 4K scale test—not a claim
+that the method works.
+NEXT: Use the independently reviewed 4K pipeline with exact token semantics,
+matched support, a bounded timing gate, and a fresh evaluation panel.
+
+## [2026-07-18] M2 / independent-4K-review-repair-and-restart
+HYPOTHESIS: Repairing the review-confirmed token-unit, runtime, support, and
+witness-durability defects can make the 4K experiment mechanically interpretable
+without changing its scientific treatment after outcomes are known.
+SETUP: Independent report `/Users/bassime/Downloads/feedback-claude-humanwrite.md`
+was read in full before any GPU witness or tuning launch. Its findings were
+reconciled in
+`research_reviews/feedback_claude_reconciliation_2026-07-18.md`. Code now
+normalizes all target lengths with the pinned Qwen tokenizer, verifies runtime
+versions and adapter files, exposes batch/prompt bounds in config, matches the
+training representation to 128-token witness support, supports either-arm
+resume, preserves partial witness diagnostics, and adds a bounded 64-step H100
+MMD-witness timing gate.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Reviewer verdict | ACCEPT | `FIX-THEN-RUN`; no original 4K GPU config was launched. |
+| Focused repaired-path tests | PASS | `21/21` passed after the final optimization and timing-smoke changes. |
+| Broader selected regression | QUALIFIED PASS | `65/66` passed; the sole failure is a pre-existing source-inspection assertion that rejects the already-committed restricted worker's deliberate final volume commit and is unrelated to this repair. |
+| Scientific result | PENDING | No 4K candidate exists yet. The next jobs are input normalization, baseline witness, timing smoke, and—only if gates pass—matched fine-tuning. |
+DECISION: User authority is restored by the explicit instruction to proceed.
+Launch only the repaired, preregistered chain; do not bypass the timing or
+empty-witness gates.
+NEXT: Run exact-token normalization, generate the 4K baseline witness, run the
+64-step MMD-witness timing smoke, then launch matched full arms concurrently if
+the gate passes.

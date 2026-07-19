@@ -32,6 +32,12 @@ from experiments.m2.materialize_lower_variance_confirmation_configs import (
     materialize as materialize_confirmation,
 )
 from experiments.m2.materialize_lower_variance_full_configs import ANCHOR_SHA256
+from experiments.m2.materialize_lower_variance_resume_config import (
+    materialize as materialize_resume,
+)
+from experiments.m2.materialize_scale_ladder_timing_smoke_config import (
+    materialize as materialize_timing_smoke,
+)
 
 
 SHA = "a" * 64
@@ -305,6 +311,12 @@ def test_epoch_schedule_rejects_partial_epochs_and_ragged_batches():
         deterministic_epoch_batches(size=12, batch_size=3, steps=5, seed=11)
 
 
+def test_4k_epoch_schedule_covers_each_anchor_exactly_once():
+    batches = deterministic_epoch_batches(4096, 2, 2048, 11)
+    assert len(batches) == 2048
+    assert sorted(index for batch in batches for index in batch) == list(range(4096))
+
+
 class FakeTokenizer:
     eos_token_id = 9
     pad_token_id = 0
@@ -351,6 +363,61 @@ def test_lower_variance_prompt_preserves_token_length_semantics():
     wrong["target_length_unit"] = "words"
     with pytest.raises(LowerVarianceTrainError, match="must be tokens"):
         train._render_lower_variance_prompt(wrong, valid_config())
+
+
+def test_full_brief_serializer_has_golden_bytes():
+    assert train._render_lower_variance_prompt(record(), valid_config()) == (
+        "USER:\n"
+        "Writing request: Write a short article\n"
+        "Use case: web\n"
+        "Style category: plain\n"
+        "Style: clear\n"
+        "Detail mode: concise\n"
+        "Target length: about 80 tokens\n"
+        "Em dashes allowed: no\n"
+        "Grounding outline (use only these supported facts when non-empty): [\"fact\"]\n"
+        "ASSISTANT:"
+    )
+
+
+@pytest.mark.parametrize("arm", ["SFT", "MMD_WITNESS"])
+def test_resume_materializer_accepts_each_confirmation_arm(tmp_path, arm):
+    config = confirmation_config()
+    config["execution"]["arm"] = arm
+    source_config = tmp_path / f"{arm}.yaml"
+    import yaml
+
+    source_config.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
+    checkpoint = tmp_path / f"checkpoint-{arm}"
+    checkpoint.mkdir()
+    (checkpoint / "adapter_model.safetensors").write_bytes(b"adapter")
+    (checkpoint / "adapter_config.json").write_text("{}", encoding="utf-8")
+    (checkpoint / "training_state.pt").write_bytes(b"state")
+    result = materialize_resume(
+        source_config=source_config,
+        checkpoint_dir=checkpoint,
+        remote_checkpoint_path=f"/checkpoints/runs/example/{arm}/step-64",
+        output=tmp_path / f"resume-{arm}.yaml",
+    )
+    assert result["arm"] == arm
+
+
+def test_scale_ladder_timing_smoke_is_bounded_and_uses_random_schedule(tmp_path):
+    source = tmp_path / "source.yaml"
+    output = tmp_path / "timing.yaml"
+    config = confirmation_config()
+    config["execution"]["arm"] = "MMD_WITNESS"
+    import yaml
+
+    source.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
+    smoke = materialize_timing_smoke(source, output)
+    assert smoke["run"]["budget_class"] == "smoke"
+    assert smoke["compute"] == {"gpu": "H100", "gpus": 1, "timeout_min": 20}
+    assert smoke["training"]["steps"] == 64
+    assert smoke["training"]["checkpoint_every"] == 64
+    assert smoke["training"]["schedule"] == "python_random_sample_without_replacement.v1"
+    assert smoke["execution"]["arm"] == "MMD_WITNESS"
+    validate_lower_variance_config(smoke)
 
 
 def test_three_objectives_have_expected_decomposition_and_finite_component_gradients():
