@@ -1,14 +1,14 @@
 {
-  "updated_at": "2026-07-19T15:21:00Z",
+  "updated_at": "2026-07-19T15:25:27Z",
   "phase": "M3 — rewriting-first Qwen3-14B program",
-  "headline": "Fresh rewrite panel is two-thirds built while 4K construction and base-Qwen drafting continue",
-  "summary": "The 14B smoke gate remains fully passed. Direct checkpoint inspection now shows 130/2,048 repaired API rewrites, 197/819 four-candidate base-Qwen draft records, and 148/224 fresh evaluation rewrites. The accepted repaired artifacts contain zero normalized identities; multi-provider rewrites remain below the frozen 0.95 surface-similarity ceiling. The full automatic, two-embedder, and 2,048-check two-family judge evaluation path is deployed. A fail-closed 4K promotion program now encodes every frozen gate and requires both judge families independently. No scientific quality result exists yet because matched training has not started.",
+  "headline": "Fresh rewrite tail is back in flight after a 177-row partial while 4K construction and base-Qwen drafting continue",
+  "summary": "The 14B smoke gate remains fully passed. Sanctioned status now shows 373/2,048 repaired 4K API rewrites, 256/819 four-candidate base-Qwen draft records, and a fresh-eval hard tail relaunched after terminal partial run `dftr-1784473892-aa118338` advanced the immutable panel artifact to 177/224 accepted rows at SHA `78186cbcc562956d07d029273dce555bc2d693bc0864d45e38ec5019888125b4`. The gateway now surfaces the baseline-draft sidecar progress that had previously left the active H100 job operationally silent. The accepted repaired artifacts still contain zero normalized identities, multi-provider rewrites remain below the frozen 0.95 surface-similarity ceiling, and the full automatic two-embedder plus two-family judge evaluation stack remains deployed. No scientific quality result exists yet because matched training has not started.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 100,
     "modal_committed_usd": 32.27905,
     "openrouter_cap_usd": 100,
-    "openrouter_spend_usd": 49.869002
+    "openrouter_spend_usd": 57.036645
   },
   "services": [
     {"name": "GPU gateway", "detail": "Constrained launch API", "status": "online"},
@@ -27,10 +27,16 @@
   ],
   "events": [
     {
-      "at": "08:21",
-      "title": "Fresh evaluation third pass launched on 47-row hard tail",
-      "detail": "Unchanged second pass `dftr-1784473892-aa118338` recovered 21 additional valid rows for `$0.342623`, moving the immutable output from 156 to 177/224 at SHA `78186cbcc562956d07d029273dce555bc2d693bc0864d45e38ec5019888125b4`. Its remaining 47 failures were intended factual-literal, normalized-identity, or surface-divergence rejects. Exact config and output URI resumed as `dftr-1784474462-ef661c68`; no gate or panel identity changed.",
+      "at": "08:25",
+      "title": "Fresh evaluation tail relaunched unchanged from the 177-row artifact",
+      "detail": "Run `dftr-1784473892-aa118338` ended terminal partial after adding 21 valid rows for `$0.342623`, advancing the immutable output to 177/224 accepted at SHA `78186cbcc562956d07d029273dce555bc2d693bc0864d45e38ec5019888125b4`. Its remaining 47 failures were intended factual-verification, protected-literal, normalized-identity, or surface-divergence rejects. The exact same config and output URI resumed as `dftr-1784474683-b0f2ce1a`; no gate, threshold, or panel identity changed.",
       "tone": "active"
+    },
+    {
+      "at": "08:25",
+      "title": "Gateway now surfaces live baseline-draft progress",
+      "detail": "A scheduled audit found the active H100 baseline-draft worker was making hidden progress through a checkpoint sidecar while sanctioned status stayed silent after model load. Commit `a031c21` taught the gateway to expose that sidecar, focused infra tests passed `6/6`, the gateway was redeployed, and sanctioned status now shows `256/819` completed draft identities for run `dftr-1784470064-bf4ab7d8`.",
+      "tone": "complete"
     },
     {
       "at": "08:12",

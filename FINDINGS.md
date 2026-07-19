@@ -3530,3 +3530,52 @@ runs completed. If the fresh cleaner completes successfully, materialize and
 launch the already-preregistered fresh evaluation-input constructor; if either
 4K constructor fails for a concrete infrastructure reason, repair only that
 defect under the unchanged frozen corpus and budget contract.
+
+## [2026-07-19] M3 / fresh-eval-tail-relaunch-and-baseline-progress-repair
+HYPOTHESIS: The current continuation should keep M3 active if the fresh public
+evaluation tail failed only by exhausting one unchanged retry pass short of the
+224-row gate, and if the apparently silent H100 baseline-draft constructor was
+actually making progress that the sanctioned gateway failed to surface. Under
+that hypothesis, the correct action is an observability repair plus the exact
+same fresh-eval relaunch, not a protocol change.
+SETUP: Progress-milestone continuation on Sunday, July 19, 2026 in
+`/Users/bassime/Desktop/fullstack/humanwrite`. Read the frozen M3
+preregistration, current `progress/` files, recent git history, and the live
+autonomy runtime. Queried sanctioned gateway status/logs and budget with the
+fixed gateway URL plus macOS Keychain token `humanwrite-gateway-token`.
+Observed active 4K API rewrite run `dftr-1784472298-ca6141da`, active baseline
+draft run `dftr-1784470064-bf4ab7d8`, failed fresh-eval tail run
+`dftr-1784473892-aa118338`, and relaunch preregistration for comparison
+`M3-rewriting-14b-fresh-eval-inputs-v1`. Implemented an infra-only status-path
+repair in `infra/backend/status_progress.py`,
+`infra/backend/modal_app.py`, and `infra/tests/test_status_progress.py`,
+verified it with
+`uv run --project infra pytest infra/tests/test_status_progress.py`
+(`6 passed`), deployed it with
+`uv run --project infra modal deploy -m infra.backend.modal_app`, committed and
+pushed branch tip `a031c215de3322aa90ab7d7e1167333c86326c04`, then relaunched the
+exact fresh-eval config via
+`uv run --with pyyaml ./infra/gpu submit --config configs/m3/m3_fresh_eval_rewrite_inputs_224_v1.yaml --budget-class promo`,
+which created run `dftr-1784474683-b0f2ce1a`.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Baseline-draft observability diagnosis | PASS | Sanctioned `/logs` for `dftr-1784470064-bf4ab7d8` showed only model-shard loading, but the frozen worker writes durable progress to `/checkpoints/data/m3-rewriting-14b-v1/baseline-draft-candidates-4096-v1.progress.json`. The prior gateway enriched running status only for API tasks, so an active H100 job could be operationally silent despite making real progress. |
+| Gateway observability repair | PASS | Commit `a031c21` now surfaces the baseline-draft sidecar in sanctioned `/status`; focused infra tests passed `6/6` and the gateway redeployed successfully to `https://bassimfaizal--humanwrite-gpu-gateway-gateway.modal.run`. |
+| Live H100 progress confirmation | PASS | After deployment, sanctioned status for `dftr-1784470064-bf4ab7d8` reports `records_processed=256` of the frozen 819 baseline-draft identities. The run was healthy but previously under-observed. |
+| Fresh-eval terminal partial characterization | PASS | Sanctioned logs for `dftr-1784473892-aa118338` end at `processed=21 total_completed=177 api_cost_usd=0.329447`, then the run terminates `failed` with `actual_api_cost_usd=$0.342623`, `records_failed=47`, and output SHA `78186cbcc562956d07d029273dce555bc2d693bc0864d45e38ec5019888125b4`. Failures remained intended gate rejects: protected-literal mismatch, factual mismatch, normalized-identity, surface-similarity, semantic-gate, and token-length rejects. |
+| Exact fresh-eval relaunch | PASS | The open preregistration was still valid, and the unchanged config/output URI resumed immediately as `dftr-1784474683-b0f2ce1a` on pushed git SHA `a031c215de3322aa90ab7d7e1167333c86326c04` with the same config hash `f810ca266257ae27a90078d828d09894deca5d724d57277bc62f693449fc4e51`. No panel, threshold, provider assignment rule, or validator changed. |
+| 4K API rewrite constructor health | PASS | Sanctioned status for `dftr-1784472298-ca6141da` now reports `373/2048` accepted rows at `$2.309903` API cost, with ordinary scientific attrition rather than infrastructure failure. |
+| Budget state after relaunch | PASS | Sanctioned budget at `2026-07-19T15:25:27Z` reports Modal committed `$32.279050/$100` and API spend/reservation `$57.036645/$100`, remaining inside both hard caps. |
+DECISION: Keep the autonomous M3 program active. The fresh evaluation panel is
+still scientifically alive under the unchanged contract, and the H100
+baseline-draft constructor did not need intervention beyond repairing the
+status surface. The active frontier is now exactly three runs:
+`dftr-1784472298-ca6141da`, `dftr-1784470064-bf4ab7d8`, and
+`dftr-1784474683-b0f2ce1a`.
+NEXT: Wake only on a new terminal transition for the fresh-eval hard tail or
+the baseline-draft run, or on the 50/75 percent milestones for the 4K API
+rewrite constructor. If fresh eval reaches 224, assemble the frozen 256-row
+panel immediately; if the hard tail fails again without a recoverable
+infrastructure defect, stop that branch as the negative result for the current
+public evaluation constructor rather than weakening any gate.
