@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-07-19T14:46:21Z",
+  "updated_at": "2026-07-19T14:48:32Z",
   "phase": "M3 — rewriting-first Qwen3-14B program",
   "headline": "Surface-divergent 4K repair and fresh evaluation inputs now run beside base-Qwen construction",
   "summary": "The 14B smoke gate remains fully passed. The silent no-op API artifact is excluded, the repaired gateway is deployed, and versioned surface-divergent constructor `dftr-1784472298-ca6141da` is active against a new URI. Fresh evaluation cleaning completed exactly 640/640 at SHA `f6a0a0940338ba1f75aa70a1be5e042ea973b00e410b12d309cea4908f6c3c40`; SHA-bound 224-input constructor `dftr-1784472358-98f64c21` is active. Independent base-Qwen generation continues from checkpoints. The 2,048-check quality-plus-fact evaluator remains frozen and tested. No scientific quality result exists yet.",
@@ -26,6 +26,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "07:48",
+      "title": "Fresh-eval zero-cost origin mapping repaired and resumed",
+      "detail": "Initial fresh-eval input run `dftr-1784472358-98f64c21` failed before any provider call because the shared worker read `origin` instead of the evaluation manifest's `scientific_origin`. Focused eval/scientific/policy tests passed 63/63, gateway commit `b33563d` was deployed, and unchanged SHA-bound run `dftr-1784472492-97038c7d` resumed against the same empty output URI. No data, provider assignment, threshold, or panel identity changed.",
+      "tone": "active"
+    },
     {
       "at": "07:46",
       "title": "Versioned repair and fresh evaluation constructor launched",
