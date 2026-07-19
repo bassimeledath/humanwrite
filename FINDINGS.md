@@ -3166,3 +3166,45 @@ complete and are scored on a non-training surface.
 NEXT: Wait for terminal transitions of `dftr-1784439725-1082f9d4` and
 `dftr-1784439725-6b6ec394`. On completion, validate both generation manifests
 and only then open the next prospective non-training scoring step.
+
+## [2026-07-19] M2 / M2-scale-ladder-4b-4096-generation-v1-relaunch
+HYPOTHESIS: The failed held-out generation pair should be recoverable without
+changing the scientific comparison if the terminal failures were startup-class
+orchestration issues rather than panel, checkpoint, or sampling-contract
+violations. In that case the correct action is to repair the fixed worker
+handoff, preserve the same prospective 128-prompt panel and completed 4K
+checkpoints, and relaunch the same preregistered comparison.
+SETUP: Read sanctioned status and worker logs for failed SFT-generation run
+`dftr-1784439725-1082f9d4` and failed MMD-witness-generation run
+`dftr-1784439725-6b6ec394` using the fixed gateway URL plus macOS Keychain
+token `humanwrite-gateway-token`. Recorded both failed terminal states in the
+local append-only ledger. The SFT-generation worker failed after startup
+because `generate_lower_variance()` still required an empty wrapper checkpoint
+directory even though the sanctioned wrapper now precreates `worker.log`; the
+MMD-witness generation run failed separately during wrapper `git clone`
+startup with exit status `128`. Repaired the worker by allowing only the
+wrapper-owned `worker.log` in the checkpoint directory, added a focused
+regression test, verified `PYTHONPATH=. uv run --project harness pytest
+experiments/tests/test_m2_generate_lower_variance.py -q` passed `13/13`,
+committed and pushed fix `87a0681`, then relaunched the same two held-out
+generation configs under the still-open comparison
+`M2-scale-ladder-4b-4096-generation-v1`.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Failed generation diagnosis | PASS | Sanctioned status/logs showed `dftr-1784439725-1082f9d4` failed after `260.644` accelerator-seconds and `$0.169523` with `GenerationConfigError: generate_lower_variance requires an empty wrapper checkpoint directory`, while `dftr-1784439725-6b6ec394` failed after `157.356` accelerator-seconds and `$0.102344` during wrapper `git clone` startup. |
+| Scientific artifact preservation | PASS | Neither failure implicated the frozen 128-prompt panel, the completed 4K checkpoints, or the exact held-out sampling contract; this was orchestration/runtime failure, not evidence about human-likeness. |
+| Worker-log handoff repair | PASS | Commit `87a0681` now allows the sanctioned wrapper-owned `worker.log` and still fails closed on any other preexisting artifact in the generation output directory. |
+| Focused regression coverage | PASS | `experiments/tests/test_m2_generate_lower_variance.py` passed `13/13`, including the new worker-log startup regression. |
+| Relaunch acceptance | PASS | Sanctioned wrapper accepted SFT-generation relaunch `dftr-1784440682-c648bc57` and MMD-witness-generation relaunch `dftr-1784440682-36bfe848`, both under the unchanged comparison `M2-scale-ladder-4b-4096-generation-v1`, on `L40S`, with `reserved_cost_usd=$4.68288` each. |
+| Immediate live status | PASS | Immediate sanctioned status shows both relaunched runs in `running` state under `workflow_step=generate_lower_variance` at pushed SHA `87a06818e1eada1dad01ab3d32352fefd93d978e`. |
+| Budget headroom after relaunch | PASS | Sanctioned budget reported Modal committed `$31.180652/$100` and OpenRouter spend `$28.483027/$100`, preserving the bounded 4K/16K authorization and remaining well short of the unapproved 46K cell. |
+| Quality-gate discipline | PASS | No held-out scoring, sealed submission, or Tier 3 detector use was opened in this repair turn. |
+DECISION: Keep `M2-scale-ladder-4b-4096-generation-v1` active with the fresh
+relaunch IDs only. The right response to this terminal transition was to
+repair the startup regression, record the failed runs as negative operational
+evidence, and relaunch the same prospective held-out generation step without
+weakening any panel or quality gate.
+NEXT: Wait for terminal transitions of `dftr-1784440682-c648bc57` and
+`dftr-1784440682-36bfe848`. On completion, validate both generation manifests
+and only then open prospective non-training scoring.

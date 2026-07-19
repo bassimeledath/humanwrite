@@ -1,12 +1,12 @@
 {
-  "updated_at": "2026-07-19T05:42:50Z",
+  "updated_at": "2026-07-19T05:58:32Z",
   "phase": "M2 — 4B data-scale ladder through 16K",
-  "headline": "Completed 4K checkpoints were validated and matched held-out generation is now live on the frozen 128-prompt panel",
-  "summary": "Sanctioned validation on Sunday, July 19, 2026 confirmed matched full 4K train runs `dftr-1784436708-b6637838` and `dftr-1784436736-c94a4507` completed at `2026-07-19T05:15:25.305529Z` and `2026-07-19T05:22:22.589968Z` with `return_code=0`, `actual_cost_usd=$0.906923` and `$1.166656`, and SHA-bound run manifests at `modal-volume://humanwrite-checkpoints/runs/dftr-1784436708-b6637838/run_manifest.json` and `modal-volume://humanwrite-checkpoints/runs/dftr-1784436736-c94a4507/run_manifest.json`. The real missed handoff was the absent sanctioned bridge from completed lower-variance checkpoints to held-out generation, so the gateway/status surface was repaired to expose checkpoint identity, the frozen `generate_lower_variance` protocol plus 4K generation configs were added at pushed commit `f09dc19`, and comparison `M2-scale-ladder-4b-4096-generation-v1` was preregistered before launching held-out runs `dftr-1784439725-1082f9d4` and `dftr-1784439725-6b6ec394` on L40S at `2026-07-19T05:42:11.426439Z` and `2026-07-19T05:42:18.930459Z`. The next continuation should validate those terminal generation artifacts and only then open prospective non-training scoring.",
+  "headline": "Held-out 4K generation startup was repaired and the prospective 128-prompt panel is live again",
+  "summary": "Sanctioned status on Sunday, July 19, 2026 showed the first held-out generation pair failed for recoverable startup reasons, not scientific ones: SFT-generation run `dftr-1784439725-1082f9d4` failed after `260.644` accelerator-seconds and `$0.169523` because `generate_lower_variance()` still rejected the wrapper-owned `worker.log`, while MMD-witness-generation run `dftr-1784439725-6b6ec394` failed after `157.356` accelerator-seconds and `$0.102344` during wrapper `git clone` startup. Commit `87a0681` repaired the generation worker to allow the sanctioned wrapper log exactly, focused tests passed `13/13`, and the same preregistered comparison `M2-scale-ladder-4b-4096-generation-v1` was safely relaunched as SFT-generation `dftr-1784440682-c648bc57` and MMD-witness-generation `dftr-1784440682-36bfe848`. Immediate sanctioned status confirms both new runs are live on `L40S` under `workflow_step=generate_lower_variance` at pushed SHA `87a06818e1eada1dad01ab3d32352fefd93d978e`. The next continuation should validate their terminal generation manifests and only then open prospective non-training scoring.",
   "run_state": "running",
   "budget": {
     "modal_cap_usd": 100,
-    "modal_committed_usd": 30.908785,
+    "modal_committed_usd": 31.180652,
     "openrouter_cap_usd": 100,
     "openrouter_spend_usd": 28.483027
   },
@@ -26,6 +26,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "22:58",
+      "title": "Held-out generation startup repaired and relaunched",
+      "detail": "Sanctioned status on Sunday, July 19, 2026 confirmed the first held-out generation pair failed for recoverable startup reasons: `dftr-1784439725-1082f9d4` hit `GenerationConfigError: generate_lower_variance requires an empty wrapper checkpoint directory` after `260.644` accelerator-seconds and `$0.169523`, while `dftr-1784439725-6b6ec394` failed during wrapper `git clone` startup after `157.356` accelerator-seconds and `$0.102344`. Commit `87a0681` repaired the generation worker to allow the sanctioned wrapper-owned `worker.log`, focused generation tests passed `13/13`, and the same preregistered comparison was relaunched as `dftr-1784440682-c648bc57` for `SFT-generation` and `dftr-1784440682-36bfe848` for `MMD_WITNESS-generation`. Immediate sanctioned status shows both on `L40S` with `workflow_step=generate_lower_variance`, `status=running`, and total Modal commitment at `$31.180652/$100`.",
+      "tone": "active"
+    },
     {
       "at": "22:42",
       "title": "Completed 4K checkpoints validated; held-out generation launched",
