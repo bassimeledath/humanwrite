@@ -18,10 +18,10 @@ LOWER_VARIANCE_BRIEF_PROTOCOL = "dftr.lower_variance_briefs.two_provider.v1"
 LOWER_VARIANCE_METADATA_MODEL = "qwen/qwen3-32b"
 LOWER_VARIANCE_OUTLINE_MODEL = "openai/gpt-5-mini"
 M3_REWRITE_TASK_PROTOCOL = "humanwrite.m3.rewrite_tasks.v1"
-M3_REWRITE_GENERATOR_MODELS = ["qwen/qwen3-32b", "openai/gpt-5-mini"]
+M3_REWRITE_GENERATOR_MODELS = ["qwen/qwen3-32b", "anthropic/claude-haiku-4.5"]
 M3_REWRITE_VERIFIER_BY_GENERATOR = {
-    "qwen/qwen3-32b": "openai/gpt-5-mini",
-    "openai/gpt-5-mini": "qwen/qwen3-32b",
+    "qwen/qwen3-32b": "anthropic/claude-haiku-4.5",
+    "anthropic/claude-haiku-4.5": "qwen/qwen3-32b",
 }
 QWEN3_14B_MODEL = "Qwen/Qwen3-14B"
 QWEN3_14B_REVISION = "40c069824f4251a91eefaf281ebe4c544efd3e18"

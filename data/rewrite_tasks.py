@@ -3,16 +3,30 @@
 from __future__ import annotations
 
 import hashlib
+import random
 import re
 import unicodedata
 from typing import Any, Callable
 
 
 PROTOCOL = "humanwrite.m3.rewrite_tasks.v1"
-GENERATOR_MODELS = ("qwen/qwen3-32b", "openai/gpt-5-mini")
+TASK_STRATA = (
+    "multi_provider_ai",
+    "baseline_model_draft",
+    "controlled_light_edit",
+    "already_human_noop",
+    "generate",
+)
+FROZEN_STAGE_COUNTS = {
+    128: (58, 26, 6, 6, 32),
+    4096: (1843, 819, 205, 205, 1024),
+    16384: (7373, 3277, 819, 819, 4096),
+    46080: (20736, 9216, 2304, 2304, 11520),
+}
+GENERATOR_MODELS = ("qwen/qwen3-32b", "anthropic/claude-haiku-4.5")
 VERIFIER_BY_GENERATOR = {
-    "qwen/qwen3-32b": "openai/gpt-5-mini",
-    "openai/gpt-5-mini": "qwen/qwen3-32b",
+    "qwen/qwen3-32b": "anthropic/claude-haiku-4.5",
+    "anthropic/claude-haiku-4.5": "qwen/qwen3-32b",
 }
 TEMPLATE_IDS = (
     "generic_polished",
@@ -75,6 +89,43 @@ def rewrite_source_records(records: list[dict[str, Any]]) -> list[dict[str, Any]
     if len(fingerprints) != len(set(fingerprints)):
         raise RewriteTaskError("task-mixture sources contain duplicate fingerprints")
     return [record for index, record in enumerate(records) if index % 4 != 3]
+
+
+def frozen_task_strata(records: list[dict[str, Any]]) -> list[str]:
+    """Return outcome-independent, exact, prefix-stable M3 task assignments."""
+    cardinality = len(records)
+    if cardinality not in FROZEN_STAGE_COUNTS:
+        raise RewriteTaskError(
+            f"task-mixture cardinality must be one of {sorted(FROZEN_STAGE_COUNTS)}"
+        )
+    fingerprints = [str(record.get("fingerprint") or "") for record in records]
+    if any(not re.fullmatch(r"[0-9a-f]{64}", value) for value in fingerprints):
+        raise RewriteTaskError("task-mixture sources require lowercase SHA-256 fingerprints")
+    if len(fingerprints) != len(set(fingerprints)):
+        raise RewriteTaskError("task-mixture sources contain duplicate fingerprints")
+    assignments: list[str] = []
+    prior_size = 0
+    prior_counts = (0,) * len(TASK_STRATA)
+    for stage_size, cumulative_counts in FROZEN_STAGE_COUNTS.items():
+        if stage_size > cardinality:
+            break
+        segment_counts = tuple(
+            current - prior for current, prior in zip(cumulative_counts, prior_counts)
+        )
+        labels = [
+            stratum
+            for stratum, count in zip(TASK_STRATA, segment_counts)
+            for _ in range(count)
+        ]
+        if len(labels) != stage_size - prior_size or any(count < 0 for count in segment_counts):
+            raise RewriteTaskError("invalid frozen task-mixture stage counts")
+        seed_material = f"humanwrite.m3.task-strata.v1:{prior_size}:{stage_size}"
+        random.Random(int(hashlib.sha256(seed_material.encode()).hexdigest(), 16)).shuffle(labels)
+        assignments.extend(labels)
+        prior_size, prior_counts = stage_size, cumulative_counts
+    if len(assignments) != cardinality:
+        raise RewriteTaskError("frozen task-mixture assignment did not cover the corpus")
+    return assignments
 
 
 def generator_response_schema() -> dict[str, Any]:

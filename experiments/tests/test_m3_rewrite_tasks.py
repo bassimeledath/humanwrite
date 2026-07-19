@@ -9,6 +9,7 @@ from data.rewrite_tasks import (
     RewriteTaskError,
     assemble_rewrite_task,
     deterministic_assignment,
+    frozen_task_strata,
     generator_prompt,
     protected_literals,
     render_rewrite_prompt,
@@ -145,3 +146,29 @@ def test_rewrite_source_assignment_is_exact_prefix_stable() -> None:
     assert [row["fingerprint"] for row in full[:6]] == [
         row["fingerprint"] for row in first
     ]
+
+
+def test_frozen_task_strata_are_exact_and_prefix_stable() -> None:
+    records = [
+        {"fingerprint": format(index, "064x"), "completion": f"record {index}"}
+        for index in range(16384)
+    ]
+    smoke = frozen_task_strata(records[:128])
+    screen = frozen_task_strata(records[:4096])
+    decisive = frozen_task_strata(records)
+    assert screen[:128] == smoke
+    assert decisive[:4096] == screen
+    assert [smoke.count(value) for value in (
+        "multi_provider_ai",
+        "baseline_model_draft",
+        "controlled_light_edit",
+        "already_human_noop",
+        "generate",
+    )] == [58, 26, 6, 6, 32]
+    assert [decisive.count(value) for value in (
+        "multi_provider_ai",
+        "baseline_model_draft",
+        "controlled_light_edit",
+        "already_human_noop",
+        "generate",
+    )] == [7373, 3277, 819, 819, 4096]

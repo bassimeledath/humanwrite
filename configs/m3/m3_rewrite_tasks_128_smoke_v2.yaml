@@ -1,0 +1,29 @@
+run:
+  comparison_id: M3-rewrite-tasks-128-smoke-v2
+  arm: qwen-claude-rewrite-task-smoke
+  budget_class: promo
+  task_kind: rewrite_synthesis
+compute:
+  gpus: 1
+  timeout_min: 120
+data:
+  input_uri: modal-volume://humanwrite-checkpoints/data/m2-scale-ladder-v1/train-briefs-4096-token-normalized-v1.jsonl
+  output_uri: modal-volume://humanwrite-checkpoints/data/m3-rewriting-14b-v1/rewrite-tasks-96-smoke-v2.jsonl
+  input_sha256: 723ebf559a4139c49454f5898a0e51120cdf424bd3cd12e39466c6758d25217b
+  max_records: 128
+  target_records: 96
+api:
+  protocol: humanwrite.m3.rewrite_tasks.v1
+  generator_models:
+  - qwen/qwen3-32b
+  - anthropic/claude-haiku-4.5
+  verifier_by_generator:
+    qwen/qwen3-32b: anthropic/claude-haiku-4.5
+    anthropic/claude-haiku-4.5: qwen/qwen3-32b
+  max_cost_usd: 3.0
+  max_attempts: 4
+  semantic_similarity_min: 0.9
+  concurrency: 16
+tokenizer:
+  model: Qwen/Qwen3-14B
+  revision: 40c069824f4251a91eefaf281ebe4c544efd3e18
