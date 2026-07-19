@@ -2933,3 +2933,51 @@ which is now applied prospectively.
 NEXT: Wait for the terminal transition of `dftr-1784429664-02939bdc`. On
 completion, validate the witness manifest/artifacts and launch the 64-step H100
 MMD timing smoke only if the witness is complete and non-empty.
+
+## [2026-07-19] M2 / M2-scale-ladder-4b-4096-timing-smoke-v1
+HYPOTHESIS: If the completed 4K baseline witness is truly whole, non-empty,
+and bound to the exact normalized 4,096-brief corpus, then the next safe step
+is the preregistered 64-step H100 MMD-witness timing smoke. That smoke should
+consume the same initial adapter, 128-token witness contract, and exact 4K
+anchor without opening candidate evaluation outputs. The full 4K SFT and
+MMD-witness arms should remain gated behind this bounded timing result.
+SETUP: Validated the completed witness through the sanctioned gateway path used
+by the autonomy coordinator: fixed gateway URL plus macOS Keychain token
+`humanwrite-gateway-token`. The completed status for
+`dftr-1784429664-02939bdc` exposed
+`metrics_ptr=modal-volume://humanwrite-checkpoints/runs/dftr-1784429664-02939bdc/run_manifest.json`
+with `run_manifest_sha256=fbd94205993e1d8bd74b89792e8e4d9ae7a1da6eefaa8bcbd0e172ba0fd721a5`.
+Sanctioned worker logs ended with the full witness manifest JSON, including
+`documents=4096`, `status=completed`, `sampling_seed=41001`,
+`output_sha256=99d8b0ae93fb29ca7d692edd6c025e4310fcd0bf84188c37827e89d8a00eedae`,
+and `generation_contract_sha256=52ad0ca17e804709f2287396b41710a7d0bfa717a3a74f98f04fcf748ed38a1c`.
+Used that manifest to materialize:
+`configs/m2/m2_scale_ladder_4b_4096_sft_v1.yaml`
+(`sha256=88c7898f26c35cd2803b599a0c188e818c00cdbd6155869b8cc6d6fc98022d99`),
+`configs/m2/m2_scale_ladder_4b_4096_mmd_witness_v1.yaml`
+(`sha256=58ed3d678827e3a7b521625603ca824f01831f8b1b8a329771785fab723e5ad5`),
+and the smoke config
+`configs/m2/m2_scale_ladder_4b_4096_timing_smoke_v1.yaml`
+(`sha256=1d2d130082a2c1255e107b2e50d78c6f13cc28cac490be59fbc182148162e05b`).
+These bindings had to use the existing two-arm confirmation contract rather
+than the older three-arm lower-variance screen contract, because the 4K ladder
+is gated to matched SFT versus MMD-witness only.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Witness terminal status | PASS | Sanctioned status showed `dftr-1784429664-02939bdc` completed with `return_code=0`, `accel_seconds=3871.837`, and `actual_cost_usd=$2.518243`. |
+| Witness artifact integrity | PASS | Sanctioned logs ended with a completed `dftr.m2.lower_variance_baseline_witness.v2` manifest bound to the exact 4K normalized briefs, `documents=4096`, and non-empty output SHA `99d8b0ae93fb29ca7d692edd6c025e4310fcd0bf84188c37827e89d8a00eedae`. |
+| Local experiment ledger | PASS | Appended a local `ledger update` row for the completed witness before opening the next run. |
+| Bound 4K arm configs | PASS | Materialized exact 4K SFT and MMD-witness configs plus the derived 64-step timing-smoke config, all hash-stable and witness-bound. |
+| Timing-smoke preregistration | PASS | Added preregistration `M2-scale-ladder-4b-4096-timing-smoke-v1` before launch. |
+| Next safe async launch | PASS | Submitted smoke run `dftr-1784434111-716a0ed8` at `2026-07-19T04:08:31Z`; sanctioned status immediately reported `status=running`, `gpu=H100`, `budget_class=smoke`, and `reserved_cost_usd=1.57968`. |
+| Budget headroom after launch | PASS | Post-launch sanctioned budget showed Modal committed `$20.886991/$100` and OpenRouter spend `$28.483027/$100`, leaving the bounded cycle inside both caps. |
+DECISION: Keep the 4K scale-ladder active. The witness handoff validated
+cleanly enough to spend the bounded 64-step H100 smoke, and the full 4K arms
+remain properly gated behind that result. No candidate-writing evaluation was
+opened in this turn.
+NEXT: Wait for terminal transition of `dftr-1784434111-716a0ed8`. If it
+completes within the smoke budget and does not expose a contract/runtime
+failure, preregister and launch the matched full 4K SFT and MMD-witness arms
+from the newly materialized configs. If it fails or overruns, record the defect
+and do not open the full 4K arms.
