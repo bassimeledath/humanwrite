@@ -1243,7 +1243,11 @@ def rewrite_synthesis_worker(run_id: str, payload: dict) -> dict:
                     field: str(manifest_row[field])
                     for field in ("generator_model", "verifier_model", "template_id")
                 }
-                origin = str(manifest_row["origin"])
+                origin = str(
+                    manifest_row["scientific_origin"]
+                    if protocol == M3_EVAL_REWRITE_PROTOCOL
+                    else manifest_row["origin"]
+                )
             else:
                 assignment = deterministic_assignment(str(source["fingerprint"]))
                 origin = ""
