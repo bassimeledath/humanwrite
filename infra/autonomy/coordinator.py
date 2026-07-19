@@ -2,8 +2,9 @@
 """Event-driven Humanwrite continuation coordinator.
 
 The ten-minute polling path uses only stdlib HTTP and macOS Keychain access.
-Codex is invoked once per newly observed terminal run-state transition, never
-on ordinary polls. Persistent state lives under the gitignored .operator tree.
+Codex is invoked only for a newly observed terminal transition or a configured
+coarse progress milestone, never on ordinary polls. Persistent state lives
+under the gitignored .operator tree.
 """
 from __future__ import annotations
 
@@ -91,6 +92,40 @@ def terminal_signature(generation: int, statuses: dict[str, dict[str, Any]]) -> 
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
+def milestone_signature(
+    generation: int,
+    monitored_runs: list[dict[str, Any]],
+    statuses: dict[str, dict[str, Any]],
+) -> str | None:
+    """Return a stable signature for newly reached coarse progress milestones.
+
+    Milestones are opt-in per run through ``progress_target``. This keeps the
+    zero-token poll cheap and avoids waking Codex for every counter change.
+    """
+
+    reached: list[tuple[str, int]] = []
+    for item in monitored_runs:
+        run_id = str((item or {}).get("run_id") or "")
+        target = int((item or {}).get("progress_target") or 0)
+        if not run_id or target <= 0:
+            continue
+        state = statuses.get(run_id, {})
+        if str(state.get("status")) in TERMINAL:
+            continue
+        processed = int(state.get("records_processed") or 0)
+        for fraction in item.get("progress_milestones", [0.5]):
+            percentage = int(round(float(fraction) * 100))
+            if percentage <= 0 or percentage >= 100:
+                continue
+            if processed >= target * float(fraction):
+                reached.append((run_id, percentage))
+    if not reached:
+        return None
+    payload = {"generation": generation, "milestones": sorted(reached)}
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
 def within_wake_budget(wake_times: list[float], now: float, maximum: int) -> bool:
     recent = [value for value in wake_times if now - float(value) < 86_400]
     return len(recent) < maximum
@@ -118,17 +153,22 @@ def should_wake(
     runs = control.get("monitored_runs")
     if not isinstance(runs, list) or not runs:
         return False, None, "no_monitored_runs"
-    signature = terminal_signature(int(control.get("generation", 0)), statuses)
+    generation = int(control.get("generation", 0))
+    signature = terminal_signature(generation, statuses)
+    transition = "terminal"
     if signature is None:
-        return False, None, "waiting_for_terminal_transition"
+        signature = milestone_signature(generation, runs, statuses)
+        transition = "milestone"
+    if signature is None:
+        return False, None, "waiting_for_event_transition"
     handled = set(str(value) for value in runtime.get("handled_signatures", []))
     if signature in handled:
-        return False, signature, "terminal_transition_already_handled"
+        return False, signature, f"{transition}_transition_already_handled"
     maximum = int(control.get("max_codex_wakes_per_24h", 4))
     wake_times = successful_wake_times(runtime)
     if not within_wake_budget(wake_times, now, maximum):
         return False, signature, "daily_codex_wake_budget_exhausted"
-    return True, signature, "new_terminal_transition"
+    return True, signature, f"new_{transition}_transition"
 
 
 def should_run_scheduled_audit(
@@ -295,7 +335,7 @@ def tick(*, dry_run: bool = False) -> dict[str, Any]:
         "dry_run": dry_run,
         "statuses": statuses,
         "errors": errors,
-        "token_use": "zero for polling; Codex only on a new terminal transition",
+        "token_use": "zero for polling; Codex only on a terminal or configured coarse milestone transition",
     }
     _atomic_json(LIVE_PATH, live)
     if not wake or dry_run or errors:
@@ -311,7 +351,12 @@ def tick(*, dry_run: bool = False) -> dict[str, Any]:
             value for value in runtime["codex_wake_times"] if now - float(value) < 86_400
         ]
         _atomic_json(RUNTIME_PATH, runtime)
-        result = _invoke_codex(control, statuses)
+        invocation = (
+            "progress_milestone"
+            if reason == "new_milestone_transition"
+            else "terminal_transition"
+        )
+        result = _invoke_codex(control, statuses, invocation=invocation)
         runtime = _read_json(RUNTIME_PATH, runtime)
         if result["succeeded"]:
             runtime.setdefault("handled_signatures", []).append(signature)

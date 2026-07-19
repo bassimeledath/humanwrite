@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from infra.autonomy.coordinator import (
+    milestone_signature,
     should_run_scheduled_audit,
     should_wake,
     successful_wake_times,
@@ -29,7 +30,50 @@ def test_running_poll_never_wakes_codex():
     )
     assert wake is False
     assert signature is None
-    assert reason == "waiting_for_terminal_transition"
+    assert reason == "waiting_for_event_transition"
+
+
+def test_configured_progress_milestone_wakes_once():
+    monitored = [
+        {
+            "run_id": "run-a",
+            "progress_target": 200,
+            "progress_milestones": [0.5],
+        }
+    ]
+    statuses = {"run-a": {"status": "running", "records_processed": 100}}
+    signature = milestone_signature(3, monitored, statuses)
+    wake, observed, reason = should_wake(
+        control=control(monitored_runs=monitored),
+        runtime={},
+        statuses=statuses,
+        now=1000.0,
+    )
+    assert wake is True
+    assert observed == signature
+    assert reason == "new_milestone_transition"
+
+    wake, _, reason = should_wake(
+        control=control(monitored_runs=monitored),
+        runtime={"handled_signatures": [signature]},
+        statuses=statuses,
+        now=1010.0,
+    )
+    assert wake is False
+    assert reason == "milestone_transition_already_handled"
+
+
+def test_progress_below_milestone_does_not_wake():
+    monitored = [{"run_id": "run-a", "progress_target": 200}]
+    wake, signature, reason = should_wake(
+        control=control(monitored_runs=monitored),
+        runtime={},
+        statuses={"run-a": {"status": "running", "records_processed": 99}},
+        now=1000.0,
+    )
+    assert wake is False
+    assert signature is None
+    assert reason == "waiting_for_event_transition"
 
 
 def test_terminal_transition_wakes_once():
