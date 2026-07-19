@@ -3075,3 +3075,51 @@ terminal outcome before any matched full-arm launch.
 NEXT: Wait for terminal transition of `dftr-1784435737-0a9af38e`. Launch the
 matched 4K SFT and MMD-witness full arms only if this smoke completes without a
 contract/runtime failure and produces a real timing result.
+
+## [2026-07-19] M2 / M2-scale-ladder-4b-4096-v1-launch
+HYPOTHESIS: If the repaired `L40S` timing smoke completes with a real
+step-64 checkpoint artifact, intact matched-exposure contract, and bounded
+cost, then the next safe work is to open the preregistered matched full 4K SFT
+and MMD-witness runs under the same exact 4,096 normalized briefs and frozen
+128-token witness contract. This remains a training-only advance; any claim
+about “more human” behavior still requires independent held-out evaluation in a
+non-training representation.
+SETUP: Read sanctioned status, logs, and budget for
+`dftr-1784435737-0a9af38e` via the fixed gateway URL plus macOS Keychain token
+`humanwrite-gateway-token`. The completed terminal state exposed
+`metrics_ptr=modal-volume://humanwrite-checkpoints/runs/dftr-1784435737-0a9af38e/run_manifest.json`
+with `run_manifest_sha256=9be7ffd10f0f9a10ee62adcb02b0c78bac8168190f2c15e5a64df04c774186f8`,
+`return_code=0`, `accel_seconds=219.304`, and `actual_cost_usd=$0.142635`.
+Sanctioned worker logs ended with a completed
+`dftr.m2.lower_variance_confirmation_result.v2` payload showing
+`executed_arm=MMD_WITNESS`, `steps=64`, `optimizer_examples=128`,
+`teacher_forced_completion_tokens=15837`, and a saved step-64 adapter under
+`/__modal/volumes/vo-EY2fT0CaoNDuXGLZLNZcGg/runs/dftr-1784435737-0a9af38e/MMD_WITNESS`.
+Locally appended the missing ledger terminal update for that smoke, validated
+`configs/m2/m2_scale_ladder_4b_4096_sft_v1.yaml`,
+`configs/m2/m2_scale_ladder_4b_4096_mmd_witness_v1.yaml`, and
+`configs/m2/m2_scale_ladder_4b_4096_timing_smoke_l40s_v1.yaml` with
+`validate_lower_variance_config`, preregistered
+`M2-scale-ladder-4b-4096-v1`, and launched the matched full SFT/MMD runs
+through the sanctioned wrapper.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| L40S timing gate terminal validity | PASS | Sanctioned status showed `dftr-1784435737-0a9af38e` completed on Sunday, July 19, 2026 with `return_code=0`, `accel_seconds=219.304`, `tokens=0`, and `actual_cost_usd=$0.142635`, so the smoke became a real timing result rather than another startup-class failure. |
+| Smoke artifact integrity | PASS | Sanctioned logs ended with a completed `dftr.m2.lower_variance_confirmation_result.v2` record carrying the exact 4K anchor SHA `723ebf559a4139c49454f5898a0e51120cdf424bd3cd12e39466c6758d25217b`, witness SHA `99d8b0ae93fb29ca7d692edd6c025e4310fcd0bf84188c37827e89d8a00eedae`, matched-exposure contract SHA `b09f69d1e090f994775e48149983084224a1f0fd3218394207f97a83a41246b6`, and a saved step-64 adapter manifest. |
+| Missed handoff repair | PASS | The local ledger now contains the completed `run_update` row for `dftr-1784435737-0a9af38e` before any full-arm launch, closing the stale-monitor gap that triggered this continuation. |
+| Full 4K comparison preregistration | PASS | Added preregistration `M2-scale-ladder-4b-4096-v1` with matched SFT/MMD-witness arms only, preserving the frozen two-arm contract and keeping held-out evaluation out of this launch turn. |
+| Full-run local config validation | PASS | `validate_lower_variance_config` accepted the exact 4K SFT, MMD-witness, and smoke configs unchanged immediately before launch. |
+| Next safe async launch | PASS | Sanctioned wrapper accepted SFT run `dftr-1784436708-b6637838` with `config_hash=11ff3703772708db0a511246ee931384f501f386d6a9826a9b935ecb6a0c586b` and MMD-witness run `dftr-1784436736-c94a4507` with `config_hash=db7f457c2cc30f9705c54568ba099d041ce8470fb0f76d7f35786be0593a305a`; both launched on `L40S` under `budget_class=screen` with `reserved_cost_usd=$4.68288` each and immediate `status=running`. |
+| Budget headroom after full launches | PASS | Post-launch sanctioned budget reported Modal committed `$28.835206/$100` and OpenRouter spend `$28.483027/$100`, leaving the authorized 4K/16K ladder comfortably inside both caps and well short of the disallowed 46K cell. |
+| Quality-gate discipline | PASS | No held-out candidate evaluation, sealed submission, or Tier 3 detector use was opened in this turn; this was strictly the gated training handoff after the smoke passed. |
+DECISION: Keep `M2-scale-ladder-4b-4096-v1` active. The repaired `L40S`
+timing gate passed with bounded cost and real checkpoint artifacts, so opening
+the matched full 4K SFT and MMD-witness arms is justified within the existing
+authorization. There is still no scientific answer about human-likeness until
+these runs finish and are scored on the prospective held-out screen.
+NEXT: Wait for terminal transitions of `dftr-1784436708-b6637838` and
+`dftr-1784436736-c94a4507`. On completion, validate both checkpoint/run
+manifests and launch the next prospective held-out sampling/evaluation step
+only if the terminal artifacts are sound and the hard validity gates remain
+intact.
