@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-19T15:41:00Z",
+  "updated_at": "2026-07-19T15:50:00Z",
   "phase": "M3 — rewriting-first Qwen3-14B program",
-  "headline": "Fresh rewrite panel reached 197/224 under a repaired single-owner handoff",
-  "summary": "The 14B smoke gate remains fully passed. The fresh evaluation artifact has reached 197/224 accepted rows; single-owner run `dftr-1784475661-015c4e5c` now handles the remaining 27 without changing panel membership or gates. The repaired 4K API constructor and checkpointed base-Qwen drafting continue independently, with live sidecar progress visible through the gateway. Accepted artifacts contain zero normalized identities, multi-provider rewrites remain below the frozen 0.95 surface-similarity ceiling, and the full automatic two-embedder plus two-family judge evaluation stack remains deployed. No scientific quality result exists yet because matched training has not started.",
+  "headline": "Fresh rewrite panel reached 199/224; bounded feedback-preserving recovery is active",
+  "summary": "The 14B smoke gate remains fully passed. Five complete four-attempt passes advanced the fresh evaluation artifact to 199/224, but the final pass recovered only two rows. Versioned tail run `dftr-1784476178-ef679ccc` now keeps validation feedback across twelve attempts for only the remaining 25 identities. Panel membership, assigned provider, Qwen verifier, factual/literal gates, semantic threshold, and surface-divergence threshold are unchanged. The repaired 4K constructor and base-Qwen drafting continue independently. No scientific quality result exists yet because matched training has not started.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 100,
@@ -26,6 +26,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "08:50",
+      "title": "Bounded feedback-preserving recovery launched on final 25 eval identities",
+      "detail": "The fifth four-attempt pass ended at 199/224 after recovering only two rows for `$0.186185`. Amendment `m3_eval_tail_attempt_amendment_2026-07-19.md` freezes a tail-only 12-attempt chain so each missing identity carries its exact validation failure into later recovery prompts instead of losing feedback at process boundaries. Provider assignment, identities, verifier, semantic 0.90, literal, language, length, factual, normalized-nonidentity, and surface-similarity gates are identical. Policy tests passed `64/64`; the constrained gateway was redeployed and run `dftr-1784476178-ef679ccc` launched with the same USD 6 reservation.",
+      "tone": "active"
+    },
     {
       "at": "08:33",
       "title": "Concurrent tail-launch race contained; 194-row artifact passes full audit",
