@@ -1,7 +1,7 @@
 {
   "schema": "humanwrite.autonomy_control.v1",
   "enabled": true,
-  "generation": 43,
+  "generation": 44,
   "objective": "Run the preregistered M3 rewriting-first Qwen3-14B program autonomously through the 128-record task-construction smoke, matched 4K screen, gated 16K confirmation, and optional 46K extension only if the frozen 16K promotion gate passes. Diagnose and repair recoverable implementation or infrastructure failures without routine user sign-off. Stay within the existing $100 API and $100 GPU caps; do not launch Tier 3 detectors or raise either cap.",
   "poll_interval_seconds": 600,
   "max_codex_wakes_per_24h": 16,
@@ -10,7 +10,7 @@
   "wake_policy": "once_per_new_terminal_transition",
   "monitored_runs": [
     {
-      "run_id": "dftr-1784467284-5299ea0d",
+      "run_id": "dftr-1784467379-d463605f",
       "comparison": "M3-rewrite-sft-14b-mechanical-smoke-v1",
       "purpose": "Verify Qwen3-14B H100 model loading, rank-32 LoRA training, finite loss and gradients, deterministic checkpointing, and artifact persistence before constructing the full matched 4K screen"
     }

@@ -1,12 +1,12 @@
 {
-  "updated_at": "2026-07-19T13:21:30Z",
+  "updated_at": "2026-07-19T13:23:20Z",
   "phase": "M3 — rewriting-first Qwen3-14B program",
   "headline": "96 rewrite pairs validated; Qwen3-14B H100 mechanical smoke active",
-  "summary": "The rewriting-task construction smoke is complete: all 96 rows pass the frozen factual, literal, language, non-identity, length, and semantic gates; the artifact has SHA `51f38c80e11193d7a2b57144876d99d3d3e17f8ed39e353230f6cd52702de59c`, contains 46 Claude-generated and 50 Gemini-generated sources, and every row is independently Qwen3-32B verified. Commit `c7da0e7` binds that exact SHA into the Qwen3-14B rank-32 LoRA mechanical-smoke config. H100 run `dftr-1784467284-5299ea0d` is active; it is an engineering check, not the human-writing result.",
+  "summary": "The rewriting-task construction smoke is complete: all 96 rows pass the frozen factual, literal, language, non-identity, length, and semantic gates; the artifact has SHA `51f38c80e11193d7a2b57144876d99d3d3e17f8ed39e353230f6cd52702de59c`, contains 46 Claude-generated and 50 Gemini-generated sources, and every row is independently Qwen3-32B verified. Commit `c7da0e7` binds that exact SHA into the Qwen3-14B rank-32 LoRA mechanical-smoke config. The first authorized smoke launch was mistakenly cancelled during this audit before the tail-completion ordering was verified, then immediately relaunched unchanged as H100 run `dftr-1784467379-d463605f`; it is an engineering check, not the human-writing result.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 100,
-    "modal_committed_usd": 23.832389,
+    "modal_committed_usd": 23.879591,
     "openrouter_cap_usd": 100,
     "openrouter_spend_usd": 29.267185
   },
@@ -29,7 +29,7 @@
     {
       "at": "06:21",
       "title": "Full rewrite smoke accepted and Qwen3-14B H100 training launched",
-      "detail": "All 96 rewrite pairs validate at SHA `51f38c80e11193d7a2b57144876d99d3d3e17f8ed39e353230f6cd52702de59c`; provider split is 46 Claude and 50 Gemini, all Qwen3-32B verified, with zero duplicate identities. The SHA-bound Qwen3-14B rank-32 LoRA config passed 59 focused tests and launched as H100 run `dftr-1784467284-5299ea0d` with a worst-case reservation of `$1.57968`.",
+      "detail": "All 96 rewrite pairs validate at SHA `51f38c80e11193d7a2b57144876d99d3d3e17f8ed39e353230f6cd52702de59c`; provider split is 46 Claude and 50 Gemini, all Qwen3-32B verified, with zero duplicate identities. The SHA-bound Qwen3-14B rank-32 LoRA config passed 59 focused tests and first launched as H100 run `dftr-1784467284-5299ea0d` with a worst-case reservation of `$1.57968`.",
       "tone": "active"
     },
     {
@@ -709,5 +709,5 @@
     {"at": "17:46", "title": "Storage created", "detail": "Gateway state, checkpoints, sealed state, and sealed artifacts volumes are online.", "tone": "complete"},
     {"at": "17:40", "title": "Engineering checks passed", "detail": "Harness, infrastructure, and private evaluator suites are green.", "tone": "complete"}
   ],
-  "next_action": "Validate H100 run `dftr-1784467284-5299ea0d` for finite training and deterministic artifacts; on success, automatically materialize the full matched 4K SFT14 versus HUMANWRITE14 construction and training stage."
+  "next_action": "Validate H100 run `dftr-1784467379-d463605f` for finite training and deterministic artifacts; on success, automatically materialize the full matched 4K SFT14 versus HUMANWRITE14 construction and training stage."
 }

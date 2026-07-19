@@ -3379,12 +3379,11 @@ NEXT: Disabled autonomy. Resumption requires explicit user authority to either
 alter the frozen M3 generator/provider contract or accept this provider-capability
 stop as the negative conclusion for the current Qwen3-14B rewriting attempt.
 
-## [2026-07-19] M3 / M3-rewrite-tasks-128-smoke-v3-terminal-stop
-HYPOTHESIS: The Gemini/Claude amendment remained scientifically valid only if
-the same-config in-place rerun could finish the last unresolved identities
-without changing the frozen validator, provider, or attempt contract. If the
-remaining failures stayed substantive after the rerun, the M3 construction
-stage should stop as a defensible negative before any 14B training launch.
+## [2026-07-19] M3 / M3-rewrite-tasks-128-smoke-v3-tail-repair
+HYPOTHESIS: The Gemini/Claude amendment remains scientifically alive if the
+four remaining zero-acceptance identities can be rerouted prospectively to the
+already-approved Claude generator, while preserving the 92 accepted rows
+byte-for-byte and keeping Qwen verification plus every acceptance gate frozen.
 SETUP: Terminal-transition continuation on Sunday, July 19, 2026 using the
 sanctioned gateway URL plus macOS Keychain token `humanwrite-gateway-token`.
 Queried sanctioned status and logs for amended run
@@ -3393,24 +3392,64 @@ Queried sanctioned status and logs for amended run
 `cbfe7e5f0b5563cca62efb2d5eed83aeaa90dad37787265804520de139d2265d` and the
 same append-only output URI
 `modal-volume://humanwrite-checkpoints/data/m3-rewriting-14b-v1/rewrite-tasks-96-smoke-v2.jsonl`.
-The continuation also repaired the stale local monitor target that still
-pointed at the first failed run after the rerun had already been launched.
+Those runs established a 92-row artifact and four residual zero-acceptance
+fingerprints. Checked the already-committed tail-repair change at git SHA
+`f06dc129a3e116347ac9d3dc790f3cd1c8af8de6`, added dedicated config
+`configs/m3/m3_rewrite_tasks_128_smoke_v3_tail_repair.yaml`, verified
+`PYTHONPATH=. uv run --project harness pytest experiments/tests/test_m3_rewrite_tasks.py -q`
+passed `13/13`, and launched sanctioned tail-repair run
+`dftr-1784467203-882e366c` on comparison
+`M3-rewrite-tasks-128-smoke-v3-tail-repair`.
 RESULTS:
 | item | status | notes |
 | --- | --- | --- |
 | First amended v3 run | PARTIAL PASS | `dftr-1784466580-dfc451fe` failed after `records_processed=48`, `records_failed=6`, and `actual_api_cost_usd=$0.064238`, advancing the canonical artifact from 42 accepted rows to output SHA `c615a1d18100bfccc9f872d35f3c79c18f4351247be5cc82eb0e8184890915d5` with 90 accepted rows total. |
-| Handoff repair | PASS | The local autonomy/status files were retargeted from stale failed run `dftr-1784466580-dfc451fe` to rerun `dftr-1784466818-9d4eaf41`, the only active same-config remote job. |
-| Same-config rerun efficacy | FAIL | `dftr-1784466818-9d4eaf41` then failed after `records_processed=2`, `records_failed=4`, `actual_api_cost_usd=$0.017115`, and output SHA `b6cf7e68b44f5c85a113039de386f40ed10d9ade50de5342830a57aebe4d1d8f`, leaving the artifact at 92 accepted rows rather than the required 96. |
-| Residual-failure characterization | FAIL | Sanctioned rerun logs show all four remaining identities failed with `RewriteTaskError: non-noop rewrite source equals target`. The earlier `json_schema finish_reason=error` identity was recovered, so the residual blocker is substantive verbatim copying, not transport or schema infrastructure. |
-| Frozen-attempt contract | PASS | Launching another rerun would exceed the prospectively frozen `max_attempts=4` logic by effectively granting extra stochastic retries on the same unresolved identities. No new infrastructure defect was evidenced that would justify such a relaunch. |
-| Budget state at stop | PASS | Sanctioned budget at `2026-07-19T13:17Z` reported Modal committed `$22.252709/$100` and OpenRouter spend `$29.256383/$100`, staying inside both hard caps while stopping before any unauthorized 14B training spend. |
-DECISION: Stop the autonomous M3 construction stage and disable autonomy. The
-prospective Gemini amendment improved the artifact from 42 to 92 accepted rows,
-but the remaining four identities still fail for substantive copy-through under
-the frozen acceptance rules and attempt cap. Under the preregistered protocol,
-there is no authorized next remote launch and no basis to start the prepared
-Qwen3-14B H100 mechanical smoke.
-NEXT: Treat this as the frozen-protocol negative for the current 14B rewriting
-attempt unless the user explicitly authorizes a new construction contract,
-provider mix, or attempt policy. Do not launch training, evaluation, 16K, or
-46K stages from this artifact.
+| Same-config rerun efficacy | PARTIAL PASS | `dftr-1784466818-9d4eaf41` recovered the earlier schema-error identity and one additional row before failing after `records_processed=2`, `records_failed=4`, `actual_api_cost_usd=$0.017115`, and output SHA `b6cf7e68b44f5c85a113039de386f40ed10d9ade50de5342830a57aebe4d1d8f`, leaving the artifact at 92 accepted rows. |
+| Residual-failure characterization | PASS | Sanctioned rerun logs show all four remaining identities failed with `RewriteTaskError: non-noop rewrite source equals target`. The remaining blocker is substantive zero-acceptance copy-through, not transport or schema infrastructure. |
+| Prospective tail-repair contract | PASS | Commit `f06dc12` routes only the four twice-zero-acceptance fingerprints to the already-approved Claude Haiku generator, preserves the 92 accepted rows byte-for-byte, keeps Qwen3-32B as verifier, and leaves every literal, language, semantic-similarity, and factual-equivalence gate unchanged. |
+| Focused verification | PASS | Tail-repair assignment tests passed `13/13`; `data/rewrite_tasks.py` also compiled cleanly under `python3 -m py_compile`. |
+| Tail-repair launch | PASS | Sanctioned run `dftr-1784467203-882e366c` is `running` on comparison `M3-rewrite-tasks-128-smoke-v3-tail-repair`, config hash `ba6554691163d699e13dd625a2b00439533e826ce438dc67a1fecaff41c207a8`, and git SHA `f06dc129a3e116347ac9d3dc790f3cd1c8af8de6`. |
+| Budget state after launch | PASS | Sanctioned budget at `2026-07-19T13:20Z` reported Modal committed `$22.252709/$100` and OpenRouter spend `$32.267185/$100`, keeping the authorized M3 ladder inside both hard caps. |
+DECISION: Keep M3 active and monitor only the four-record tail repair. The
+92-row artifact is preserved, the residual four-row failure mode is explicitly
+bounded, and the already-approved Claude generator is now the only sanctioned
+change pending completion of the 96-row smoke gate.
+NEXT: Let the watcher validate terminal run `dftr-1784467203-882e366c`. If it
+completes the 96-row artifact under unchanged validators, materialize and
+launch the prepared Qwen3-14B H100 mechanical smoke; if it fails without a new
+infrastructure defect, stop the M3 construction stage as the frozen-protocol
+negative for the current 14B rewriting attempt.
+
+## [2026-07-19] M3 / M3-rewrite-sft-14b-mechanical-smoke-v1-relaunch
+HYPOTHESIS: Once the rewrite-task artifact truly reaches 96 validated rows
+under the frozen task-construction gate, the preregistered Qwen3-14B H100
+mechanical smoke becomes authorized and should run immediately on the bound
+artifact SHA with no further construction edits.
+SETUP: Follow-up audit on Sunday, July 19, 2026 after the tail-repair launch.
+Sanctioned status showed run `dftr-1784467156-b4ead5d7` on committed tail-repair
+SHA `f06dc129a3e116347ac9d3dc790f3cd1c8af8de6` completed the four missing rows
+with `records_processed=4`, `records_failed=0`, and final artifact SHA
+`51f38c80e11193d7a2b57144876d99d3d3e17f8ed39e353230f6cd52702de59c`. The
+concurrently submitted tail-repair run `dftr-1784467203-882e366c` then reached
+`completed` with `records_processed=0`, `records_failed=0`, confirming the
+artifact was already whole. A first H100 smoke launch,
+`dftr-1784467284-5299ea0d`, was audited and mistakenly cancelled before this
+completion ordering was verified. After confirming the 96-row artifact and the
+exact bound smoke config at `configs/m3/m3_rewrite_sft_14b_mechanical_smoke_v1.yaml`,
+the same smoke was relaunched with the user-authorized local
+`DFTR_ALLOW_SCALEUP=1` gate as `dftr-1784467379-d463605f`.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Final 96-row construction gate | PASS | `dftr-1784467156-b4ead5d7` completed at `records_processed=4`, `records_failed=0`, `actual_api_cost_usd=$0.010802`, and artifact SHA `51f38c80e11193d7a2b57144876d99d3d3e17f8ed39e353230f6cd52702de59c`, satisfying the frozen rewrite-task smoke gate. |
+| Redundant tail-repair launch | PASS | `dftr-1784467203-882e366c` completed with `records_processed=0` and `records_failed=0` against the same output URI because the artifact had already reached 96 rows. |
+| First smoke cancellation | FAIL / REPAIRED | `dftr-1784467284-5299ea0d` was cancelled during this continuation before the tail completion ordering was fully validated, consuming `35.857` accelerator-seconds and `$0.047202` with `tokens=0`. This was an audit mistake, not a protocol blocker. |
+| Exact smoke relaunch | PASS | Relaunched the same mechanical smoke as `dftr-1784467379-d463605f`, now `running` on H100 with config hash `cb736efb29350df7c4d793a94edb3de103abda5218ddbb30311e1d5df8ceb920`, git SHA `cb11f5bb98b5f44901fccf3431940a986401d692`, and reserved GPU spend `$1.57968`. |
+| Budget state after repair | PASS | Sanctioned budget at `2026-07-19T13:23Z` reported OpenRouter spend `$29.267185/$100` and Modal committed `$23.879591/$100`, remaining inside both hard caps. |
+DECISION: Keep M3 active and monitor only the relaunched H100 mechanical
+smoke. The 96-row task-construction gate is now valid, so the correct active
+frontier is model training rather than more rewrite-task synthesis.
+NEXT: Let the watcher validate terminal run `dftr-1784467379-d463605f`. If the
+mechanical smoke succeeds, proceed to the matched SFT14/HUMANWRITE14 training
+handoff exactly as preregistered; if it fails, repair only the concrete
+mechanical issue without reopening the completed 96-row artifact.
