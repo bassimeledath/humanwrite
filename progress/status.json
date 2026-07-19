@@ -1,9 +1,9 @@
 {
-  "updated_at": "2026-07-19T09:12:38Z",
+  "updated_at": "2026-07-19T09:31:25Z",
   "phase": "M3 — rewriting-first Qwen3-14B program",
-  "headline": "M3 rewrite smoke rerunning with a narrowed Qwen transport fallback",
-  "summary": "The scheduled audit turned the failed M3 rewrite-smoke handoff into a concrete infrastructure diagnosis. Direct checkpoint validation showed the frozen v2 artifact contains exactly 42 valid rows, all from the Claude-assigned half of the 96 rewrite identities, while the Qwen-assigned 54 rows were missing. The sanctioned `/logs` path for API workers was blank because those workers wrote outside `/checkpoints/runs/<run_id>`, so commit `d1c8465` repaired checkpoint-backed logging and hardened OpenRouter routing with `provider.require_parameters=true`. A bounded probe rerun then produced the decisive failure message on the missing Qwen rows: OpenRouter returned HTTP 404 `No endpoints found that can handle the requested parameters`. Commit `d654ba1` now preserves the same frozen models, identities, validators, and output URI but narrows only the Qwen transport to a `json_object` plus `response-healing` fallback when strict `json_schema` has no compatible endpoint. Resume run `dftr-1784452317-f7c09b8c` is active on git SHA `d654ba1`; the next continuation should validate whether the remaining 54 identities begin completing or whether the smoke is blocked on provider capability before any 14B GPU spend.",
-  "run_state": "active",
+  "headline": "M3 blocked on sanctioned Qwen provider availability",
+  "summary": "The autonomous M3 cycle reached a defensible stop under the frozen protocol. Commit `5f60327` added a third Qwen-only raw-text JSON fallback and passed `15/15` focused tests; the constrained gateway was redeployed, and the first relaunch `dftr-1784453338-8343264e` was identified as a stale-worker deploy race because it still emitted the old bare `provider HTTP 404` log format. The clean post-deploy rerun `dftr-1784453394-116e6e29` then proved the patched worker was live by logging `qwen transport fallback exhausted`, yet it still terminated with `records_processed=0`, `records_failed=54`, `actual_api_cost_usd=0.0`, and the same output SHA `25b311668679cde7d39d710b2c1f9643828c9b5767be8f243174d25e93cc5d8e`. No 14B training spend was opened. Because the frozen M3 contract requires matched Qwen/Claude exposure, there is no authorized next asynchronous launch without user approval to change the provider/model contract.",
+  "run_state": "blocked",
   "budget": {
     "modal_cap_usd": 100,
     "modal_committed_usd": 22.252709,
@@ -22,10 +22,16 @@
     {"id": "M0", "label": "M0", "detail": "Data pipeline and GPU contract smoke test", "status": "complete"},
     {"id": "M1", "label": "M1", "detail": "4B three-seed directional confirmation passed", "status": "complete"},
     {"id": "M2", "label": "M2", "detail": "4B reconstruction and 4K lower-variance screen completed; evidence weak and mixed", "status": "complete"},
-    {"id": "M3", "label": "M3", "detail": "Rewriting-first Qwen3-14B task construction, matched training, and fresh evaluation", "status": "active"},
+    {"id": "M3", "label": "M3", "detail": "Rewriting-first Qwen3-14B task construction, matched training, and fresh evaluation", "status": "blocked"},
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "09:31",
+      "title": "Post-deploy Qwen fallback exhausted; autonomy disabled",
+      "detail": "Commit `5f60327` added a raw-text JSON fallback after the earlier `json_schema` and `json_object` Qwen transport attempts, focused verification passed `15/15`, and the constrained gateway was redeployed. Relaunch `dftr-1784453338-8343264e` was submitted before deployment completion and therefore failed on the stale worker with the old bare `provider HTTP 404` logs. Clean post-deploy rerun `dftr-1784453394-116e6e29` then proved the patched worker was live by logging `qwen transport fallback exhausted`, but it still ended with `records_processed=0`, `records_failed=54`, `actual_api_cost_usd=0.0`, and the unchanged 42-row artifact SHA `25b311668679cde7d39d710b2c1f9643828c9b5767be8f243174d25e93cc5d8e`. Because matched Qwen/Claude exposure is frozen, there is no authorized next launch without user approval to alter the provider/model contract, so autonomy is now disabled.",
+      "tone": "blocked"
+    },
     {
       "at": "02:12",
       "title": "Qwen transport failure isolated; narrowed fallback resume is active",

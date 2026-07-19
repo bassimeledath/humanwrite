@@ -3336,3 +3336,45 @@ be waived after opening results.
 NEXT: Either retire this exact ladder or preregister a separate, identical-across-
 arms byte-safe decoding experiment on a new untouched panel. Do not filter this
 panel, change thresholds, or use it for further selection.
+
+## [2026-07-19] M3 / M3-rewrite-tasks-128-smoke-v2-provider-stop
+HYPOTHESIS: If the deployed `json_object` fallback was still too strict for
+OpenRouter's Qwen routing, then a post-deploy raw-text JSON prompt with local
+parsing could recover the missing 54 Qwen-assigned rewrite identities without
+changing the frozen models, identities, validators, or output artifact.
+SETUP: Local infrastructure repair only on Sunday, July 19, 2026. Commit
+`5f60327` added a third Qwen-only fallback in
+`infra/backend/modal_app.py`: strict `json_schema` -> `json_object` plus
+`response-healing` -> unstructured raw-text JSON prompt with local parsing.
+The request helper was generalized in `infra/backend/openrouter_contract.py`,
+focused verification passed
+`PYTHONPATH=. uv run --project infra pytest infra/tests/test_openrouter_contract.py experiments/tests/test_m3_rewrite_tasks.py`
+with `15/15`, and the changed Python modules compiled cleanly under
+`PYTHONPATH=. uv run --project infra python -m py_compile ...`. The constrained
+gateway was redeployed with `modal deploy -m infra.backend.modal_app`. Relaunch
+`dftr-1784453338-8343264e` was submitted before the deployment completed and
+therefore still ran on the stale worker; after deployment finished, clean rerun
+`dftr-1784453394-116e6e29` launched on pushed SHA
+`5f60327377d62aa601373cfba56b543a97e5b2fb` against the same config hash
+`4052e33f2772f63e8a7dd6d98242a9947867006648a88ace64dc7ee064fe4189` and the
+same append-only output URI
+`modal-volume://humanwrite-checkpoints/data/m3-rewriting-14b-v1/rewrite-tasks-96-smoke-v2.jsonl`.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Stale-worker relaunch diagnosis | PASS | `dftr-1784453338-8343264e` failed after `27.372` accelerator-seconds with `records_processed=0`, `records_failed=54`, `actual_api_cost_usd=0.0`, and the old pre-patch `provider HTTP 404` log format, confirming it launched before the new deployment was live. |
+| Post-deploy worker verification | PASS | `dftr-1784453394-116e6e29` logged the new prefix `qwen transport fallback exhausted`, proving the patched worker code was live on the sanctioned gateway. |
+| Qwen raw-fallback efficacy | FAIL | Despite the raw-text JSON fallback, `dftr-1784453394-116e6e29` still failed after `38.835` accelerator-seconds with `records_processed=0`, `records_failed=54`, `actual_api_cost_usd=0.0`, and unchanged output SHA `25b311668679cde7d39d710b2c1f9643828c9b5767be8f243174d25e93cc5d8e`. No new rewrite identities were recovered. |
+| Scientific artifact preservation | PASS | Both relaunches preserved the same frozen rewrite identities, deterministic Qwen/Claude assignment, cross-model verifier pairing, semantic/literal validators, config hash, and output URI. No evaluation panel, budget cap, or gate changed. |
+| 14B spend discipline | PASS | No 14B GPU training or evaluation launch occurred because the 96-row rewrite-task artifact never completed. |
+| Budget state at stop | PASS | Sanctioned budget at `2026-07-19T09:31Z` remained within cap: Modal committed `$22.252709/$100`; OpenRouter spend `$32.075207/$100`. |
+DECISION: Stop the autonomous M3 cycle under the frozen protocol. The
+blocking condition is no longer an untried transport repair: the sanctioned
+OpenRouter route still exposes no usable Qwen3-32B endpoint for this frozen
+rewrite-generation role even after strict structured-output, `json_object`,
+and raw-text JSON fallbacks. Because matched Qwen/Claude exposure is frozen,
+substituting a different generator family, provider route, or budget would
+change the preregistered contract and requires explicit user authority.
+NEXT: Disabled autonomy. Resumption requires explicit user authority to either
+alter the frozen M3 generator/provider contract or accept this provider-capability
+stop as the negative conclusion for the current Qwen3-14B rewriting attempt.
