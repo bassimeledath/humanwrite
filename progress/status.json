@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-19T16:47:00Z",
+  "updated_at": "2026-07-19T16:57:00Z",
   "phase": "M3 — rewriting-first Qwen3-14B program",
-  "headline": "Final exact evaluation replay is active from 207/224",
-  "summary": "The second exact 12-attempt evaluation pass added four valid rows for `$0.452864`, reaching 207/224. One final exact replay, `dftr-1784477641-e4bb544b`, is active under a versioned stop rule: if it remains partial, stochastic replay ends and a prospective repair must target the observed literal/identity failures without replacing identities or weakening gates. The 4K API and 14B draft constructors remain healthy. No scientific quality result exists yet because matched training has not started.",
+  "headline": "Final exact evaluation replay has reached 209/224",
+  "summary": "Final exact replay `dftr-1784477641-e4bb544b` has already added two valid rows and reached 209/224. A tested but inactive v3 contingency now explicitly enumerates validator-derived protected literals while preserving identities, providers, verifiers, thresholds, and the append-only URI; it launches only if the capped replay ends partial. The 4K API constructor is at least 805/2,048 and 14B drafts at least 365/819. No scientific quality result exists yet because matched training has not started.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 100,
@@ -26,6 +26,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "09:57",
+      "title": "Literal-safe contingency prepared without changing the live replay",
+      "detail": "The observed persistent failures are dominated by exact protected-literal mismatches. Commit `772612d` adds a prospective v3 prompt that enumerates every deterministic protected literal byte-for-byte while retaining the same row identity, assigned provider, independent verifier, and all acceptance gates. Focused scientific and policy tests pass `70/70`. It remains inactive unless the final capped v2 replay ends partial; the live replay has independently advanced to 209/224.",
+      "tone": "complete"
+    },
     {
       "at": "09:47",
       "title": "Final exact evaluation replay launched under a frozen stop rule",
