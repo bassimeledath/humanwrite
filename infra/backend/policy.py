@@ -65,6 +65,7 @@ M3_REWRITE_SFT_SMOKE_METHOD_KEYS = (
     "training",
 )
 M3_BASELINE_DRAFT_PROTOCOL = "humanwrite.m3.baseline_drafts_14b.v1"
+M3_BASELINE_DRAFT_PROTOCOL_V2 = "humanwrite.m3.baseline_drafts_14b.v2"
 M3_BASELINE_DRAFT_STEP = "generate_m3_baseline_drafts"
 M3_BASELINE_DRAFT_METHOD_KEYS = (
     "artifact_schema",
@@ -996,21 +997,24 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
             protocol_version=workflow.get("protocol_version"), step=workflow.get("step")
         )
         data = config.get("data") or {}
+        protocol = config.get("artifact_schema")
+        expected_budget = "promo" if protocol == M3_BASELINE_DRAFT_PROTOCOL_V2 else "screen"
+        expected_timeout = 300 if protocol == M3_BASELINE_DRAFT_PROTOCOL_V2 else 120
         if (
             set(config) != set(M3_BASELINE_DRAFT_METHOD_KEYS) | {"workflow"}
-            or config.get("artifact_schema") != M3_BASELINE_DRAFT_PROTOCOL
-            or workflow.get("protocol_version") != M3_BASELINE_DRAFT_PROTOCOL
+            or protocol not in {M3_BASELINE_DRAFT_PROTOCOL, M3_BASELINE_DRAFT_PROTOCOL_V2}
+            or workflow.get("protocol_version") != protocol
             or set(workflow) != {"protocol_version", "step", "method_contract_sha256"}
             or canonical_hash(method_payload) != workflow.get("method_contract_sha256")
             or task_kind != "experiment"
-            or budget_class != "screen"
+            or budget_class != expected_budget
             or config.get("model")
             != {
                 "base": QWEN3_14B_MODEL,
                 "revision": QWEN3_14B_REVISION,
                 "torch_dtype": "bfloat16",
             }
-            or config.get("compute") != {"gpu": "H100", "gpus": 1, "timeout_min": 120}
+            or config.get("compute") != {"gpu": "H100", "gpus": 1, "timeout_min": expected_timeout}
             or (config.get("run") or {}).get("arm") != "base-draft-construction"
             or data.get("source_records") != 4096
             or data.get("target_records") != 819

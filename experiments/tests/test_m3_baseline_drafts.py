@@ -11,10 +11,16 @@ from experiments.m3.baseline_drafts import M3BaselineDraftError, baseline_prompt
 
 ROOT = Path(__file__).resolve().parents[2]
 CONFIG = ROOT / "configs/m3/m3_baseline_drafts_14b_4096_v1.yaml"
+CONFIG_V2 = ROOT / "configs/m3/m3_baseline_drafts_14b_4096_v2.yaml"
 
 
 def test_frozen_baseline_draft_config_validates() -> None:
     config = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
+    assert validate_config(config) == config
+
+
+def test_resumable_baseline_draft_config_validates() -> None:
+    config = yaml.safe_load(CONFIG_V2.read_text(encoding="utf-8"))
     assert validate_config(config) == config
 
 

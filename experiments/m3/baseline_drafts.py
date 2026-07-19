@@ -17,6 +17,7 @@ from experiments.m2.representation import canonical_hash
 
 
 SCHEMA = "humanwrite.m3.baseline_drafts_14b.v1"
+SCHEMA_V2 = "humanwrite.m3.baseline_drafts_14b.v2"
 STEP = "generate_m3_baseline_drafts"
 OUTPUT_SCHEMA = "humanwrite.m3.baseline_draft_candidate.v1"
 METHOD_KEYS = ("artifact_schema", "run", "compute", "model", "data", "generation")
@@ -50,19 +51,22 @@ def method_payload(config: dict[str, Any]) -> dict[str, Any]:
 
 
 def validate_config(config: dict[str, Any]) -> dict[str, Any]:
-    if set(config) != set(METHOD_KEYS) | {"workflow"} or config.get("artifact_schema") != SCHEMA:
+    schema = config.get("artifact_schema")
+    if set(config) != set(METHOD_KEYS) | {"workflow"} or schema not in {SCHEMA, SCHEMA_V2}:
         raise M3BaselineDraftError("baseline-draft exact config schema mismatch")
     run = config.get("run") or {}
+    expected_budget = "promo" if schema == SCHEMA_V2 else "screen"
     if run != {
         "comparison_id": "M3-rewriting-14b-4096-scientific-screen-v1",
         "arm": "base-draft-construction",
-        "budget_class": "screen",
+        "budget_class": expected_budget,
         "task_kind": "experiment",
         "command": ["python", "-m", "experiments.runner"],
         "seed": 2701,
     }:
         raise M3BaselineDraftError("baseline-draft run contract mismatch")
-    if config.get("compute") != {"gpu": "H100", "gpus": 1, "timeout_min": 120}:
+    expected_timeout = 300 if schema == SCHEMA_V2 else 120
+    if config.get("compute") != {"gpu": "H100", "gpus": 1, "timeout_min": expected_timeout}:
         raise M3BaselineDraftError("baseline-draft compute contract mismatch")
     if config.get("model") != {
         "base": BASE_MODEL,
@@ -91,7 +95,7 @@ def validate_config(config: dict[str, Any]) -> dict[str, Any]:
     ):
         raise M3BaselineDraftError("baseline-draft data contract mismatch")
     _sha(data.get("source_sha256"), "data.source_sha256")
-    if config.get("generation") != {
+    expected_generation = {
         "temperature": 0.8,
         "top_p": 0.95,
         "top_k": 50,
@@ -101,12 +105,15 @@ def validate_config(config: dict[str, Any]) -> dict[str, Any]:
         "enable_thinking": False,
         "checkpoint_every": 32,
         "candidates_per_record": 4,
-    }:
+    }
+    if schema == SCHEMA_V2:
+        expected_generation["max_generation_attempts"] = 12
+    if config.get("generation") != expected_generation:
         raise M3BaselineDraftError("baseline-draft generation contract mismatch")
     workflow = config.get("workflow") or {}
     if (
         set(workflow) != {"protocol_version", "step", "method_contract_sha256"}
-        or workflow.get("protocol_version") != SCHEMA
+        or workflow.get("protocol_version") != schema
         or workflow.get("step") != STEP
         or canonical_hash(method_payload(config))
         != _sha(workflow.get("method_contract_sha256"), "workflow.method_contract_sha256")
@@ -200,7 +207,9 @@ def run(config: dict[str, Any], run_id: str) -> dict[str, Any]:
             target = int(source["target_length"])
             max_new = min(int(generation["max_new_tokens"]), max(64, math.ceil(target * 1.25)))
             candidates = []
-            for attempt in range(1, int(generation["candidates_per_record"]) + 1):
+            required_candidates = int(generation["candidates_per_record"])
+            max_attempts = int(generation.get("max_generation_attempts", required_candidates))
+            for attempt in range(1, max_attempts + 1):
                 seed = _seed_for(int(config["run"]["seed"]) + attempt - 1, fingerprint)
                 set_seed(seed)
                 generated = model.generate(
@@ -219,15 +228,20 @@ def run(config: dict[str, Any], run_id: str) -> dict[str, Any]:
                     skip_special_tokens=True,
                 ).strip()
                 if not text or "�" in text:
-                    raise M3BaselineDraftError(
-                        f"invalid baseline generation for {fingerprint} attempt {attempt}"
-                    )
+                    continue
                 candidates.append(
                     {
-                        "candidate_attempt": attempt,
+                        "candidate_attempt": len(candidates) + 1,
                         "input_text": text,
                         "generation_seed": seed,
                     }
+                )
+                if len(candidates) == required_candidates:
+                    break
+            if len(candidates) != required_candidates:
+                raise M3BaselineDraftError(
+                    f"could not obtain {required_candidates} valid baseline generations "
+                    f"for {fingerprint} in {max_attempts} attempts"
                 )
             row = {
                 "artifact_schema": OUTPUT_SCHEMA,
@@ -269,4 +283,4 @@ def run(config: dict[str, Any], run_id: str) -> dict[str, Any]:
     return result
 
 
-__all__ = ["M3BaselineDraftError", "OUTPUT_SCHEMA", "SCHEMA", "STEP", "baseline_prompt", "run", "validate_config"]
+__all__ = ["M3BaselineDraftError", "OUTPUT_SCHEMA", "SCHEMA", "SCHEMA_V2", "STEP", "baseline_prompt", "run", "validate_config"]
