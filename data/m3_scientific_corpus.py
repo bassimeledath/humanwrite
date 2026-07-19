@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from difflib import SequenceMatcher
 import hashlib
+import json
 import re
 from typing import Any, Callable
 
@@ -133,6 +134,7 @@ def scientific_generator_prompt(
     *,
     attempt: int = 1,
     previous_error: str = "",
+    explicit_literal_inventory: bool = False,
 ) -> str:
     if origin not in API_REWRITE_ORIGINS:
         raise M3ScientificCorpusError("API generator prompt requires an API rewrite origin")
@@ -169,12 +171,22 @@ def scientific_generator_prompt(
             f"\nRecovery attempt {attempt}; the prior candidate failed: {error}. Correct that exact "
             "failure without relaxing factual or literal preservation.\n"
         )
+    literal_inventory = ""
+    if explicit_literal_inventory:
+        literals = list(protected_literals(target))
+        literal_inventory = (
+            "\nThe following protected literals must each appear byte-for-byte in source_text. "
+            "Do not reformat, translate, normalize, or omit them:\n"
+            + "\n".join(f"- {json.dumps(value, ensure_ascii=False)}" for value in literals)
+            + "\n"
+        )
     return (
         f"{mode} Preserve every fact, name, number, date, quotation, URL, email address, language, "
         "scope, attribution, and intent. Do not summarize, add facts, omit details, or mention this "
         "task. Keep the source between roughly 85% and 115% of the human target token length. "
         f"Template: {assignment['template_id']}. Repeat document_fingerprint exactly. Return "
         "source_text plus the supplied natural rewrite_instruction."
+        f"{literal_inventory}"
         f"{recovery}\n\n"
         f"document_fingerprint: {source['fingerprint']}\n"
         f"rewrite_instruction: {instruction}\n\nHUMAN TARGET:\n{target}"

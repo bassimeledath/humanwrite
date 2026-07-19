@@ -10,6 +10,7 @@ from data.m3_scientific_corpus import (
     SCIENTIFIC_REWRITE_PROTOCOL,
     assemble_scientific_training_corpus,
     scientific_assignment,
+    scientific_generator_prompt,
     scientific_manifest,
     validate_scientific_rewrite,
 )
@@ -101,6 +102,21 @@ def test_4k_manifest_has_exact_frozen_mixture_and_balanced_api_generators() -> N
 def test_manifest_is_prefix_stable() -> None:
     sources = [source(index) for index in range(16384)]
     assert scientific_manifest(sources)[:4096] == scientific_manifest(sources[:4096])
+
+
+def test_literal_inventory_prompt_enumerates_exact_protected_values() -> None:
+    item = source(3)
+    item["completion"] += ' Visit https://example.com and quote "Exact phrase".'
+    assignment = scientific_assignment(item, "multi_provider_ai")
+    prompt = scientific_generator_prompt(
+        item,
+        assignment,
+        "multi_provider_ai",
+        explicit_literal_inventory=True,
+    )
+    assert "protected literals must each appear byte-for-byte" in prompt
+    for literal in protected_literals(item["completion"]):
+        assert literal in prompt
 
 
 def test_scientific_rewrite_rejects_identity_and_provider_drift() -> None:

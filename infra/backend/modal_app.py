@@ -1286,6 +1286,12 @@ def rewrite_synthesis_worker(run_id: str, payload: dict) -> dict:
                                     origin,
                                     attempt=attempt,
                                     previous_error=str(last_error or ""),
+                                    explicit_literal_inventory=(
+                                        protocol == M3_EVAL_REWRITE_PROTOCOL
+                                        and str((config.get("run") or {}).get("arm") or "")
+                                        == "cross-provider-public-eval-input-literal-recovery-v3"
+                                        and api.get("literal_inventory") is True
+                                    ),
                                 )
                                 if protocol in {
                                     M3_SCIENTIFIC_REWRITE_PROTOCOL,

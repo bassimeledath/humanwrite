@@ -595,6 +595,50 @@ def test_m3_eval_tail_allows_only_exact_twelve_attempt_recovery_arm():
         validate_launch(value)
 
 
+def test_m3_eval_literal_recovery_requires_exact_arm_and_inventory_flag():
+    config = {
+        "run": {
+            "comparison_id": "M3-rewriting-14b-fresh-eval-inputs-v1",
+            "arm": "cross-provider-public-eval-input-literal-recovery-v3",
+            "budget_class": "promo",
+            "task_kind": "rewrite_synthesis",
+        },
+        "compute": {"gpus": 1, "timeout_min": 480},
+        "data": {
+            "input_uri": "modal-volume://humanwrite-checkpoints/data/fresh-clean.jsonl",
+            "output_uri": "modal-volume://humanwrite-checkpoints/data/fresh-rewrites.jsonl",
+            "input_sha256": "a" * 64,
+            "max_records": 640,
+            "target_records": 224,
+        },
+        "api": {
+            "protocol": M3_EVAL_REWRITE_PROTOCOL,
+            "generator_models": M3_REWRITE_GENERATOR_MODELS,
+            "verifier_by_generator": M3_REWRITE_VERIFIER_BY_GENERATOR,
+            "max_cost_usd": 6.0,
+            "max_attempts": 12,
+            "semantic_similarity_min": 0.90,
+            "concurrency": 16,
+            "literal_inventory": True,
+        },
+        "tokenizer": {
+            "model": "Qwen/Qwen3-14B",
+            "revision": "40c069824f4251a91eefaf281ebe4c544efd3e18",
+        },
+    }
+    value = payload()
+    value["config"] = config
+    value["config_hash"] = canonical_hash(config)
+    value["budget_class"] = "promo"
+    value["preregistration"]["comparison"] = config["run"]["comparison_id"]
+    assert validate_launch(value).api_reserved_cost_usd == 6.0
+
+    config["api"]["literal_inventory"] = False
+    value["config_hash"] = canonical_hash(config)
+    with pytest.raises(PolicyError, match="provider contract"):
+        validate_launch(value)
+
+
 def test_m3_baseline_draft_generation_requires_frozen_14b_contract():
     config_path = (
         Path(__file__).resolve().parents[2]
