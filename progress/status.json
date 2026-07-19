@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-19T14:50:21Z",
+  "updated_at": "2026-07-19T15:03:00Z",
   "phase": "M3 — rewriting-first Qwen3-14B program",
-  "headline": "Surface-divergent 4K repair and fresh evaluation inputs now run beside base-Qwen construction",
-  "summary": "The 14B smoke gate remains fully passed. The silent no-op API artifact is excluded, the repaired gateway is deployed, and versioned surface-divergent constructor `dftr-1784472298-ca6141da` is advancing under ordinary scientific rejections rather than infrastructure failure. Fresh evaluation cleaning completed exactly 640/640 at SHA `f6a0a0940338ba1f75aa70a1be5e042ea973b00e410b12d309cea4908f6c3c40`; the initial 224-input run failed with a zero-cost `origin`/`scientific_origin` bug, but repaired replacement run `dftr-1784472492-97038c7d` is now accepting rows and failing only on intended scientific gates. Independent base-Qwen generation remains live from checkpointed H100 startup. The 2,048-check quality-plus-fact evaluator remains frozen and tested. No scientific quality result exists yet.",
+  "headline": "Fresh rewrite panel is two-thirds built while 4K construction and base-Qwen drafting continue",
+  "summary": "The 14B smoke gate remains fully passed. Direct checkpoint inspection now shows 130/2,048 repaired API rewrites, 197/819 four-candidate base-Qwen draft records, and 148/224 fresh evaluation rewrites. The accepted repaired artifacts contain zero normalized identities; multi-provider rewrites remain below the frozen 0.95 surface-similarity ceiling. The full automatic, two-embedder, and 2,048-check two-family judge evaluation path is deployed. A fail-closed 4K promotion program now encodes every frozen gate and requires both judge families independently. No scientific quality result exists yet because matched training has not started.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 100,
@@ -15,7 +15,7 @@
     {"name": "Reaper", "detail": "Five-minute independent enforcement", "status": "online"},
     {"name": "Sealed evaluator", "detail": "Private endpoint and hidden split ready", "status": "online"},
     {"name": "Progress server", "detail": "Local live dashboard", "status": "online"},
-    {"name": "Autonomy coordinator", "detail": "Zero-token 10-minute terminal watcher plus 90-minute safety audit", "status": "online"}
+    {"name": "Autonomy coordinator", "detail": "Zero-token 10-minute event watcher, coarse progress wakes, and 90-minute safety audit", "status": "online"}
   ],
   "milestones": [
     {"id": "setup", "label": "Setup", "detail": "Harness, sources, storage, and guardrails", "status": "complete"},
@@ -26,6 +26,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "08:03",
+      "title": "Evaluation stack deployed and 4K decision frozen",
+      "detail": "Checkpoint-backed counts reached 130 repaired API rewrites, 197 base-Qwen draft records, and 148 fresh evaluation rewrites. Commit `8b421f3` added the fail-closed 4K-to-16K decision: both Claude and Gemini judge families must independently clear style, quality, and preservation gates; lexical and hard-validity gates cannot be averaged away. Sixty focused rewrite/autonomy tests pass. The gateway now includes both pinned embedding families, and autonomy wakes only at coarse progress or terminal transitions rather than every poll.",
+      "tone": "active"
+    },
     {
       "at": "07:50",
       "title": "Audit confirms the repaired fresh-eval path is healthy",
@@ -781,5 +787,5 @@
     {"at": "17:46", "title": "Storage created", "detail": "Gateway state, checkpoints, sealed state, and sealed artifacts volumes are online.", "tone": "complete"},
     {"at": "17:40", "title": "Engineering checks passed", "detail": "Harness, infrastructure, and private evaluator suites are green.", "tone": "complete"}
   ],
-  "next_action": "Wait for a terminal transition from `dftr-1784472298-ca6141da`, `dftr-1784470064-bf4ab7d8`, or `dftr-1784472492-97038c7d`; then validate the terminal artifact and launch the already-authorized downstream step only if the frozen handoff condition is satisfied."
+  "next_action": "On the next coarse-progress or terminal event, validate the relevant checkpoint. At 224 evaluation rewrites, freeze the 256-row panel. At 819 base drafts, launch bound Qwen verification. Resume either partial constructor unchanged; assemble and launch matched 4K training only after all frozen corpus identities validate."
 }
