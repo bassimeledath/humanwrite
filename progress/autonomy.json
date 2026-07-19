@@ -1,14 +1,14 @@
 {
   "schema": "humanwrite.autonomy_control.v1",
   "enabled": true,
-  "generation": 25,
-  "objective": "Run the independently reviewed 4K chain: exact-token normalization, baseline witness, 64-step MMD timing gate, then matched full SFT and MMD-witness arms if gates pass.",
+  "generation": 26,
+  "objective": "Run the independently reviewed 4K chain: completed exact-token normalization and baseline witness, repaired 64-step L40S MMD timing gate, then matched full SFT and MMD-witness arms if gates pass.",
   "poll_interval_seconds": 600,
   "max_codex_wakes_per_24h": 16,
   "audit_recent_continuation_seconds": 3600,
   "codex_timeout_seconds": 7200,
   "wake_policy": "once_per_new_terminal_transition",
   "monitored_runs": [
-    {"run_id": "dftr-1784434111-716a0ed8"}
+    {"run_id": "dftr-1784435737-0a9af38e"}
   ]
 }

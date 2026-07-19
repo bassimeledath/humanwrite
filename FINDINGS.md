@@ -3049,3 +3049,29 @@ NEXT: Push branch `swarmy/humanwrite-next-cycle`, relaunch
 `M2-scale-ladder-4b-4096-timing-smoke-l40s-v1`, and monitor only the fresh run
 ID from that pushed commit. Do not open the matched 4K full arms until the
 relaunch survives startup and produces a real timing signal.
+
+## [2026-07-19] M2 / M2-scale-ladder-4b-4096-timing-smoke-l40s-v1-relaunch
+HYPOTHESIS: If the only remaining defect is that the requested repair commit
+was not yet on origin, then pushing the branch and relaunching the exact same
+`L40S` smoke config should clear startup and return the pipeline to a real
+timing run. No full 4K arm should launch until that live smoke reaches a
+meaningful terminal state.
+SETUP: Committed the repaired ladder state and pushed branch
+`swarmy/humanwrite-next-cycle` to origin at commit `c6af24b`. Relaunched the
+same config `configs/m2/m2_scale_ladder_4b_4096_timing_smoke_l40s_v1.yaml`
+through the sanctioned wrapper. Validated the new launch status for
+`dftr-1784435737-0a9af38e` and refreshed the sanctioned budget snapshot.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Publish repair commit | PASS | Git push advanced `origin/swarmy/humanwrite-next-cycle` from `fcf2602` to `c6af24b`, making the requested checkout SHA remotely resolvable. |
+| Relaunch acceptance | PASS | Wrapper accepted the same `L40S` smoke comparison and created run `dftr-1784435737-0a9af38e` with `config_hash=1c520241d8a4c6c7653a37ac82daee33a295a463bd231ace467b7927042bf3fa`, `git_sha=c6af24b4cf4cccb47f82e4f5f09638e36de87193`, and `reserved_cost_usd=$0.78048`. |
+| Immediate live status | PASS | At `2026-07-19T04:36:14Z`, sanctioned status still reported `status=running`, `gpu=L40S`, `workflow_step=train_lower_variance`, and no terminal transition yet. |
+| Budget headroom after relaunch | PASS | Sanctioned budget reported Modal committed `$20.107291/$100` and OpenRouter spend `$28.483027/$100`, keeping the bounded cycle safely inside both caps. |
+DECISION: Keep the 4K ladder active and monitor only
+`dftr-1784435737-0a9af38e`. The fresh relaunch has cleared the known wrapper
+transport failures, so the next continuation should validate its genuine
+terminal outcome before any matched full-arm launch.
+NEXT: Wait for terminal transition of `dftr-1784435737-0a9af38e`. Launch the
+matched 4K SFT and MMD-witness full arms only if this smoke completes without a
+contract/runtime failure and produces a real timing result.

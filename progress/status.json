@@ -1,12 +1,12 @@
 {
-  "updated_at": "2026-07-19T04:09:11Z",
+  "updated_at": "2026-07-19T04:36:14Z",
   "phase": "M2 — 4B data-scale ladder through 16K",
-  "headline": "4K witness validated; 64-step timing smoke is running",
-  "summary": "Sanctioned validation on Sunday, July 19, 2026 confirmed witness run `dftr-1784429664-02939bdc` completed at `2026-07-19T03:59:01Z` with a non-empty 4,096-document manifest bound to output SHA `99d8b0ae93fb29ca7d692edd6c025e4310fcd0bf84188c37827e89d8a00eedae`. Exact 4K SFT/MMD configs were then materialized from the frozen two-arm confirmation contract, and smoke run `dftr-1784434111-716a0ed8` launched at `2026-07-19T04:08:31Z` on H100 for the 64-step MMD timing gate. The next continuation should validate that smoke run and launch the matched full 4K SFT/MMD arms only if the gate passes.",
+  "headline": "Fresh L40S 4K timing smoke is running after two startup-class repairs",
+  "summary": "Sanctioned validation on Sunday, July 19, 2026 confirmed witness run `dftr-1784429664-02939bdc` completed with a non-empty 4,096-document manifest bound to output SHA `99d8b0ae93fb29ca7d692edd6c025e4310fcd0bf84188c37827e89d8a00eedae`. The original H100 smoke `dftr-1784434111-716a0ed8` was invalidated before step 1 because the repaired wrapper-owned `worker.log` collided with the trainer artifact-dir guard, and the first L40S relaunch `dftr-1784435621-a7cf08e3` was invalidated before Python startup because commit `2ff0236` had not yet been pushed to origin. After pushing repair commit `c6af24b`, fresh smoke run `dftr-1784435737-0a9af38e` launched at `2026-07-19T04:35:37Z` on L40S and remains the only monitored remote job. The next continuation should validate that run and launch the matched full 4K SFT/MMD arms only if it produces a real timing result.",
   "run_state": "running",
   "budget": {
     "modal_cap_usd": 100,
-    "modal_committed_usd": 20.886991,
+    "modal_committed_usd": 20.107291,
     "openrouter_cap_usd": 100,
     "openrouter_spend_usd": 28.483027
   },
@@ -26,6 +26,18 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "21:36",
+      "title": "Pushed repair and relaunched the 4K timing smoke",
+      "detail": "Branch `swarmy/humanwrite-next-cycle` was pushed to origin at commit `c6af24b`, clearing the remote checkout failure that invalidated the first L40S relaunch. The same repaired config was then relaunched as smoke run `dftr-1784435737-0a9af38e` on Sunday, July 19, 2026 at `2026-07-19T04:35:37Z`; sanctioned status at `2026-07-19T04:36:14Z` still showed `status=running`, `gpu=L40S`, `workflow_step=train_lower_variance`, and `reserved_cost_usd=$0.78048`.",
+      "tone": "active"
+    },
+    {
+      "at": "21:31",
+      "title": "Two startup-class timing-smoke failures were isolated",
+      "detail": "The original H100 smoke `dftr-1784434111-716a0ed8` failed after `14.154` accelerator-seconds and zero tokens because the sanctioned wrapper-owned `worker.log` prepopulated `/checkpoints/runs/<run_id>` before `run_lower_variance()` enforced an empty artifact directory. After that code repair and L40S realignment, first relaunch `dftr-1784435621-a7cf08e3` still failed after `1.334` accelerator-seconds and zero tokens because the worker could not `git checkout --detach 2ff023680785feb444fd217c6b39de922cc327f8` before the branch was pushed.",
+      "tone": "active"
+    },
     {
       "at": "21:08",
       "title": "4K witness validated and H100 timing smoke launched",
