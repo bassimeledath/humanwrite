@@ -74,7 +74,7 @@ def build_config(rewrite_tasks_sha256: str) -> dict[str, Any]:
             "learning_rate": 2e-5,
             "weight_decay": 0.0,
             "gradient_clip_norm": 1.0,
-            "max_prompt_tokens": 640,
+            "max_prompt_tokens": 768,
             "max_completion_tokens": 383,
             "max_sequence_tokens": 1024,
             "checkpoint_every": 8,
