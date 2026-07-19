@@ -19,6 +19,7 @@ LOWER_VARIANCE_METADATA_MODEL = "qwen/qwen3-32b"
 LOWER_VARIANCE_OUTLINE_MODEL = "openai/gpt-5-mini"
 M3_REWRITE_TASK_PROTOCOL = "humanwrite.m3.rewrite_tasks.v1"
 M3_SCIENTIFIC_REWRITE_PROTOCOL = "humanwrite.m3.scientific_api_rewrites.v1"
+M3_BASELINE_VERIFY_PROTOCOL = "humanwrite.m3.baseline_draft_verification.v1"
 M3_REWRITE_GENERATOR_MODELS = [
     "google/gemini-3.1-flash-lite",
     "anthropic/claude-haiku-4.5",
@@ -39,6 +40,16 @@ M3_REWRITE_SFT_SMOKE_METHOD_KEYS = (
     "data",
     "lora",
     "training",
+)
+M3_BASELINE_DRAFT_PROTOCOL = "humanwrite.m3.baseline_drafts_14b.v1"
+M3_BASELINE_DRAFT_STEP = "generate_m3_baseline_drafts"
+M3_BASELINE_DRAFT_METHOD_KEYS = (
+    "artifact_schema",
+    "run",
+    "compute",
+    "model",
+    "data",
+    "generation",
 )
 LOWER_VARIANCE_TRAIN_PROTOCOL = "dftr.m2.lower_variance_three_arm.v1"
 LOWER_VARIANCE_CONFIRMATION_PROTOCOL = "dftr.m2.lower_variance_confirmation.v2"
@@ -689,6 +700,7 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
         "train_sft", "sample_sweep", "merge_adapter", "replay_equivalence", "train_dft",
         "prepare_dft", "generate_dft", "generate_lower_variance", "audit_estimator", "train_lower_variance",
         M3_REWRITE_SFT_SMOKE_STEP,
+        M3_BASELINE_DRAFT_STEP,
     } and revision_is_unresolved(
         (config.get("model") or {}).get("revision")
     ):
@@ -917,6 +929,39 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
             or payload.get("dft_a64_readiness") is not None
         ):
             raise PolicyError("M3 rewrite SFT smoke requires the frozen 14B wrapper protocol")
+    if workflow_step == M3_BASELINE_DRAFT_STEP:
+        workflow = config.get("workflow") or {}
+        method_payload = {
+            key: config.get(key) for key in M3_BASELINE_DRAFT_METHOD_KEYS
+        }
+        method_payload.update(
+            protocol_version=workflow.get("protocol_version"), step=workflow.get("step")
+        )
+        data = config.get("data") or {}
+        if (
+            set(config) != set(M3_BASELINE_DRAFT_METHOD_KEYS) | {"workflow"}
+            or config.get("artifact_schema") != M3_BASELINE_DRAFT_PROTOCOL
+            or workflow.get("protocol_version") != M3_BASELINE_DRAFT_PROTOCOL
+            or set(workflow) != {"protocol_version", "step", "method_contract_sha256"}
+            or canonical_hash(method_payload) != workflow.get("method_contract_sha256")
+            or task_kind != "experiment"
+            or budget_class != "screen"
+            or config.get("model")
+            != {
+                "base": QWEN3_14B_MODEL,
+                "revision": QWEN3_14B_REVISION,
+                "torch_dtype": "bfloat16",
+            }
+            or config.get("compute") != {"gpu": "H100", "gpus": 1, "timeout_min": 120}
+            or (config.get("run") or {}).get("arm") != "base-draft-construction"
+            or data.get("source_records") != 4096
+            or data.get("target_records") != 819
+            or not str(data.get("source_path") or "").startswith("/checkpoints/")
+            or not str(data.get("output_path") or "").startswith("/checkpoints/")
+            or not re.fullmatch(r"[0-9a-f]{64}", str(data.get("source_sha256") or ""))
+            or payload.get("dft_a64_readiness") is not None
+        ):
+            raise PolicyError("M3 baseline drafts require the frozen 14B wrapper protocol")
     if workflow_step == "replay_equivalence":
         replay_workflow = config.get("workflow") or {}
         protocol_version = str(replay_workflow.get("protocol_version"))
@@ -1050,15 +1095,28 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
             "target_records",
         }:
             raise PolicyError("rewrite_synthesis data schema mismatch")
-        if set(api) != {
-            "protocol",
-            "generator_models",
-            "verifier_by_generator",
-            "max_cost_usd",
-            "max_attempts",
-            "semantic_similarity_min",
-            "concurrency",
-        }:
+        protocol = api.get("protocol")
+        expected_api_keys = (
+            {
+                "protocol",
+                "verifier_model",
+                "max_cost_usd",
+                "max_attempts",
+                "semantic_similarity_min",
+                "concurrency",
+            }
+            if protocol == M3_BASELINE_VERIFY_PROTOCOL
+            else {
+                "protocol",
+                "generator_models",
+                "verifier_by_generator",
+                "max_cost_usd",
+                "max_attempts",
+                "semantic_similarity_min",
+                "concurrency",
+            }
+        )
+        if set(api) != expected_api_keys:
             raise PolicyError("rewrite_synthesis API schema mismatch")
         if set(tokenizer) != {"model", "revision"}:
             raise PolicyError("rewrite_synthesis tokenizer schema mismatch")
@@ -1074,22 +1132,40 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
         max_records = data.get("max_records")
         target_records = data.get("target_records")
         protocol = api.get("protocol")
-        expected_target = (
-            max_records // 2
-            if protocol == M3_SCIENTIFIC_REWRITE_PROTOCOL
-            else (max_records * 3) // 4
+        expected_target = None
+        if isinstance(max_records, int) and not isinstance(max_records, bool):
+            expected_target = (
+                max_records // 2
+                if protocol == M3_SCIENTIFIC_REWRITE_PROTOCOL
+                else (max_records * 3) // 4
+            )
+        if protocol == M3_BASELINE_VERIFY_PROTOCOL:
+            valid_scale = (
+                isinstance(max_records, int)
+                and not isinstance(max_records, bool)
+                and max_records in {819, 3277, 9216}
+                and target_records == max_records
+            )
+        else:
+            valid_scale = (
+                isinstance(max_records, int)
+                and not isinstance(max_records, bool)
+                and max_records in {128, 4096, 16384, 46080}
+                and target_records == expected_target
+            )
+        if not valid_scale:
+            raise PolicyError("rewrite_synthesis target count does not match its frozen protocol")
+        provider_contract_valid = (
+            api.get("verifier_model") == "qwen/qwen3-32b"
+            if protocol == M3_BASELINE_VERIFY_PROTOCOL
+            else (
+                protocol in {M3_REWRITE_TASK_PROTOCOL, M3_SCIENTIFIC_REWRITE_PROTOCOL}
+                and api.get("generator_models") == M3_REWRITE_GENERATOR_MODELS
+                and api.get("verifier_by_generator") == M3_REWRITE_VERIFIER_BY_GENERATOR
+            )
         )
         if (
-            not isinstance(max_records, int)
-            or isinstance(max_records, bool)
-            or max_records not in {128, 4096, 16384, 46080}
-            or target_records != expected_target
-        ):
-            raise PolicyError("rewrite_synthesis target count does not match its frozen protocol")
-        if (
-            protocol not in {M3_REWRITE_TASK_PROTOCOL, M3_SCIENTIFIC_REWRITE_PROTOCOL}
-            or api.get("generator_models") != M3_REWRITE_GENERATOR_MODELS
-            or api.get("verifier_by_generator") != M3_REWRITE_VERIFIER_BY_GENERATOR
+            not provider_contract_valid
             or api.get("max_attempts") != 4
             or api.get("semantic_similarity_min") != 0.90
             or api.get("concurrency") != 16

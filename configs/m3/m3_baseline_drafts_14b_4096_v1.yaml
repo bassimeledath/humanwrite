@@ -1,0 +1,39 @@
+artifact_schema: humanwrite.m3.baseline_drafts_14b.v1
+run:
+  comparison_id: M3-rewriting-14b-4096-scientific-screen-v1
+  arm: base-draft-construction
+  budget_class: screen
+  task_kind: experiment
+  command:
+  - python
+  - -m
+  - experiments.runner
+  seed: 2701
+compute:
+  gpu: H100
+  gpus: 1
+  timeout_min: 120
+model:
+  base: Qwen/Qwen3-14B
+  revision: 40c069824f4251a91eefaf281ebe4c544efd3e18
+  torch_dtype: bfloat16
+data:
+  source_path: /checkpoints/data/m2-scale-ladder-v1/train-briefs-4096-token-normalized-v1.jsonl
+  source_sha256: 723ebf559a4139c49454f5898a0e51120cdf424bd3cd12e39466c6758d25217b
+  source_records: 4096
+  target_records: 819
+  output_path: /checkpoints/data/m3-rewriting-14b-v1/baseline-draft-candidates-4096-v1.jsonl
+generation:
+  temperature: 0.8
+  top_p: 0.95
+  top_k: 50
+  min_new_tokens: 32
+  max_new_tokens: 383
+  do_sample: true
+  enable_thinking: false
+  checkpoint_every: 32
+  candidates_per_record: 4
+workflow:
+  protocol_version: humanwrite.m3.baseline_drafts_14b.v1
+  step: generate_m3_baseline_drafts
+  method_contract_sha256: b24ac70c1cd7c9c40b25b66eab337317237f373bec111ccca7b689152c5d9c24

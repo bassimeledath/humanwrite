@@ -72,6 +72,7 @@ LOWER_VARIANCE_BRIEF_CONCURRENCY = 8
 DOCUMENT_CLEANING_CONCURRENCY = 128
 M3_REWRITE_TASK_PROTOCOL = "humanwrite.m3.rewrite_tasks.v1"
 M3_SCIENTIFIC_REWRITE_PROTOCOL = "humanwrite.m3.scientific_api_rewrites.v1"
+M3_BASELINE_VERIFY_PROTOCOL = "humanwrite.m3.baseline_draft_verification.v1"
 
 state_volume = modal.Volume.from_name("humanwrite-gateway-state", create_if_missing=True)
 checkpoint_volume = modal.Volume.from_name("humanwrite-checkpoints", create_if_missing=True)
@@ -969,6 +970,7 @@ def rewrite_synthesis_worker(run_id: str, payload: dict) -> dict:
     from data.m3_scientific_corpus import (
         API_REWRITE_ORIGINS,
         assemble_scientific_rewrite,
+        scientific_assignment,
         scientific_generator_prompt,
         scientific_manifest,
         validate_scientific_rewrite,
@@ -1098,7 +1100,11 @@ def rewrite_synthesis_worker(run_id: str, payload: dict) -> dict:
 
     try:
         protocol = str(api["protocol"])
-        if protocol not in {PROTOCOL, M3_SCIENTIFIC_REWRITE_PROTOCOL}:
+        if protocol not in {
+            PROTOCOL,
+            M3_SCIENTIFIC_REWRITE_PROTOCOL,
+            M3_BASELINE_VERIFY_PROTOCOL,
+        }:
             raise ValueError("M3 rewrite-task protocol mismatch")
         checkpoint_volume.reload()
         if not input_path.is_file() or _file_sha256(input_path) != data["input_sha256"]:
@@ -1121,6 +1127,16 @@ def rewrite_synthesis_worker(run_id: str, payload: dict) -> dict:
             records = [
                 row for row in all_records if str(row["fingerprint"]) in manifest_by_id
             ]
+        elif protocol == M3_BASELINE_VERIFY_PROTOCOL:
+            records = all_records
+            manifest_by_id = {
+                str(row["fingerprint"]): {
+                    "fingerprint": str(row["fingerprint"]),
+                    "origin": "baseline_model_draft",
+                    **scientific_assignment(row, "baseline_model_draft"),
+                }
+                for row in records
+            }
         else:
             records = rewrite_source_records(all_records)
         if len(records) != int(data["target_records"]):
@@ -1149,7 +1165,10 @@ def rewrite_synthesis_worker(run_id: str, payload: dict) -> dict:
                 fingerprint = str(row.get("fingerprint") or "")
                 if fingerprint in completed or fingerprint not in source_index:
                     raise ValueError("existing M3 rewrite output has invalid identity")
-                if protocol == M3_SCIENTIFIC_REWRITE_PROTOCOL:
+                if protocol in {
+                    M3_SCIENTIFIC_REWRITE_PROTOCOL,
+                    M3_BASELINE_VERIFY_PROTOCOL,
+                }:
                     manifest_row = manifest_by_id[fingerprint]
                     validate_scientific_rewrite(
                         row,
@@ -1176,7 +1195,10 @@ def rewrite_synthesis_worker(run_id: str, payload: dict) -> dict:
                 completed.add(fingerprint)
 
         def synthesize_one(source: dict) -> tuple[dict | None, Exception | None, float]:
-            if protocol == M3_SCIENTIFIC_REWRITE_PROTOCOL:
+            if protocol in {
+                M3_SCIENTIFIC_REWRITE_PROTOCOL,
+                M3_BASELINE_VERIFY_PROTOCOL,
+            }:
                 manifest_row = manifest_by_id[str(source["fingerprint"])]
                 assignment = {
                     field: str(manifest_row[field])
@@ -1190,28 +1212,40 @@ def rewrite_synthesis_worker(run_id: str, payload: dict) -> dict:
             last_error: Exception | None = None
             for attempt in range(1, int(api["max_attempts"]) + 1):
                 try:
-                    generated, generation_cost = provider_json(
-                        model=assignment["generator_model"],
-                        prompt=(
-                            scientific_generator_prompt(
-                                source,
-                                assignment,
-                                origin,
-                                attempt=attempt,
-                                previous_error=str(last_error or ""),
-                            )
-                            if protocol == M3_SCIENTIFIC_REWRITE_PROTOCOL
-                            else generator_prompt(
-                                source,
-                                assignment,
-                                attempt=attempt,
-                                previous_error=str(last_error or ""),
-                            )
-                        ),
-                        schema_name="m3_rewrite_source",
-                        schema=generator_response_schema(),
-                        max_tokens=3500,
-                    )
+                    if protocol == M3_BASELINE_VERIFY_PROTOCOL:
+                        candidates = source.get("candidates")
+                        if not isinstance(candidates, list) or attempt > len(candidates):
+                            raise ValueError("baseline candidate attempt is unavailable")
+                        candidate = candidates[attempt - 1]
+                        generated = {
+                            "document_fingerprint": str(source["fingerprint"]),
+                            "source_text": str(candidate["input_text"]),
+                            "rewrite_instruction": str(source["rewrite_instruction"]),
+                        }
+                        generation_cost = 0.0
+                    else:
+                        generated, generation_cost = provider_json(
+                            model=assignment["generator_model"],
+                            prompt=(
+                                scientific_generator_prompt(
+                                    source,
+                                    assignment,
+                                    origin,
+                                    attempt=attempt,
+                                    previous_error=str(last_error or ""),
+                                )
+                                if protocol == M3_SCIENTIFIC_REWRITE_PROTOCOL
+                                else generator_prompt(
+                                    source,
+                                    assignment,
+                                    attempt=attempt,
+                                    previous_error=str(last_error or ""),
+                                )
+                            ),
+                            schema_name="m3_rewrite_source",
+                            schema=generator_response_schema(),
+                            max_tokens=3500,
+                        )
                     record_spent += generation_cost
                     generated["generation_attempt"] = attempt
                     verified, verification_cost = provider_json(
@@ -1222,7 +1256,10 @@ def rewrite_synthesis_worker(run_id: str, payload: dict) -> dict:
                         max_tokens=4000,
                     )
                     record_spent += verification_cost
-                    if protocol == M3_SCIENTIFIC_REWRITE_PROTOCOL:
+                    if protocol in {
+                        M3_SCIENTIFIC_REWRITE_PROTOCOL,
+                        M3_BASELINE_VERIFY_PROTOCOL,
+                    }:
                         emitted = assemble_scientific_rewrite(
                             source=source,
                             origin=origin,

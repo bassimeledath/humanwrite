@@ -545,6 +545,35 @@ def test_m3_scientific_rewrite_synthesis_rejects_75_percent_target():
         validate_launch(payload)
 
 
+def test_m3_baseline_draft_generation_requires_frozen_14b_contract():
+    config_path = (
+        Path(__file__).resolve().parents[2]
+        / "configs/m3/m3_baseline_drafts_14b_4096_v1.yaml"
+    )
+    config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    value = {
+        "config": config,
+        "config_hash": canonical_hash(config),
+        "budget_class": "screen",
+        "human_scaleup_approved": True,
+        "preregistration": {
+            "kind": "prereg",
+            "status": "open",
+            "comparison": "M3-rewriting-14b-4096-scientific-screen-v1",
+        },
+    }
+    policy = validate_launch(value)
+    assert policy.gpu == "H100"
+    assert policy.timeout_seconds == 7200
+
+    tampered = json.loads(json.dumps(config))
+    tampered["data"]["target_records"] = 818
+    value["config"] = tampered
+    value["config_hash"] = canonical_hash(tampered)
+    with pytest.raises(PolicyError, match="baseline drafts"):
+        validate_launch(value)
+
+
 def test_preregistered_16k_cleaning_and_brief_scales_are_allowed():
     cleaning = payload()
     cleaning["budget_class"] = "promo"

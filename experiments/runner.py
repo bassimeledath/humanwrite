@@ -62,6 +62,11 @@ from experiments.m3.rewrite_sft_smoke import (
     M3_REWRITE_SFT_SMOKE_STEP,
     run_m3_rewrite_sft_smoke,
 )
+from experiments.m3.baseline_drafts import (
+    SCHEMA as M3_BASELINE_DRAFT_SCHEMA,
+    STEP as M3_BASELINE_DRAFT_STEP,
+    run as run_m3_baseline_drafts,
+)
 from experiments.tier0.metrics import batch_diagnostics
 
 
@@ -256,6 +261,10 @@ def main(argv: list[str] | None = None) -> int:
         raise ValueError("M3 rewrite SFT smoke protocol requires train_m3_rewrite_sft_smoke")
     if step == M3_REWRITE_SFT_SMOKE_STEP and protocol != M3_REWRITE_SFT_SMOKE_SCHEMA:
         raise ValueError("train_m3_rewrite_sft_smoke requires its frozen M3 protocol")
+    if protocol == M3_BASELINE_DRAFT_SCHEMA and step != M3_BASELINE_DRAFT_STEP:
+        raise ValueError("M3 baseline-draft protocol requires generate_m3_baseline_drafts")
+    if step == M3_BASELINE_DRAFT_STEP and protocol != M3_BASELINE_DRAFT_SCHEMA:
+        raise ValueError("generate_m3_baseline_drafts requires its frozen M3 protocol")
     if protocol == PREPARE_DFT_SCHEMA:
         manifest = run_prepare_dft(config, args.run_id)
     elif protocol == DFT_SCHEMA:
@@ -278,6 +287,8 @@ def main(argv: list[str] | None = None) -> int:
         manifest = run_lower_variance(config, args.run_id)
     elif protocol == M3_REWRITE_SFT_SMOKE_SCHEMA:
         manifest = run_m3_rewrite_sft_smoke(config, args.run_id)
+    elif protocol == M3_BASELINE_DRAFT_SCHEMA:
+        manifest = run_m3_baseline_drafts(config, args.run_id)
     elif (
         str(workflow.get("protocol_version", "")).casefold().startswith("m1")
         or str(workflow.get("step", "")).casefold() == "replay_equivalence"
