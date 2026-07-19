@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-19T17:05:00Z",
+  "updated_at": "2026-07-19T17:16:00Z",
   "phase": "M3 — rewriting-first Qwen3-14B program",
-  "headline": "Literal-safe evaluation recovery launched from 209/224",
-  "summary": "The final exact replay ended at 209/224 after adding two rows for `$0.406959`; further stochastic v2 replay is now forbidden. Prospective v3 run `dftr-1784478302-a07cf07d` explicitly enumerates deterministic protected literals while preserving the same identities, assigned providers, independent verifier, semantic and surface thresholds, hard validators, and append-only URI. The 4K API and 14B draft constructors remain healthy. No scientific quality result exists yet because matched training has not started.",
+  "headline": "Placeholder recovery is active on the final 3 evaluation identities",
+  "summary": "Literal-inventory v3 recovered 12/15 hard cases and ended at 221/224 for `$0.209914`. The last three had two long-literal mismatches and one length failure. Prospective v4 run `dftr-1784478993-2a966ae2` masks protected spans with deterministic placeholders, restores the exact bytes before independent verification, and gives the exact token range; every original validator and identity remains unchanged. The 4K API and 14B draft constructors remain healthy. No scientific quality result exists yet because matched training has not started.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 100,
@@ -26,6 +26,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "10:16",
+      "title": "Deterministic placeholder recovery launched for final three eval rows",
+      "detail": "V3 recovered 12 of 15 hard cases and froze the artifact at 221/224. The three residuals were two long quotation/title literal mismatches and one token-length failure. Commit `1ebb081` implements a single v4 pass that masks protected spans with collision-safe letter-only placeholders, restores their exact bytes before Qwen verification, and states the measured accepted token range. All original semantic, factual, language, literal, length, nonidentity, and surface gates remain active; focused tests pass `71/71`. Run `dftr-1784478993-2a966ae2` is active.",
+      "tone": "active"
+    },
     {
       "at": "10:05",
       "title": "Literal-safe evaluation recovery activated after capped replay",
