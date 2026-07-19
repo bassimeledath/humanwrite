@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-19T16:57:00Z",
+  "updated_at": "2026-07-19T17:05:00Z",
   "phase": "M3 — rewriting-first Qwen3-14B program",
-  "headline": "Final exact evaluation replay has reached 209/224",
-  "summary": "Final exact replay `dftr-1784477641-e4bb544b` has already added two valid rows and reached 209/224. A tested but inactive v3 contingency now explicitly enumerates validator-derived protected literals while preserving identities, providers, verifiers, thresholds, and the append-only URI; it launches only if the capped replay ends partial. The 4K API constructor is at least 805/2,048 and 14B drafts at least 365/819. No scientific quality result exists yet because matched training has not started.",
+  "headline": "Literal-safe evaluation recovery launched from 209/224",
+  "summary": "The final exact replay ended at 209/224 after adding two rows for `$0.406959`; further stochastic v2 replay is now forbidden. Prospective v3 run `dftr-1784478302-a07cf07d` explicitly enumerates deterministic protected literals while preserving the same identities, assigned providers, independent verifier, semantic and surface thresholds, hard validators, and append-only URI. The 4K API and 14B draft constructors remain healthy. No scientific quality result exists yet because matched training has not started.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 100,
@@ -26,6 +26,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "10:05",
+      "title": "Literal-safe evaluation recovery activated after capped replay",
+      "detail": "Final exact v2 replay `dftr-1784477641-e4bb544b` added two valid rows and ended at 209/224 for `$0.406959`. The versioned replay cap now forbids further stochastic v2 passes. Already-tested v3 run `dftr-1784478302-a07cf07d` is active on only the 15 missing identities; it enumerates each validator-derived protected literal byte-for-byte but changes no identity, provider, verifier, threshold, validator, or output path.",
+      "tone": "active"
+    },
     {
       "at": "09:57",
       "title": "Literal-safe contingency prepared without changing the live replay",
