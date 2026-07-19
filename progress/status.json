@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-19T15:33:00Z",
+  "updated_at": "2026-07-19T15:41:00Z",
   "phase": "M3 — rewriting-first Qwen3-14B program",
-  "headline": "Fresh rewrite panel reached 194/224 under a repaired single-owner handoff",
-  "summary": "The 14B smoke gate remains fully passed. The fresh evaluation artifact has reached 194/224 accepted rows and passed a full post-race integrity audit; single-owner run `dftr-1784475202-dd5258e8` now handles the remaining 30. The repaired 4K API constructor and checkpointed base-Qwen drafting continue independently, with live sidecar progress now visible through the gateway. Accepted artifacts contain zero normalized identities, multi-provider rewrites remain below the frozen 0.95 surface-similarity ceiling, and the full automatic two-embedder plus two-family judge evaluation stack remains deployed. No scientific quality result exists yet because matched training has not started.",
+  "headline": "Fresh rewrite panel reached 197/224 under a repaired single-owner handoff",
+  "summary": "The 14B smoke gate remains fully passed. The fresh evaluation artifact has reached 197/224 accepted rows; single-owner run `dftr-1784475661-015c4e5c` now handles the remaining 27 without changing panel membership or gates. The repaired 4K API constructor and checkpointed base-Qwen drafting continue independently, with live sidecar progress visible through the gateway. Accepted artifacts contain zero normalized identities, multi-provider rewrites remain below the frozen 0.95 surface-similarity ceiling, and the full automatic two-embedder plus two-family judge evaluation stack remains deployed. No scientific quality result exists yet because matched training has not started.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 100,
