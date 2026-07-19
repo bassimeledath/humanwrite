@@ -9,6 +9,8 @@ from data.m3_scientific_corpus import (
     M3ScientificCorpusError,
     SCIENTIFIC_REWRITE_PROTOCOL,
     assemble_scientific_training_corpus,
+    mask_protected_literals,
+    restore_protected_literals,
     scientific_assignment,
     scientific_generator_prompt,
     scientific_manifest,
@@ -117,6 +119,25 @@ def test_literal_inventory_prompt_enumerates_exact_protected_values() -> None:
     assert "protected literals must each appear byte-for-byte" in prompt
     for literal in protected_literals(item["completion"]):
         assert literal in prompt
+
+
+def test_placeholder_prompt_round_trips_protected_values_and_exposes_token_target() -> None:
+    item = source(3)
+    item["completion"] += ' Visit https://example.com and quote "Exact phrase".'
+    masked, mapping = mask_protected_literals(item["completion"])
+    assert mapping
+    assert all(placeholder in masked for placeholder in mapping)
+    assert restore_protected_literals(masked, item["completion"]) == item["completion"]
+    assignment = scientific_assignment(item, "multi_provider_ai")
+    prompt = scientific_generator_prompt(
+        item,
+        assignment,
+        "multi_provider_ai",
+        literal_placeholders=True,
+        target_token_count=97,
+    )
+    assert "97 tokenizer tokens" in prompt
+    assert all(placeholder in prompt for placeholder in mapping)
 
 
 def test_scientific_rewrite_rejects_identity_and_provider_drift() -> None:

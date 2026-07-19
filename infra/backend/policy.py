@@ -1317,6 +1317,15 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
             == "cross-provider-public-eval-input-literal-recovery-v3"
         ):
             expected_api_keys = expected_api_keys | {"literal_inventory"}
+        if (
+            protocol == M3_EVAL_REWRITE_PROTOCOL
+            and (config.get("run") or {}).get("arm")
+            == "cross-provider-public-eval-input-placeholder-recovery-v4"
+        ):
+            expected_api_keys = expected_api_keys | {
+                "literal_placeholders",
+                "target_token_count",
+            }
         if set(api) != expected_api_keys:
             raise PolicyError("rewrite_synthesis API schema mismatch")
         if set(tokenizer) != {"model", "revision"}:
@@ -1384,16 +1393,29 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
             and api.get("max_attempts") == 12
             and api.get("literal_inventory") is True
         )
+        eval_placeholder_recovery_contract = (
+            protocol == M3_EVAL_REWRITE_PROTOCOL
+            and (config.get("run") or {}).get("arm")
+            == "cross-provider-public-eval-input-placeholder-recovery-v4"
+            and api.get("max_attempts") == 12
+            and api.get("literal_placeholders") is True
+            and api.get("target_token_count") is True
+        )
         if (
             not provider_contract_valid
             or (
                 api.get("max_attempts") != 4
                 and not eval_tail_attempt_contract
                 and not eval_literal_recovery_contract
+                and not eval_placeholder_recovery_contract
             )
             or (
                 "literal_inventory" in api
                 and not eval_literal_recovery_contract
+            )
+            or (
+                ({"literal_placeholders", "target_token_count"} & set(api))
+                and not eval_placeholder_recovery_contract
             )
             or api.get("semantic_similarity_min") != 0.90
             or api.get("concurrency") != 16

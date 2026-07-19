@@ -638,6 +638,18 @@ def test_m3_eval_literal_recovery_requires_exact_arm_and_inventory_flag():
     with pytest.raises(PolicyError, match="provider contract"):
         validate_launch(value)
 
+    config["run"]["arm"] = "cross-provider-public-eval-input-placeholder-recovery-v4"
+    config["api"].pop("literal_inventory")
+    config["api"]["literal_placeholders"] = True
+    config["api"]["target_token_count"] = True
+    value["config_hash"] = canonical_hash(config)
+    assert validate_launch(value).api_reserved_cost_usd == 6.0
+
+    config["api"]["target_token_count"] = False
+    value["config_hash"] = canonical_hash(config)
+    with pytest.raises(PolicyError, match="provider contract"):
+        validate_launch(value)
+
 
 def test_m3_baseline_draft_generation_requires_frozen_14b_contract():
     config_path = (

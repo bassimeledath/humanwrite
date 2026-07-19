@@ -996,6 +996,7 @@ def rewrite_synthesis_worker(run_id: str, payload: dict) -> dict:
         scientific_assignment,
         scientific_generator_prompt,
         scientific_manifest,
+        restore_protected_literals,
         validate_scientific_rewrite,
     )
     from data.m3_eval_panel import (
@@ -1196,6 +1197,14 @@ def rewrite_synthesis_worker(run_id: str, payload: dict) -> dict:
         def token_counter(text: str) -> int:
             return len(tokenizer.encode(text, add_special_tokens=False))
 
+        placeholder_recovery = (
+            protocol == M3_EVAL_REWRITE_PROTOCOL
+            and str((config.get("run") or {}).get("arm") or "")
+            == "cross-provider-public-eval-input-placeholder-recovery-v4"
+            and api.get("literal_placeholders") is True
+            and api.get("target_token_count") is True
+        )
+
         completed: set[str] = set()
         if output_path.exists():
             for raw in output_path.read_text(encoding="utf-8").splitlines():
@@ -1292,6 +1301,12 @@ def rewrite_synthesis_worker(run_id: str, payload: dict) -> dict:
                                         == "cross-provider-public-eval-input-literal-recovery-v3"
                                         and api.get("literal_inventory") is True
                                     ),
+                                    literal_placeholders=placeholder_recovery,
+                                    target_token_count=(
+                                        token_counter(str(source.get("completion") or ""))
+                                        if placeholder_recovery
+                                        else None
+                                    ),
                                 )
                                 if protocol in {
                                     M3_SCIENTIFIC_REWRITE_PROTOCOL,
@@ -1308,6 +1323,11 @@ def rewrite_synthesis_worker(run_id: str, payload: dict) -> dict:
                             schema=generator_response_schema(),
                             max_tokens=3500,
                         )
+                        if placeholder_recovery:
+                            generated["source_text"] = restore_protected_literals(
+                                str(generated.get("source_text") or ""),
+                                str(source.get("completion") or ""),
+                            )
                     record_spent += generation_cost
                     generated["generation_attempt"] = attempt
                     verified, verification_cost = provider_json(

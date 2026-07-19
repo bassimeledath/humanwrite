@@ -5,6 +5,7 @@ from __future__ import annotations
 from difflib import SequenceMatcher
 import hashlib
 import json
+import math
 import re
 from typing import Any, Callable
 
@@ -135,6 +136,8 @@ def scientific_generator_prompt(
     attempt: int = 1,
     previous_error: str = "",
     explicit_literal_inventory: bool = False,
+    literal_placeholders: bool = False,
+    target_token_count: int | None = None,
 ) -> str:
     if origin not in API_REWRITE_ORIGINS:
         raise M3ScientificCorpusError("API generator prompt requires an API rewrite origin")
@@ -180,6 +183,25 @@ def scientific_generator_prompt(
             + "\n".join(f"- {json.dumps(value, ensure_ascii=False)}" for value in literals)
             + "\n"
         )
+    prompt_target = target
+    placeholder_instruction = ""
+    if literal_placeholders:
+        prompt_target, mapping = mask_protected_literals(target)
+        placeholder_instruction = (
+            "\nProtected spans in HUMAN TARGET have been replaced by placeholder tokens. "
+            "Every placeholder must appear exactly once and byte-for-byte in source_text; do not "
+            "rewrite, remove, duplicate, or explain a placeholder.\n"
+            f"Required placeholders: {', '.join(mapping)}\n"
+        )
+    token_instruction = ""
+    if target_token_count is not None:
+        if type(target_token_count) is not int or target_token_count < 1:
+            raise M3ScientificCorpusError("target token count is invalid")
+        token_instruction = (
+            f"\nThe human target contains {target_token_count} tokenizer tokens. Keep source_text "
+            f"between {math.ceil(0.70 * target_token_count)} and "
+            f"{math.floor(1.35 * target_token_count)} tokenizer tokens.\n"
+        )
     return (
         f"{mode} Preserve every fact, name, number, date, quotation, URL, email address, language, "
         "scope, attribution, and intent. Do not summarize, add facts, omit details, or mention this "
@@ -187,10 +209,40 @@ def scientific_generator_prompt(
         f"Template: {assignment['template_id']}. Repeat document_fingerprint exactly. Return "
         "source_text plus the supplied natural rewrite_instruction."
         f"{literal_inventory}"
+        f"{placeholder_instruction}"
+        f"{token_instruction}"
         f"{recovery}\n\n"
         f"document_fingerprint: {source['fingerprint']}\n"
-        f"rewrite_instruction: {instruction}\n\nHUMAN TARGET:\n{target}"
+        f"rewrite_instruction: {instruction}\n\nHUMAN TARGET:\n{prompt_target}"
     )
+
+
+def mask_protected_literals(target: str) -> tuple[str, dict[str, str]]:
+    values = sorted(set(protected_literals(target)), key=lambda value: (-len(value), value))
+    def label(index: int) -> str:
+        letters = ""
+        value = index
+        while value:
+            value, remainder = divmod(value - 1, 26)
+            letters = chr(ord("A") + remainder) + letters
+        return letters
+
+    mapping = {
+        f"[[PROTECTED_LITERAL_{label(index)}]]": value
+        for index, value in enumerate(values, 1)
+    }
+    masked = target
+    for placeholder, value in mapping.items():
+        masked = masked.replace(value, placeholder)
+    return masked, mapping
+
+
+def restore_protected_literals(text: str, target: str) -> str:
+    _, mapping = mask_protected_literals(target)
+    restored = text
+    for placeholder, value in mapping.items():
+        restored = restored.replace(placeholder, value)
+    return restored
 
 
 def assemble_scientific_rewrite(
