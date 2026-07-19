@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-19T13:05:16Z",
+  "updated_at": "2026-07-19T13:10:08Z",
   "phase": "M3 — rewriting-first Qwen3-14B program",
-  "headline": "False provider stop overturned; corrected Qwen transport rerun active",
-  "summary": "The prior autonomous stop was incorrect. The portable `max_tokens` fix proved Qwen routing reaches a real endpoint; subsequent logs isolated provider-specific JSON-schema dialect restrictions in Claude. Commit `ab8eab7` now retries only schema/routing compatibility failures through `json_object` or raw JSON while retaining all deterministic post-decode acceptance checks, and removes the previous 1,200-token fallback clamp. Run `dftr-1784466296-33f8cb96` is active on the same frozen identities and validated 42-row partial artifact. The complete task-to-H100 SHA-binding handoff is checked in and preregistered.",
+  "headline": "Failed Qwen generator slot prospectively replaced; Gemini/Claude smoke active",
+  "summary": "Transport is now healthy. The accepted artifact contains 42 Claude-generated, Qwen-verified rows, while the Qwen generator produced zero accepted rows across the remaining 54 identities after transport repair; its terminal failures were substantive length, protected-literal, and truncation violations. Commit `c576b7e` prospectively replaces only that zero-acceptance generator slot with Gemini 3.1 Flash Lite, retains Qwen as independent verifier, preserves all 42 valid rows and every acceptance gate, and records the amendment before any replacement row is accepted. Run `dftr-1784466580-dfc451fe` is active. The complete task-to-H100 SHA-binding handoff is checked in and preregistered.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 100,
@@ -26,6 +26,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "06:10",
+      "title": "Zero-acceptance Qwen generator slot replaced prospectively",
+      "detail": "All 42 accepted rows are Claude-generated and Qwen-verified; all 54 Qwen-generator identities remained unaccepted after transport repair because of substantive validation failures. Amendment `research_reviews/m3_rewrite_provider_amendment_2026-07-19.md` replaces only the zero-acceptance source-generator slot with Gemini 3.1 Flash Lite, keeps Qwen verification and unchanged validators, and preserves deterministic assignment for all accepted rows. Run `dftr-1784466580-dfc451fe` is active; API commitment is `$32.175029/$100`, GPU commitment `$22.252709/$100`.",
+      "tone": "active"
+    },
     {
       "at": "06:05",
       "title": "Provider-neutral JSON fallback deployed and resumed",
@@ -685,5 +691,5 @@
     {"at": "17:46", "title": "Storage created", "detail": "Gateway state, checkpoints, sealed state, and sealed artifacts volumes are online.", "tone": "complete"},
     {"at": "17:40", "title": "Engineering checks passed", "detail": "Harness, infrastructure, and private evaluator suites are green.", "tone": "complete"}
   ],
-  "next_action": "Let the zero-token watcher validate provider-neutral fallback run `dftr-1784466296-33f8cb96`; on a complete 96-row artifact, materialize the SHA-bound Qwen3-14B H100 config and launch automatically."
+  "next_action": "Let the zero-token watcher validate amended construction run `dftr-1784466580-dfc451fe`; on a complete 96-row artifact, materialize the SHA-bound Qwen3-14B H100 config and launch automatically."
 }
