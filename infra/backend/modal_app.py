@@ -47,6 +47,7 @@ from .cleaning_contract import (
     cleaning_response_format,
     numbered_cleaning_prompt,
 )
+from .openrouter_contract import structured_chat_request
 from .volume_paths import (
     checkpoint_volume_path,
     missing_run_artifact_metadata,
@@ -487,7 +488,7 @@ def source_materialization_worker(run_id: str, payload: dict) -> dict:
     config = json.loads(json.dumps(payload["config"]))
     source = config["source"]
     data = config["data"]
-    log_path = Path("/state/logs") / f"{run_id}.log"
+    log_path = _log_path(run_id)
     log_path.parent.mkdir(parents=True, exist_ok=True)
     status = "failed"
     try:
@@ -732,7 +733,7 @@ def lower_variance_brief_synthesis_worker(run_id: str, payload: dict) -> dict:
     processed = 0
     failed = 0
     status = "failed"
-    log_path = Path("/state/logs") / f"{run_id}.log"
+    log_path = _log_path(run_id)
     log_path.parent.mkdir(parents=True, exist_ok=True)
 
     def provider_json(*, model: str, prompt: str, schema_name: str, schema: dict) -> tuple[dict, float]:
@@ -744,13 +745,13 @@ def lower_variance_brief_synthesis_worker(run_id: str, payload: dict) -> dict:
                 "HTTP-Referer": "https://github.com/bassimeledath/humanwrite",
                 "X-OpenRouter-Title": "Humanwrite faithful two-provider briefs",
             },
-            json={
-                "model": model,
-                "messages": [{"role": "user", "content": prompt}],
-                "response_format": _json_schema_response_format(schema_name, schema),
-                "reasoning": {"effort": "minimal", "exclude": True},
-                "max_completion_tokens": 3000,
-            },
+            json=structured_chat_request(
+                model=model,
+                prompt=prompt,
+                response_format=_json_schema_response_format(schema_name, schema),
+                max_completion_tokens=3000,
+                reasoning={"effort": "minimal", "exclude": True},
+            ),
             timeout=180,
         )
         response.raise_for_status()
@@ -974,7 +975,7 @@ def rewrite_synthesis_worker(run_id: str, payload: dict) -> dict:
     processed = 0
     failed = 0
     status = "failed"
-    log_path = Path("/state/logs") / f"{run_id}.log"
+    log_path = _log_path(run_id)
     log_path.parent.mkdir(parents=True, exist_ok=True)
 
     def provider_json(
@@ -988,12 +989,12 @@ def rewrite_synthesis_worker(run_id: str, payload: dict) -> dict:
                 "HTTP-Referer": "https://github.com/bassimeledath/humanwrite",
                 "X-OpenRouter-Title": "Humanwrite M3 rewrite task construction",
             },
-            json={
-                "model": model,
-                "messages": [{"role": "user", "content": prompt}],
-                "response_format": _json_schema_response_format(schema_name, schema),
-                "max_completion_tokens": max_tokens,
-            },
+            json=structured_chat_request(
+                model=model,
+                prompt=prompt,
+                response_format=_json_schema_response_format(schema_name, schema),
+                max_completion_tokens=max_tokens,
+            ),
             timeout=240,
         )
         if not response.ok:
@@ -1216,7 +1217,7 @@ def brief_synthesis_worker(run_id: str, payload: dict) -> dict:
     processed = 0
     failed_records = 0
     status = "failed"
-    log_path = Path("/state/logs") / f"{run_id}.log"
+    log_path = _log_path(run_id)
     log_path.parent.mkdir(parents=True, exist_ok=True)
     try:
         model = os.environ["DFTR_OPENROUTER_MODEL"]
@@ -1295,34 +1296,31 @@ def brief_synthesis_worker(run_id: str, payload: dict) -> dict:
                 for _attempt in range(2):
                     try:
                         active_model = fallback_model if safety_neutral and fallback_model else model
-                        request_payload = {
-                            "model": active_model,
-                            "messages": [{
-                                "role": "user",
-                                "content": (
-                                    _prompt_repair_prompt(text[:120_000])
-                                    if prompt_repair_only
-                                    else _brief_prompt(
-                                        text[:120_000],
-                                        force_empty_outline=source_id in empty_outline_ids,
-                                        safety_neutral=safety_neutral,
-                                    )
-                                ),
-                            }],
-                            "response_format": (
+                        request_payload = structured_chat_request(
+                            model=active_model,
+                            prompt=(
+                                _prompt_repair_prompt(text[:120_000])
+                                if prompt_repair_only
+                                else _brief_prompt(
+                                    text[:120_000],
+                                    force_empty_outline=source_id in empty_outline_ids,
+                                    safety_neutral=safety_neutral,
+                                )
+                            ),
+                            response_format=(
                                 prompt_repair_response_format()
                                 if prompt_repair_only
                                 else brief_response_format(
                                     force_empty_outline=source_id in empty_outline_ids
                                 )
                             ),
-                            "max_completion_tokens": 4000,
-                        }
-                        if active_model == model:
-                            request_payload["reasoning"] = {
-                                "effort": "minimal",
-                                "exclude": True,
-                            }
+                            max_completion_tokens=4000,
+                            reasoning=(
+                                {"effort": "minimal", "exclude": True}
+                                if active_model == model
+                                else None
+                            ),
+                        )
                         response = requests.post(
                             "https://openrouter.ai/api/v1/chat/completions",
                             headers={
@@ -1446,7 +1444,7 @@ def document_cleaning_worker(run_id: str, payload: dict) -> dict:
     spent = reported = 0.0
     processed = failed = 0
     status = "failed"
-    log_path = Path("/state/logs") / f"{run_id}.log"
+    log_path = _log_path(run_id)
     log_path.parent.mkdir(parents=True, exist_ok=True)
 
     def clean_one(record: dict, api_key: str) -> tuple[dict | None, Exception | None, float]:
@@ -1462,20 +1460,17 @@ def document_cleaning_worker(run_id: str, payload: dict) -> dict:
                     "HTTP-Referer": "https://github.com/bassimeledath/humanwrite",
                     "X-OpenRouter-Title": "Humanwrite FineWeb line cleaning",
                 },
-                json={
-                    "model": CLEANING_MODEL,
-                    "messages": [{
-                        "role": "user",
-                        "content": numbered_cleaning_prompt(
-                            source_text,
-                            min_word_count=int(config["quality"]["min_word_count"]),
-                            max_word_count=int(config["quality"]["max_word_count"]),
-                        ),
-                    }],
-                    "response_format": cleaning_response_format(),
-                    "reasoning": {"effort": "minimal", "exclude": True},
-                    "max_completion_tokens": 2000,
-                },
+                json=structured_chat_request(
+                    model=CLEANING_MODEL,
+                    prompt=numbered_cleaning_prompt(
+                        source_text,
+                        min_word_count=int(config["quality"]["min_word_count"]),
+                        max_word_count=int(config["quality"]["max_word_count"]),
+                    ),
+                    response_format=cleaning_response_format(),
+                    max_completion_tokens=2000,
+                    reasoning={"effort": "minimal", "exclude": True},
+                ),
                 timeout=180,
             )
             response.raise_for_status()
