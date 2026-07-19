@@ -1361,9 +1361,15 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
                 and api.get("verifier_by_generator") == M3_REWRITE_VERIFIER_BY_GENERATOR
             )
         )
+        eval_tail_attempt_contract = (
+            protocol == M3_EVAL_REWRITE_PROTOCOL
+            and (config.get("run") or {}).get("arm")
+            == "cross-provider-public-eval-input-tail-recovery-v2"
+            and api.get("max_attempts") == 12
+        )
         if (
             not provider_contract_valid
-            or api.get("max_attempts") != 4
+            or (api.get("max_attempts") != 4 and not eval_tail_attempt_contract)
             or api.get("semantic_similarity_min") != 0.90
             or api.get("concurrency") != 16
         ):
