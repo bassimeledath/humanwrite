@@ -41,6 +41,7 @@ from infra.backend.policy import (  # noqa: E402
     forbidden_replay_surface_keys,
     validate_replay_launch_contract,
     validate_dft_generation_launch_config,
+    validate_lower_variance_generation_launch_config,
     validate_estimator_audit_launch_config,
 )
 
@@ -222,7 +223,7 @@ def _validate_submit(config: dict, budget_class: str) -> tuple[str, dict]:
     revision = str((config.get("model") or {}).get("revision", "")).strip()
     if workflow_step in {
         "train_sft", "sample_sweep", "merge_adapter", "replay_equivalence", "train_dft",
-        "prepare_dft", "generate_dft", "audit_estimator",
+        "prepare_dft", "generate_dft", "generate_lower_variance", "audit_estimator",
     } and (
         not revision or revision.startswith(UNRESOLVED_REVISION_PREFIX)
     ):
@@ -285,6 +286,16 @@ def _validate_submit(config: dict, budget_class: str) -> tuple[str, dict]:
     if workflow_step == "generate_dft":
         try:
             validate_dft_generation_launch_config(
+                config,
+                backend="local" if _use_local_backend() else "modal",
+                budget_class=budget_class,
+                task_kind=str(run.get("task_kind") or ""),
+            )
+        except PolicyError as exc:
+            _die(f"REJECTED: {exc}")
+    if workflow_step == "generate_lower_variance":
+        try:
+            validate_lower_variance_generation_launch_config(
                 config,
                 backend="local" if _use_local_backend() else "modal",
                 budget_class=budget_class,

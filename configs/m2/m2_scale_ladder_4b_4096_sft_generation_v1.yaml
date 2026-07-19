@@ -1,0 +1,60 @@
+artifact_schema: dftr.m2.lower_variance_generation.v1
+run:
+  comparison_id: M2-scale-ladder-4b-4096-generation-v1
+  arm: SFT-generation
+  budget_class: screen
+  task_kind: experiment
+  command:
+  - python
+  - -m
+  - experiments.runner
+  seed: 101
+compute:
+  gpu: L40S
+  gpus: 1
+  timeout_min: 120
+model:
+  base: Qwen/Qwen3-4B
+  revision: 1cfa9a7208912126459214e8b04321603b3df60c
+  torch_dtype: bfloat16
+checkpoint:
+  path: /checkpoints/runs/dftr-1784436708-b6637838/SFT
+  manifest_sha256: 863e7d731858d997e0519b2f032461b4e7c24dc565f2358ca8302a58882ab337
+  adapter_model_sha256: e71c14bc1ac7bd49c266a8ec489004ef3173a8d7f08c9b8ce9d4875f45335c1f
+  arm: SFT
+  method_contract_sha256: a65e3c972358a0593488f2bc66084e04f1b1b6a982566843d3b550d1c9a6abd7
+data:
+  prompt_briefs_path: /checkpoints/data/m2-scale-ladder-v1/scale-dev-panels/prompt_briefs-128.jsonl
+  prompt_briefs_sha256: 24d55ae6695930b07030fbe6c4d88b47cb24fee2bfa217d42968ce9703f278f0
+  prompt_format: 'USER:
+
+    {brief}
+
+    ASSISTANT:'
+  prompt_schema_version: dft.full-brief.tokens.v1
+  prompt_serializer_sha256: 1f92174518dfac375abbbbcf4ceba0659b726cabb215e0561a9fbffc4036b4a1
+sampling:
+  training_seed: 11
+  sampling_seed: 101
+  seed_scope: single_global_rng_stream
+  prompt_order: sorted_prompt_id
+  distribution: raw_policy_categorical
+  batch_size: 4
+  new_tokens: 128
+  max_input_tokens: 1024
+  decode:
+    skip_special_tokens: true
+runtime:
+  torch_version: 2.13.0+cu130
+  transformers_version: 4.57.6
+  peft_version: 0.19.1
+  deterministic_algorithms: true
+  cublas_workspace_config: :4096:8
+output:
+  filename: outputs.jsonl
+  overwrite: false
+workflow:
+  protocol_version: dftr.m2.lower_variance_generation.v1
+  step: generate_lower_variance
+  generation_contract_sha256: a55c67a5ce8dd5504500e3e321ad06978d69aa0e55d0c75d32ea79082e3fb66f
+  decoding_policy_sha256: f3e9f809d37ba7f6a9ef0ea9ee541481c6872c0253f5f8145431c578e0c62068

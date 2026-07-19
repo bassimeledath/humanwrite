@@ -16,6 +16,11 @@ from experiments.m2.generate_dft import (
     GENERATION_STEP,
     run_generate_dft,
 )
+from experiments.m2.generate_lower_variance import (
+    GENERATION_SCHEMA as LOWER_VARIANCE_GENERATION_SCHEMA,
+    GENERATION_STEP as LOWER_VARIANCE_GENERATION_STEP,
+    run_generate_lower_variance,
+)
 from experiments.m2.estimator_audit import (
     ESTIMATOR_AUDIT_SCHEMA,
     ESTIMATOR_AUDIT_STEP,
@@ -200,6 +205,20 @@ def main(argv: list[str] | None = None) -> int:
         raise ValueError("adapter-native generation protocol requires generate_dft")
     if step == GENERATION_STEP and protocol != GENERATION_SCHEMA:
         raise ValueError("generate_dft requires the frozen adapter-native generation protocol")
+    if (
+        protocol == LOWER_VARIANCE_GENERATION_SCHEMA
+        and step != LOWER_VARIANCE_GENERATION_STEP
+    ):
+        raise ValueError(
+            "lower-variance generation protocol requires generate_lower_variance"
+        )
+    if (
+        step == LOWER_VARIANCE_GENERATION_STEP
+        and protocol != LOWER_VARIANCE_GENERATION_SCHEMA
+    ):
+        raise ValueError(
+            "generate_lower_variance requires the frozen lower-variance generation protocol"
+        )
     if protocol == ESTIMATOR_AUDIT_SCHEMA and step != ESTIMATOR_AUDIT_STEP:
         raise ValueError("estimator-audit protocol requires audit_estimator")
     if step == ESTIMATOR_AUDIT_STEP and protocol != ESTIMATOR_AUDIT_SCHEMA:
@@ -234,6 +253,8 @@ def main(argv: list[str] | None = None) -> int:
         manifest = run_dft(config, args.run_id)
     elif protocol == GENERATION_SCHEMA:
         manifest = run_generate_dft(config, args.run_id)
+    elif protocol == LOWER_VARIANCE_GENERATION_SCHEMA:
+        manifest = run_generate_lower_variance(config, args.run_id)
     elif protocol == ESTIMATOR_AUDIT_SCHEMA:
         manifest = run_estimator_audit(config, args.run_id)
     elif protocol == SCALE_LADDER_DEV_PANEL_SCHEMA:

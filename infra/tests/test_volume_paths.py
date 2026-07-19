@@ -79,6 +79,43 @@ def test_run_artifact_metadata_surfaces_scale_train_prefix_handoff(tmp_path):
     assert metadata["clean_train_16384_sha256"] == "c"
 
 
+def test_run_artifact_metadata_surfaces_lower_variance_checkpoint_handoff(tmp_path):
+    artifact_dir = tmp_path / "runs" / "dftr-example"
+    artifact_dir.mkdir(parents=True)
+    (artifact_dir / "run_manifest.json").write_text(
+        (
+            "{"
+            "\"executed_arm\":\"SFT\","
+            "\"arm\":{"
+            "\"artifact_schema\":\"dftr.m2.lower_variance_adapter_checkpoint.v2\","
+            "\"arm\":\"SFT\","
+            "\"status\":\"completed\","
+            "\"adapter_native\":true,"
+            "\"method_contract_sha256\":\""
+            + ("a" * 64)
+            + "\","
+            "\"file_sha256\":{\"adapter_model.safetensors\":\""
+            + ("b" * 64)
+            + "\"}"
+            "}"
+            "}\n"
+        ),
+        encoding="utf-8",
+    )
+    metadata = run_artifact_metadata(artifact_dir, mount_path=str(tmp_path))
+    assert metadata["arm_executed_arm"] == "SFT"
+    assert metadata["arm_checkpoint_dir_path"] == str(artifact_dir / "SFT")
+    assert metadata["arm_checkpoint_dir_uri"] == (
+        "modal-volume://humanwrite-checkpoints/runs/dftr-example/SFT"
+    )
+    assert metadata["arm_checkpoint_manifest_uri"] == (
+        "modal-volume://humanwrite-checkpoints/runs/dftr-example/SFT/checkpoint_manifest.json"
+    )
+    assert metadata["arm_checkpoint_manifest_sha256"]
+    assert metadata["arm_adapter_model_sha256"] == "b" * 64
+    assert metadata["arm_method_contract_sha256"] == "a" * 64
+
+
 def test_missing_run_artifact_metadata_backfills_terminal_snapshot(tmp_path):
     artifact_dir = tmp_path / "runs" / "dftr-example"
     artifact_dir.mkdir(parents=True)

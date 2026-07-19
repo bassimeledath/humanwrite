@@ -45,6 +45,14 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _json_sha256(payload: Any) -> str:
+    digest = hashlib.sha256()
+    digest.update(
+        (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode("utf-8")
+    )
+    return digest.hexdigest()
+
+
 def _maybe_uri(value: Any, mount_path: str) -> Any:
     if not isinstance(value, str) or not value.startswith("/"):
         return value
@@ -90,6 +98,32 @@ def run_artifact_metadata(
         value = manifest.get(key)
         if value is not None:
             metadata[key] = _maybe_uri(value, mount_path)
+    arm = manifest.get("arm")
+    executed_arm = str(manifest.get("executed_arm") or "")
+    if (
+        isinstance(arm, dict)
+        and arm.get("status") == "completed"
+        and arm.get("adapter_native") is True
+        and executed_arm
+        and arm.get("arm") == executed_arm
+    ):
+        arm_dir = artifact_root / executed_arm
+        checkpoint_manifest_path = arm_dir / "checkpoint_manifest.json"
+        metadata["arm_executed_arm"] = executed_arm
+        metadata["arm_checkpoint_dir_path"] = str(arm_dir)
+        metadata["arm_checkpoint_dir_uri"] = checkpoint_volume_uri(
+            arm_dir, mount_path=mount_path
+        )
+        metadata["arm_checkpoint_manifest_uri"] = checkpoint_volume_uri(
+            checkpoint_manifest_path, mount_path=mount_path
+        )
+        metadata["arm_checkpoint_manifest_sha256"] = _json_sha256(arm)
+        adapter_model_sha = (arm.get("file_sha256") or {}).get("adapter_model.safetensors")
+        if adapter_model_sha is not None:
+            metadata["arm_adapter_model_sha256"] = adapter_model_sha
+        method_contract_sha = arm.get("method_contract_sha256")
+        if method_contract_sha is not None:
+            metadata["arm_method_contract_sha256"] = method_contract_sha
     return metadata
 
 
