@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-19T14:00:33Z",
+  "updated_at": "2026-07-19T14:01:32Z",
   "phase": "M3 — rewriting-first Qwen3-14B program",
   "headline": "Qwen3-14B loaded; measured prompt-cap repair is in the H100 smoke",
-  "summary": "Run `dftr-1784468746-c1ddb6b8` proved that the pinned Qwen3-14B weights load on one H100 in 11 seconds, then stopped before training because one untouched generation prompt measured 642 tokens against the 640-token cap. Exact local qualification found all 128 examples valid with a maximum complete sequence of 852/1,024 tokens. Commit `ebb76e1` prospectively raised only the prompt guard to 768; commit `1a88bd7` also completed the matched 4K SFT14/HUMANWRITE14 trainer. All 72 focused tests pass. Corrected smoke `dftr-1784469584-5ace5380` is active; bulk 4K construction remains gated only on its mechanical result.",
+  "summary": "Run `dftr-1784468746-c1ddb6b8` proved that the pinned Qwen3-14B weights load on one H100 in 11 seconds, then stopped before training because one untouched generation prompt measured 642 tokens against the obsolete 640-token cap. Exact local qualification found all 128 examples valid with a maximum complete sequence of 852/1,024 tokens. Commit `ebb76e1` prospectively raised only the prompt guard to 768; commit `1a88bd7` also completed the matched 4K SFT14/HUMANWRITE14 trainer; and this turn aligned the smoke config materializer to the same 768-token contract. Targeted local materializer/smoke/4K config tests returned 9 passes, with one additional smoke unit not rerun in this shell because ephemeral test deps lacked `torch`. Corrected smoke `dftr-1784469584-5ace5380` is active; bulk 4K construction remains gated only on its mechanical result.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 100,
@@ -29,7 +29,7 @@
     {
       "at": "07:00",
       "title": "14B model load passed; two-token prompt-cap defect repaired and relaunched",
-      "detail": "The cached smoke loaded all eight Qwen3-14B shards in 11 seconds and failed before its first optimizer step because exactly one of 128 prompts was 642 tokens against a 640 cap. Local qualification measured prompt max 642, completion max 301, and full-sequence max 852; all remain below the 1,024-token sequence guard. The cap is now prospectively 768 with no data or optimizer change, 72 focused tests pass, and corrected run `dftr-1784469584-5ace5380` is active. The failed attempt cost `$0.217796`.",
+      "detail": "The cached smoke loaded all eight Qwen3-14B shards in 11 seconds and failed before its first optimizer step because exactly one of 128 prompts was 642 tokens against a 640 cap. Local qualification measured prompt max 642, completion max 301, and full-sequence max 852; all remain below the 1,024-token sequence guard. The cap is now prospectively 768 with no data or optimizer change, the local smoke materializer now emits that same 768-token contract, targeted local materializer/smoke/4K config tests returned 9 passes, and corrected run `dftr-1784469584-5ace5380` is active. The failed attempt cost `$0.217796`.",
       "tone": "active"
     },
     {
@@ -721,5 +721,5 @@
     {"at": "17:46", "title": "Storage created", "detail": "Gateway state, checkpoints, sealed state, and sealed artifacts volumes are online.", "tone": "complete"},
     {"at": "17:40", "title": "Engineering checks passed", "detail": "Harness, infrastructure, and private evaluator suites are green.", "tone": "complete"}
   ],
-  "next_action": "Validate cached-weight H100 run `dftr-1784468746-c1ddb6b8` for finite training and deterministic artifacts; on success, deploy and launch the already-built 4K API rewrite and base-Qwen draft constructors."
+  "next_action": "Validate repaired H100 run `dftr-1784469584-5ace5380` for finite training and deterministic artifacts; on success, deploy and launch the already-built 4K API rewrite and base-Qwen draft constructors."
 }

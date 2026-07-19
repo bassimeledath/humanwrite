@@ -3453,3 +3453,45 @@ NEXT: Let the watcher validate terminal run `dftr-1784467379-d463605f`. If the
 mechanical smoke succeeds, proceed to the matched SFT14/HUMANWRITE14 training
 handoff exactly as preregistered; if it fails, repair only the concrete
 mechanical issue without reopening the completed 96-row artifact.
+
+## [2026-07-19] M3 / M3-rewrite-sft-14b-mechanical-smoke-v1-stale-failure-audit
+HYPOTHESIS: The reported terminal failure on run `dftr-1784468746-c1ddb6b8`
+should not stop the M3 program if it was produced by stale pre-repair code and
+the current frontier has already advanced to a repaired smoke under the same
+frozen corpus, optimizer, and spend gates.
+SETUP: Terminal-transition audit on Sunday, July 19, 2026 in
+`/Users/bassime/Desktop/fullstack/humanwrite`. Read the frozen M3
+preregistration, current `progress/` state, recent git history, and autonomy
+runtime files. Queried sanctioned gateway status/logs for failed smoke
+`dftr-1784467379-d463605f`, failed cached-weight smoke
+`dftr-1784468746-c1ddb6b8`, and repaired smoke
+`dftr-1784469584-5ace5380` using the sanctioned gateway URL plus macOS
+Keychain token `humanwrite-gateway-token`. Verified that the current branch tip
+is git SHA `1a88bd77245270af5f3cd6b20e4bef059dbf489a`, with prior repair commit
+`ebb76e1f3e3e516ed84c19dbc277b1dbb208c123` raising the prompt cap from 640 to
+768 after the measured 642-token prompt failure. Repaired the remaining local
+drift by updating `experiments/m3/materialize_rewrite_sft_smoke_config.py` to
+emit the same 768-token frozen cap as the checked-in smoke YAML and validator.
+Focused local verification used `PYTHONPATH=infra:. uv run --with pytest
+--with pyyaml --with numpy python -m pytest
+experiments/tests/test_m3_materialize_rewrite_sft_smoke_config.py
+experiments/tests/test_m3_rewrite_sft_smoke.py
+experiments/tests/test_m3_rewrite_4k_train.py -q`.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Prior cache-miss smoke | FAIL / INFRA ONLY | `dftr-1784467379-d463605f` on git SHA `cb11f5bb98b5f44901fccf3431940a986401d692` terminated with `worker_result_error=FunctionTimeoutError` after the 14B snapshot download consumed the container lifetime. This was not model evidence. |
+| Prior cached-weight smoke | FAIL / REPAIRED | `dftr-1784468746-c1ddb6b8` on git SHA `cf3c3c3cdb7966020145906e6b4d6275c5fe683c` loaded all eight Qwen3-14B shards, then stopped at `prepare_example()` with `M3RewriteSFTSmokeError: mechanical smoke prompt exceeds frozen token limit`. The measured offender was a 642-token untouched prompt against the obsolete 640 cap. |
+| Branch frontier versus failed run | PASS | The failed run was stale relative to current origin/branch tip `1a88bd7`, which already contains the prompt-cap repair (`ebb76e1`) and the matched 4K trainer (`1a88bd7`). Treating `dftr-1784468746-c1ddb6b8` as the live frontier would therefore be a missed handoff. |
+| Active repaired smoke | PASS | Local ledger and sanctioned status agree that repaired run `dftr-1784469584-5ace5380` launched from git SHA `1a88bd77245270af5f3cd6b20e4bef059dbf489a` with repaired config hash `0c58c52b4eb182a66f5dcdb66ad4cdbfa0eeb6933dc8e4b26ce2f57f9efc166a` and is currently `running` on one H100. No duplicate launch is warranted. |
+| Local config-materializer consistency | PASS | `experiments/m3/materialize_rewrite_sft_smoke_config.py` now emits the same 768-token prompt guard as `configs/m3/m3_rewrite_sft_14b_mechanical_smoke_v1.yaml` and `experiments/m3/rewrite_sft_smoke.py`, preventing future stale rematerialization of the obsolete 640-cap contract. |
+| Focused local verification | PASS WITH ENV LIMIT | The targeted materializer/smoke/4K config suite returned `9 passed`; the remaining `prepare_example` unit in `test_m3_rewrite_sft_smoke.py` was not rerun in this shell because the ephemeral test environment lacked `torch`, which is an environment limitation rather than a code failure. |
+| Budget state | PASS | Sanctioned budget at `2026-07-19T14:01:32Z` reported OpenRouter spend `$29.267185/$100` and Modal committed `$24.097387/$100`, keeping the authorized M3 ladder inside both hard caps. |
+DECISION: Keep M3 active and monitor only repaired smoke
+`dftr-1784469584-5ace5380`. The reported failure on
+`dftr-1784468746-c1ddb6b8` is a stale, already-repaired implementation result,
+not the current scientific frontier or a reason to stop at the frozen M3 gate.
+NEXT: Let the watcher validate terminal run `dftr-1784469584-5ace5380`. If it
+completes with finite loss/gradients and deterministic artifacts, launch the
+already-prepared 4K API rewrite and base-draft constructors, then proceed into
+matched SFT14/HUMANWRITE14 4K training exactly as preregistered.

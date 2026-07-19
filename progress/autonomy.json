@@ -12,7 +12,7 @@
     {
       "run_id": "dftr-1784469584-5ace5380",
       "comparison": "M3-rewrite-sft-14b-mechanical-smoke-v1",
-      "purpose": "Verify finite Qwen3-14B rank-32 LoRA training and deterministic checkpoints after the measured 642-token prompt required a prospective 768-token guard repair; launch the prepared 4K constructors on success"
+      "purpose": "Verify finite Qwen3-14B rank-32 LoRA training and deterministic checkpoints after the measured 642-token prompt required a prospective 768-token guard repair and the local smoke materializer was aligned to that same contract; launch the prepared 4K constructors on success"
     }
   ]
 }
