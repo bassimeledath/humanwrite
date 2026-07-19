@@ -1326,6 +1326,15 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
                 "literal_placeholders",
                 "target_token_count",
             }
+        if (
+            protocol == M3_SCIENTIFIC_REWRITE_PROTOCOL
+            and (config.get("run") or {}).get("arm")
+            == "api-rewrite-construction-surface-divergent-recovery-v3"
+        ):
+            expected_api_keys = expected_api_keys | {
+                "literal_inventory",
+                "target_token_count",
+            }
         if set(api) != expected_api_keys:
             raise PolicyError("rewrite_synthesis API schema mismatch")
         if set(tokenizer) != {"model", "revision"}:
@@ -1401,6 +1410,14 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
             and api.get("literal_placeholders") is True
             and api.get("target_token_count") is True
         )
+        scientific_inventory_recovery_contract = (
+            protocol == M3_SCIENTIFIC_REWRITE_PROTOCOL
+            and (config.get("run") or {}).get("arm")
+            == "api-rewrite-construction-surface-divergent-recovery-v3"
+            and api.get("max_attempts") == 12
+            and api.get("literal_inventory") is True
+            and api.get("target_token_count") is True
+        )
         if (
             not provider_contract_valid
             or (
@@ -1408,14 +1425,21 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
                 and not eval_tail_attempt_contract
                 and not eval_literal_recovery_contract
                 and not eval_placeholder_recovery_contract
+                and not scientific_inventory_recovery_contract
             )
             or (
                 "literal_inventory" in api
                 and not eval_literal_recovery_contract
+                and not scientific_inventory_recovery_contract
             )
             or (
-                ({"literal_placeholders", "target_token_count"} & set(api))
+                "literal_placeholders" in api
                 and not eval_placeholder_recovery_contract
+            )
+            or (
+                "target_token_count" in api
+                and not eval_placeholder_recovery_contract
+                and not scientific_inventory_recovery_contract
             )
             or api.get("semantic_similarity_min") != 0.90
             or api.get("concurrency") != 16

@@ -1204,6 +1204,13 @@ def rewrite_synthesis_worker(run_id: str, payload: dict) -> dict:
             and api.get("literal_placeholders") is True
             and api.get("target_token_count") is True
         )
+        scientific_inventory_recovery = (
+            protocol == M3_SCIENTIFIC_REWRITE_PROTOCOL
+            and str((config.get("run") or {}).get("arm") or "")
+            == "api-rewrite-construction-surface-divergent-recovery-v3"
+            and api.get("literal_inventory") is True
+            and api.get("target_token_count") is True
+        )
 
         completed: set[str] = set()
         if output_path.exists():
@@ -1296,15 +1303,18 @@ def rewrite_synthesis_worker(run_id: str, payload: dict) -> dict:
                                     attempt=attempt,
                                     previous_error=str(last_error or ""),
                                     explicit_literal_inventory=(
-                                        protocol == M3_EVAL_REWRITE_PROTOCOL
-                                        and str((config.get("run") or {}).get("arm") or "")
-                                        == "cross-provider-public-eval-input-literal-recovery-v3"
-                                        and api.get("literal_inventory") is True
+                                        scientific_inventory_recovery
+                                        or (
+                                            protocol == M3_EVAL_REWRITE_PROTOCOL
+                                            and str((config.get("run") or {}).get("arm") or "")
+                                            == "cross-provider-public-eval-input-literal-recovery-v3"
+                                            and api.get("literal_inventory") is True
+                                        )
                                     ),
                                     literal_placeholders=placeholder_recovery,
                                     target_token_count=(
                                         token_counter(str(source.get("completion") or ""))
-                                        if placeholder_recovery
+                                        if placeholder_recovery or scientific_inventory_recovery
                                         else None
                                     ),
                                 )

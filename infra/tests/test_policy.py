@@ -445,7 +445,6 @@ def test_m3_rewrite_synthesis_is_cross_provider_hash_bound_and_budgeted():
     with pytest.raises(PolicyError, match="provider contract"):
         validate_launch(value)
 
-
 def test_m3_scientific_rewrite_synthesis_accepts_exact_half_api_stratum():
     config = {
         "run": {
@@ -590,6 +589,25 @@ def test_m3_eval_tail_allows_only_exact_twelve_attempt_recovery_arm():
 
     config["run"]["arm"] = "cross-provider-public-eval-input-tail-recovery-v2"
     config["api"]["max_attempts"] = 13
+    value["config_hash"] = canonical_hash(config)
+    with pytest.raises(PolicyError, match="provider contract"):
+        validate_launch(value)
+
+
+def test_m3_scientific_recovery_requires_exact_inventory_and_token_contract():
+    config_path = (
+        Path(__file__).resolve().parents[2]
+        / "configs/m3/m3_scientific_api_rewrites_4096_recovery_v3.yaml"
+    )
+    config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    value = payload()
+    value["config"] = config
+    value["config_hash"] = canonical_hash(config)
+    value["budget_class"] = "promo"
+    value["preregistration"]["comparison"] = config["run"]["comparison_id"]
+    assert validate_launch(value).api_reserved_cost_usd == 12.0
+
+    config["api"]["target_token_count"] = False
     value["config_hash"] = canonical_hash(config)
     with pytest.raises(PolicyError, match="provider contract"):
         validate_launch(value)

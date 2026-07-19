@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-19T17:23:00Z",
+  "updated_at": "2026-07-19T16:47:18Z",
   "phase": "M3 — rewriting-first Qwen3-14B program",
-  "headline": "Fresh 256-row evaluation panel is complete, validated, and SHA-frozen",
-  "summary": "Placeholder v4 recovered all final three identities with zero failures for `$0.012356`. The 224 API inputs passed identity, category, provider-balance, normalized-nonidentity, and surface-divergence audit; the resulting 256-row panel has exact categories 128 natural-AI, 48 fact-dense, 48 light-edit, and 32 no-op, 256 unique domains, maximum human-reference sequence length 726, and SHA `b04d85b0bcde09cfc0db2bb166a4d4ea13e967576f716dd7bd1e4843d25af25a`. It is uploaded and round-trip verified. The 4K API constructor is at least 1,049/2,048 and 14B drafts at least 429/819. No quality result exists yet because matched training has not started.",
+  "headline": "Frozen evaluation is ready; both 4K training-data constructors are advancing",
+  "summary": "The immutable 256-row rewrite panel remains complete and uploaded at SHA `b04d85b0bcde09cfc0db2bb166a4d4ea13e967576f716dd7bd1e4843d25af25a`. Live sanctioned status now shows 1,127/2,048 accepted surface-divergent API rewrites and 461/819 four-candidate Qwen3-14B draft records. Neither job is stuck. A prospective literal- and token-aware API tail recovery is tested and frozen but will launch only if the current worker ends partial. No quality result exists yet because matched SFT14/HUMANWRITE14 training has not started.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 100,
@@ -26,6 +26,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "09:47",
+      "title": "Both 4K constructors advancing; API tail recovery frozen",
+      "detail": "Sanctioned live status reports 1,127/2,048 accepted API rewrite rows and 461/819 Qwen3-14B draft records. A prospective recovery-v3 config is now tested for only the missing API identities: it carries exact protected-literal inventory and measured token-count guidance through a 12-attempt feedback chain while preserving every scientific acceptance gate. It will not run concurrently with the current v2 worker.",
+      "tone": "active"
+    },
     {
       "at": "10:23",
       "title": "Fresh public evaluation panel completed and frozen",
