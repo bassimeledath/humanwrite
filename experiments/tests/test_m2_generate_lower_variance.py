@@ -9,6 +9,7 @@ import pytest
 from experiments.m2.generate_lower_variance import (
     GenerationConfigError,
     _checkpoint_file_map,
+    _require_empty_wrapper_checkpoint_dir,
     canonical_hash,
     decoding_policy_payload,
     generation_contract_payload,
@@ -131,6 +132,18 @@ def test_checkpoint_file_map_rejects_symlinks_and_detects_mutation(tmp_path: Pat
     (tmp_path / "escape").symlink_to(tmp_path / "adapter_config.json")
     with pytest.raises(GenerationConfigError, match="symlink"):
         _checkpoint_file_map(tmp_path)
+
+
+def test_wrapper_checkpoint_dir_allows_worker_log_only(tmp_path: Path) -> None:
+    root = tmp_path / "run"
+    root.mkdir()
+    (root / "worker.log").write_text("wrapper output\n", encoding="utf-8")
+    _require_empty_wrapper_checkpoint_dir(root)
+    (root / "outputs.jsonl").write_text("[]\n", encoding="utf-8")
+    with pytest.raises(
+        GenerationConfigError, match="empty wrapper checkpoint directory"
+    ):
+        _require_empty_wrapper_checkpoint_dir(root)
 
 
 @pytest.mark.parametrize(

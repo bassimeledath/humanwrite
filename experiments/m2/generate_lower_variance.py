@@ -34,6 +34,7 @@ TOP_LEVEL_KEYS = {
     "output",
     "workflow",
 }
+ALLOWED_WRAPPER_FILES = {"worker.log"}
 
 
 class GenerationConfigError(ValueError):
@@ -264,6 +265,19 @@ def _checkpoint_file_map(root: Path) -> dict[str, str]:
     return observed
 
 
+def _require_empty_wrapper_checkpoint_dir(root: Path) -> None:
+    for item in root.rglob("*"):
+        relative = item.relative_to(root).as_posix()
+        if item.is_symlink():
+            raise GenerationConfigError(
+                "generate_lower_variance requires an empty wrapper checkpoint directory"
+            )
+        if item.is_file() and relative not in ALLOWED_WRAPPER_FILES:
+            raise GenerationConfigError(
+                "generate_lower_variance requires an empty wrapper checkpoint directory"
+            )
+
+
 def _verify_inputs(config: dict[str, Any]) -> tuple[Path, list[dict[str, Any]]]:
     checkpoint = config["checkpoint"]
     checkpoint_dir = Path(checkpoint["path"])
@@ -322,10 +336,12 @@ def run_generate_lower_variance(config: dict[str, Any], run_id: str) -> dict[str
     validate_generation_config(config)
     checkpoint_dir, rows = _verify_inputs(config)
     output_dir = Path(os.environ.get("DFTR_CHECKPOINT_DIR", ""))
-    if not output_dir.is_absolute() or output_dir.exists() and any(output_dir.iterdir()):
+    if not output_dir.is_absolute():
         raise GenerationConfigError(
             "generate_lower_variance requires an empty wrapper checkpoint directory"
         )
+    if output_dir.exists():
+        _require_empty_wrapper_checkpoint_dir(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     if (
         torch.__version__ != config["runtime"]["torch_version"]
@@ -427,4 +443,3 @@ def run_generate_lower_variance(config: dict[str, Any], run_id: str) -> dict[str
     }
     write_json(output_dir / "run_manifest.json", manifest)
     return manifest
-
