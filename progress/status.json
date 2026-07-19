@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-07-19T14:48:32Z",
+  "updated_at": "2026-07-19T14:49:06Z",
   "phase": "M3 — rewriting-first Qwen3-14B program",
   "headline": "Surface-divergent 4K repair and fresh evaluation inputs now run beside base-Qwen construction",
   "summary": "The 14B smoke gate remains fully passed. The silent no-op API artifact is excluded, the repaired gateway is deployed, and versioned surface-divergent constructor `dftr-1784472298-ca6141da` is active against a new URI. Fresh evaluation cleaning completed exactly 640/640 at SHA `f6a0a0940338ba1f75aa70a1be5e042ea973b00e410b12d309cea4908f6c3c40`; SHA-bound 224-input constructor `dftr-1784472358-98f64c21` is active. Independent base-Qwen generation continues from checkpoints. The 2,048-check quality-plus-fact evaluator remains frozen and tested. No scientific quality result exists yet.",
@@ -26,6 +26,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "07:49",
+      "title": "Early repaired artifacts pass the surface-divergence audit",
+      "detail": "Direct checkpoint inspection found 30 accepted v2 4K rows with zero normalized identities, median normalized character similarity 0.542, and maximum multi-provider similarity 0.804 against the frozen <0.95 rule. The first four fresh evaluation inputs also had zero normalized identities and maximum similarity 0.608. This confirms the repaired generator-plus-validator path is producing substantive rewrites rather than formatting variants.",
+      "tone": "complete"
+    },
     {
       "at": "07:48",
       "title": "Fresh-eval zero-cost origin mapping repaired and resumed",
