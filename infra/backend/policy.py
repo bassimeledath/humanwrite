@@ -25,6 +25,17 @@ M3_REWRITE_VERIFIER_BY_GENERATOR = {
 }
 QWEN3_14B_MODEL = "Qwen/Qwen3-14B"
 QWEN3_14B_REVISION = "40c069824f4251a91eefaf281ebe4c544efd3e18"
+M3_REWRITE_SFT_SMOKE_PROTOCOL = "humanwrite.m3.rewrite_sft_14b_smoke.v1"
+M3_REWRITE_SFT_SMOKE_STEP = "train_m3_rewrite_sft_smoke"
+M3_REWRITE_SFT_SMOKE_METHOD_KEYS = (
+    "artifact_schema",
+    "run",
+    "compute",
+    "model",
+    "data",
+    "lora",
+    "training",
+)
 LOWER_VARIANCE_TRAIN_PROTOCOL = "dftr.m2.lower_variance_three_arm.v1"
 LOWER_VARIANCE_CONFIRMATION_PROTOCOL = "dftr.m2.lower_variance_confirmation.v2"
 LOWER_VARIANCE_TRAIN_PROTOCOLS = {
@@ -673,6 +684,7 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
     if workflow_step in {
         "train_sft", "sample_sweep", "merge_adapter", "replay_equivalence", "train_dft",
         "prepare_dft", "generate_dft", "generate_lower_variance", "audit_estimator", "train_lower_variance",
+        M3_REWRITE_SFT_SMOKE_STEP,
     } and revision_is_unresolved(
         (config.get("model") or {}).get("revision")
     ):
@@ -865,6 +877,42 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
             or payload.get("dft_a64_readiness") is not None
         ):
             raise PolicyError("train_lower_variance requires the frozen wrapper protocol")
+    if workflow_step == M3_REWRITE_SFT_SMOKE_STEP:
+        workflow = config.get("workflow") or {}
+        method_payload = {
+            key: config.get(key) for key in M3_REWRITE_SFT_SMOKE_METHOD_KEYS
+        }
+        method_payload.update(
+            protocol_version=workflow.get("protocol_version"), step=workflow.get("step")
+        )
+        data = config.get("data") or {}
+        if (
+            set(config) != set(M3_REWRITE_SFT_SMOKE_METHOD_KEYS) | {"workflow"}
+            or config.get("artifact_schema") != M3_REWRITE_SFT_SMOKE_PROTOCOL
+            or workflow.get("protocol_version") != M3_REWRITE_SFT_SMOKE_PROTOCOL
+            or set(workflow) != {"protocol_version", "step", "method_contract_sha256"}
+            or canonical_hash(method_payload) != workflow.get("method_contract_sha256")
+            or task_kind != "experiment"
+            or budget_class != "smoke"
+            or config.get("model")
+            != {
+                "base": QWEN3_14B_MODEL,
+                "revision": QWEN3_14B_REVISION,
+                "torch_dtype": "bfloat16",
+            }
+            or config.get("compute") != {"gpu": "H100", "gpus": 1, "timeout_min": 20}
+            or (config.get("run") or {}).get("arm") != "SFT14-mechanical-smoke"
+            or data.get("source_records") != 128
+            or data.get("rewrite_records") != 96
+            or not str(data.get("source_briefs_path") or "").startswith("/checkpoints/")
+            or not str(data.get("rewrite_tasks_path") or "").startswith("/checkpoints/")
+            or any(
+                not re.fullmatch(r"[0-9a-f]{64}", str(data.get(field) or ""))
+                for field in ("source_briefs_sha256", "rewrite_tasks_sha256")
+            )
+            or payload.get("dft_a64_readiness") is not None
+        ):
+            raise PolicyError("M3 rewrite SFT smoke requires the frozen 14B wrapper protocol")
     if workflow_step == "replay_equivalence":
         replay_workflow = config.get("workflow") or {}
         protocol_version = str(replay_workflow.get("protocol_version"))

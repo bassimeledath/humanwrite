@@ -57,6 +57,11 @@ from experiments.m2.scale_ladder_token_lengths import (
     TOKEN_LENGTH_STEP,
     run_token_length_normalization,
 )
+from experiments.m3.rewrite_sft_smoke import (
+    M3_REWRITE_SFT_SMOKE_SCHEMA,
+    M3_REWRITE_SFT_SMOKE_STEP,
+    run_m3_rewrite_sft_smoke,
+)
 from experiments.tier0.metrics import batch_diagnostics
 
 
@@ -247,6 +252,10 @@ def main(argv: list[str] | None = None) -> int:
         raise ValueError("lower-variance protocol requires train_lower_variance")
     if step == LOWER_VARIANCE_STEP and protocol not in lower_variance_protocols:
         raise ValueError("train_lower_variance requires a frozen lower-variance protocol")
+    if protocol == M3_REWRITE_SFT_SMOKE_SCHEMA and step != M3_REWRITE_SFT_SMOKE_STEP:
+        raise ValueError("M3 rewrite SFT smoke protocol requires train_m3_rewrite_sft_smoke")
+    if step == M3_REWRITE_SFT_SMOKE_STEP and protocol != M3_REWRITE_SFT_SMOKE_SCHEMA:
+        raise ValueError("train_m3_rewrite_sft_smoke requires its frozen M3 protocol")
     if protocol == PREPARE_DFT_SCHEMA:
         manifest = run_prepare_dft(config, args.run_id)
     elif protocol == DFT_SCHEMA:
@@ -267,6 +276,8 @@ def main(argv: list[str] | None = None) -> int:
         manifest = run_token_length_normalization(config, args.run_id)
     elif protocol in lower_variance_protocols:
         manifest = run_lower_variance(config, args.run_id)
+    elif protocol == M3_REWRITE_SFT_SMOKE_SCHEMA:
+        manifest = run_m3_rewrite_sft_smoke(config, args.run_id)
     elif (
         str(workflow.get("protocol_version", "")).casefold().startswith("m1")
         or str(workflow.get("step", "")).casefold() == "replay_equivalence"

@@ -992,12 +992,13 @@ def rewrite_synthesis_worker(run_id: str, payload: dict) -> dict:
                 "model": model,
                 "messages": [{"role": "user", "content": prompt}],
                 "response_format": _json_schema_response_format(schema_name, schema),
-                "reasoning": {"effort": "minimal", "exclude": True},
                 "max_completion_tokens": max_tokens,
             },
             timeout=240,
         )
-        response.raise_for_status()
+        if not response.ok:
+            detail = re.sub(r"\s+", " ", response.text)[:600]
+            raise RuntimeError(f"provider HTTP {response.status_code}: {detail}")
         body = response.json()
         usage_cost = (body.get("usage") or {}).get("cost")
         if usage_cost is None:
@@ -1089,7 +1090,7 @@ def rewrite_synthesis_worker(run_id: str, payload: dict) -> dict:
                         prompt=verifier_prompt(source, generated),
                         schema_name="m3_rewrite_verification",
                         schema=verifier_response_schema(),
-                        max_tokens=2000,
+                        max_tokens=4000,
                     )
                     record_spent += verification_cost
                     return (
