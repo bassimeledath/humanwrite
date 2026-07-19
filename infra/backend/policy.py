@@ -21,7 +21,7 @@ M3_REWRITE_TASK_PROTOCOL = "humanwrite.m3.rewrite_tasks.v1"
 M3_SCIENTIFIC_REWRITE_PROTOCOL = "humanwrite.m3.scientific_api_rewrites.v1"
 M3_BASELINE_VERIFY_PROTOCOL = "humanwrite.m3.baseline_draft_verification.v1"
 M3_EVAL_REWRITE_PROTOCOL = "humanwrite.m3.eval_rewrite_inputs.v1"
-M3_REWRITE_JUDGE_PROTOCOL = "humanwrite.m3.rewrite_pairwise_judge.v1"
+M3_REWRITE_JUDGE_PROTOCOL = "humanwrite.m3.rewrite_judge.v2"
 M3_REWRITE_GENERATOR_MODELS = [
     "google/gemini-3.1-flash-lite",
     "anthropic/claude-haiku-4.5",
@@ -34,7 +34,7 @@ M3_REWRITE_JUDGE_MODELS = [
     "anthropic/claude-haiku-4.5",
     "google/gemini-3.1-flash-lite",
 ]
-M3_REWRITE_JUDGE_DIMENSIONS = {
+M3_REWRITE_JUDGE_PAIRWISE_DIMENSIONS = {
     "human_style": (
         "Choose the response that reads more like careful human-authored prose. "
         "Favor natural variation, specific development, and context-appropriate "
@@ -1368,11 +1368,12 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
         if set(judge) != {
             "protocol",
             "models",
-            "dimensions",
+            "pairwise_dimensions",
             "randomization",
             "temperature",
             "max_completion_tokens",
-            "response_contract",
+            "pairwise_response_contract",
+            "preservation_response_contract",
             "concurrency",
             "retry_attempts",
             "max_cost_usd",
@@ -1402,11 +1403,12 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
             config.get("artifact_schema") != M3_REWRITE_JUDGE_PROTOCOL
             or judge.get("protocol") != M3_REWRITE_JUDGE_PROTOCOL
             or judge.get("models") != M3_REWRITE_JUDGE_MODELS
-            or judge.get("dimensions") != M3_REWRITE_JUDGE_DIMENSIONS
+            or judge.get("pairwise_dimensions") != M3_REWRITE_JUDGE_PAIRWISE_DIMENSIONS
             or judge.get("randomization") != M3_REWRITE_JUDGE_RANDOMIZATION
             or judge.get("temperature") != 0.0
             or judge.get("max_completion_tokens") != 512
-            or judge.get("response_contract") != "single uppercase A, B, or TIE"
+            or judge.get("pairwise_response_contract") != "single uppercase A, B, or TIE"
+            or judge.get("preservation_response_contract") != "single uppercase PASS or FAIL"
             or judge.get("concurrency") != 16
             or judge.get("retry_attempts") != 3
             or budget_class != "promo"

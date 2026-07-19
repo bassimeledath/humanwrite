@@ -10,15 +10,16 @@ from typing import Any
 import yaml
 
 from data.m3_rewrite_judge import (
-    DIMENSIONS,
     MODELS,
+    PAIRWISE_DIMENSIONS,
+    PAIRWISE_RESPONSE_CONTRACT,
+    PRESERVATION_RESPONSE_CONTRACT,
     PROTOCOL,
     RANDOMIZATION,
-    RESPONSE_CONTRACT,
 )
 
 
-DEFAULT_OUTPUT = Path("configs/m3/m3_rewrite_pairwise_judge_v1.yaml")
+DEFAULT_OUTPUT = Path("configs/m3/m3_rewrite_judge_v2.yaml")
 ROOT_URI = "modal-volume://humanwrite-checkpoints/data/m3-rewriting-14b-v1"
 
 
@@ -34,8 +35,8 @@ def config(
     return {
         "artifact_schema": PROTOCOL,
         "run": {
-            "comparison_id": "M3-rewriting-14b-4k-pairwise-judge-v1",
-            "arm": "HUMANWRITE14-vs-SFT14-two-family-blinded-judge",
+            "comparison_id": "M3-rewriting-14b-4k-judge-v2",
+            "arm": "HUMANWRITE14-vs-SFT14-quality-and-preservation-judge",
             "budget_class": "promo",
             "task_kind": "rewrite_judging",
         },
@@ -48,17 +49,18 @@ def config(
             "sft_sha256": _sha(sft_sha256),
             "treatment_uri": f"{ROOT_URI}/evaluation/humanwrite14-outputs-256-v1.jsonl",
             "treatment_sha256": _sha(treatment_sha256),
-            "output_uri": f"{ROOT_URI}/evaluation/pairwise-judge-results-v1.jsonl",
-            "manifest_uri": f"{ROOT_URI}/evaluation/pairwise-judge-manifest-v1.json",
+            "output_uri": f"{ROOT_URI}/evaluation/rewrite-judge-results-v2.jsonl",
+            "manifest_uri": f"{ROOT_URI}/evaluation/rewrite-judge-manifest-v2.json",
         },
         "judge": {
             "protocol": PROTOCOL,
             "models": list(MODELS),
-            "dimensions": dict(DIMENSIONS),
+            "pairwise_dimensions": dict(PAIRWISE_DIMENSIONS),
             "randomization": dict(RANDOMIZATION),
             "temperature": 0.0,
             "max_completion_tokens": 512,
-            "response_contract": RESPONSE_CONTRACT,
+            "pairwise_response_contract": PAIRWISE_RESPONSE_CONTRACT,
+            "preservation_response_contract": PRESERVATION_RESPONSE_CONTRACT,
             "concurrency": 16,
             "retry_attempts": 3,
             "max_cost_usd": 10.0,

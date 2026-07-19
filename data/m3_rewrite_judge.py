@@ -1,4 +1,4 @@
-"""Frozen blinded pairwise-judge contract for the M3 rewrite screen."""
+"""Frozen blinded quality and preservation judge for the M3 rewrite screen."""
 
 from __future__ import annotations
 
@@ -11,12 +11,12 @@ from typing import Any
 from .m3_eval_panel import EVAL_PANEL_PROTOCOL
 
 
-PROTOCOL = "humanwrite.m3.rewrite_pairwise_judge.v1"
+PROTOCOL = "humanwrite.m3.rewrite_judge.v2"
 MODELS = [
     "anthropic/claude-haiku-4.5",
     "google/gemini-3.1-flash-lite",
 ]
-DIMENSIONS = {
+PAIRWISE_DIMENSIONS = {
     "human_style": (
         "Choose the response that reads more like careful human-authored prose. "
         "Favor natural variation, specific development, and context-appropriate "
@@ -33,11 +33,16 @@ RANDOMIZATION = {
     "algorithm": "sha256(master_seed:model:dimension:fingerprint).parity.v1",
     "master_seed": 8903,
 }
-RESPONSE_CONTRACT = "single uppercase A, B, or TIE"
+PAIRWISE_RESPONSE_CONTRACT = "single uppercase A, B, or TIE"
+PRESERVATION_RESPONSE_CONTRACT = "single uppercase PASS or FAIL"
 
 
 class M3RewriteJudgeError(ValueError):
     pass
+
+
+def task_id(*parts: str) -> str:
+    return hashlib.sha256(":".join(parts).encode()).hexdigest()
 
 
 def treatment_side(model: str, dimension: str, fingerprint: str) -> str:
@@ -47,7 +52,7 @@ def treatment_side(model: str, dimension: str, fingerprint: str) -> str:
     return "A" if digest[0] % 2 == 0 else "B"
 
 
-def judge_prompt(
+def pairwise_prompt(
     *, assignment: str, rubric: str, candidate_a: str, candidate_b: str
 ) -> str:
     return f"""Compare two rewrites of the same source text.
@@ -67,6 +72,33 @@ Return exactly A, B, or TIE.
 
 === CANDIDATE B ===
 {candidate_b}
+"""
+
+
+def preservation_prompt(
+    *, assignment: str, source: str, protected_literals: list[str], candidate: str
+) -> str:
+    literal_text = "\n".join(f"- {value}" for value in protected_literals) or "(none)"
+    return f"""Decide whether a rewrite preserves the source's factual content and intent.
+
+Return PASS only if the candidate preserves every material claim, relationship, name,
+number, date, quotation, and required literal from the source; introduces no unsupported
+claim; and follows the rewrite assignment. Stylistic rewording is allowed. Return FAIL if
+anything material is added, removed, contradicted, or altered.
+
+Return exactly PASS or FAIL.
+
+=== REWRITE ASSIGNMENT ===
+{assignment}
+
+=== SOURCE TEXT ===
+{source}
+
+=== REQUIRED LITERALS ===
+{literal_text}
+
+=== CANDIDATE REWRITE ===
+{candidate}
 """
 
 
@@ -99,29 +131,33 @@ def build_tasks(
         or any(row.get("artifact_schema") != EVAL_PANEL_PROTOCOL for row in panel)
     ):
         raise M3RewriteJudgeError("fresh evaluation panel invariants failed")
-    sft = _output_map(sft_rows, "SFT14")
-    treatment = _output_map(treatment_rows, "HUMANWRITE14")
+    outputs = {
+        "SFT14": _output_map(sft_rows, "SFT14"),
+        "HUMANWRITE14": _output_map(treatment_rows, "HUMANWRITE14"),
+    }
     panel_ids = {str(row["fingerprint"]) for row in panel}
-    if set(sft) != panel_ids or set(treatment) != panel_ids:
+    if any(set(values) != panel_ids for values in outputs.values()):
         raise M3RewriteJudgeError("candidate/panel pairing mismatch")
 
     tasks: list[dict[str, Any]] = []
     for row in sorted(panel, key=lambda value: str(value["fingerprint"])):
         fingerprint = str(row["fingerprint"])
         for model in MODELS:
-            for dimension, rubric in DIMENSIONS.items():
+            for dimension, rubric in PAIRWISE_DIMENSIONS.items():
                 side = treatment_side(model, dimension, fingerprint)
                 candidates = {
-                    side: treatment[fingerprint],
-                    "B" if side == "A" else "A": sft[fingerprint],
+                    side: outputs["HUMANWRITE14"][fingerprint],
+                    "B" if side == "A" else "A": outputs["SFT14"][fingerprint],
                 }
                 tasks.append(
                     {
+                        "task_id": task_id("pairwise", model, dimension, fingerprint),
+                        "task_type": "pairwise",
                         "model": model,
                         "dimension": dimension,
                         "fingerprint": fingerprint,
                         "treatment_side": side,
-                        "prompt": judge_prompt(
+                        "prompt": pairwise_prompt(
                             assignment=str(row["prompt"]),
                             rubric=rubric,
                             candidate_a=candidates["A"],
@@ -129,7 +165,24 @@ def build_tasks(
                         ),
                     }
                 )
-    if len(tasks) != 1024:
+            for arm in ("SFT14", "HUMANWRITE14"):
+                tasks.append(
+                    {
+                        "task_id": task_id("preservation", model, arm, fingerprint),
+                        "task_type": "preservation",
+                        "model": model,
+                        "dimension": "content_preservation",
+                        "fingerprint": fingerprint,
+                        "arm": arm,
+                        "prompt": preservation_prompt(
+                            assignment=str(row["prompt"]),
+                            source=str(row["input_text"]),
+                            protected_literals=[str(value) for value in row.get("protected_literals") or []],
+                            candidate=outputs[arm][fingerprint],
+                        ),
+                    }
+                )
+    if len(tasks) != 2048 or len({row["task_id"] for row in tasks}) != 2048:
         raise M3RewriteJudgeError("judge task cardinality mismatch")
     return tasks
 
@@ -143,36 +196,45 @@ def _wilson(successes: int, trials: int, z: float = 1.959963984540054) -> dict[s
 
 
 def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
-    expected = {
-        (model, dimension, fingerprint)
-        for model in MODELS
-        for dimension in DIMENSIONS
-        for fingerprint in {
-            str(row.get("fingerprint") or "") for row in rows
-        }
-    }
-    keys = {
-        (str(row.get("model")), str(row.get("dimension")), str(row.get("fingerprint")))
-        for row in rows
-    }
-    fingerprints = {str(row.get("fingerprint") or "") for row in rows}
-    if len(rows) != 1024 or len(fingerprints) != 256 or keys != expected:
+    if len(rows) != 2048 or len({str(row.get("task_id") or "") for row in rows}) != 2048:
         raise M3RewriteJudgeError("judge result cardinality mismatch")
-    cells: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
+    fingerprints = {str(row.get("fingerprint") or "") for row in rows}
+    if len(fingerprints) != 256:
+        raise M3RewriteJudgeError("judge fingerprint cardinality mismatch")
+
+    pairwise_cells: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
+    preservation_cells: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
     for row in rows:
-        if row.get("choice") not in {"A", "B", "TIE"}:
-            raise M3RewriteJudgeError("judge result choice mismatch")
-        cells[(str(row["model"]), str(row["dimension"]))].append(row)
+        if row.get("task_type") == "pairwise":
+            if row.get("choice") not in {"A", "B", "TIE"} or row.get("outcome") not in {
+                "win",
+                "loss",
+                "tie",
+            }:
+                raise M3RewriteJudgeError("pairwise judge result mismatch")
+            pairwise_cells[(str(row["model"]), str(row["dimension"]))].append(row)
+        elif row.get("task_type") == "preservation":
+            if row.get("choice") not in {"PASS", "FAIL"} or row.get("arm") not in {
+                "SFT14",
+                "HUMANWRITE14",
+            }:
+                raise M3RewriteJudgeError("preservation judge result mismatch")
+            preservation_cells[(str(row["model"]), str(row["arm"]))].append(row)
+        else:
+            raise M3RewriteJudgeError("unknown judge task type")
+
     reports: dict[str, Any] = {}
     for model in MODELS:
-        reports[model] = {}
-        for dimension in DIMENSIONS:
-            values = cells[(model, dimension)]
+        reports[model] = {"pairwise": {}, "content_preservation": {}}
+        for dimension in PAIRWISE_DIMENSIONS:
+            values = pairwise_cells[(model, dimension)]
+            if len(values) != 256:
+                raise M3RewriteJudgeError("pairwise judge cell cardinality mismatch")
             wins = sum(row["outcome"] == "win" for row in values)
             losses = sum(row["outcome"] == "loss" for row in values)
             ties = sum(row["outcome"] == "tie" for row in values)
             decisive = wins + losses
-            reports[model][dimension] = {
+            reports[model]["pairwise"][dimension] = {
                 "wins": wins,
                 "losses": losses,
                 "ties": ties,
@@ -182,22 +244,42 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
                 "decisive_win_rate": wins / decisive if decisive else None,
                 "wilson_95_all": _wilson(wins, len(values)),
             }
+        preservation_rates: dict[str, float] = {}
+        for arm in ("SFT14", "HUMANWRITE14"):
+            values = preservation_cells[(model, arm)]
+            if len(values) != 256:
+                raise M3RewriteJudgeError("preservation judge cell cardinality mismatch")
+            passes = sum(row["choice"] == "PASS" for row in values)
+            preservation_rates[arm] = passes / len(values)
+            reports[model]["content_preservation"][arm] = {
+                "passes": passes,
+                "failures": len(values) - passes,
+                "trials": len(values),
+                "pass_rate": preservation_rates[arm],
+                "wilson_95": _wilson(passes, len(values)),
+            }
+        reports[model]["content_preservation"]["treatment_minus_sft"] = (
+            preservation_rates["HUMANWRITE14"] - preservation_rates["SFT14"]
+        )
     return {
-        "artifact_schema": "humanwrite.m3.rewrite_pairwise_judge_summary.v1",
+        "artifact_schema": "humanwrite.m3.rewrite_judge_summary.v2",
         "comparisons": len(rows),
         "models": reports,
     }
 
 
 __all__ = [
-    "DIMENSIONS",
     "MODELS",
     "M3RewriteJudgeError",
+    "PAIRWISE_DIMENSIONS",
+    "PAIRWISE_RESPONSE_CONTRACT",
+    "PRESERVATION_RESPONSE_CONTRACT",
     "PROTOCOL",
     "RANDOMIZATION",
-    "RESPONSE_CONTRACT",
     "build_tasks",
-    "judge_prompt",
+    "pairwise_prompt",
+    "preservation_prompt",
     "summarize",
+    "task_id",
     "treatment_side",
 ]

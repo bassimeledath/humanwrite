@@ -168,6 +168,16 @@ contract are implemented in `data/m3_rewrite_judge.py` before the panel or
 candidate outputs are available. The two model-family results remain separate;
 they may not be pooled to conceal disagreement.
 
+The same two families independently classify content preservation for every
+SFT14 and HUMANWRITE14 output against its visible source and rewrite assignment,
+returning exactly `PASS` or `FAIL`. A pass requires preservation of every
+material claim, relationship, name, number, date, quotation, required literal,
+and intent, with no unsupported addition. This adds 1,024 arm-specific checks
+to the 1,024 pairwise comparisons. The 3-percentage-point non-inferiority gate
+is evaluated separately for each judge family; automatic protected-literal
+checks remain a harder deterministic sentinel, not a substitute for semantic
+review.
+
 ## Frozen promotion gates
 
 ### 4K to 16K

@@ -74,7 +74,7 @@ M3_REWRITE_TASK_PROTOCOL = "humanwrite.m3.rewrite_tasks.v1"
 M3_SCIENTIFIC_REWRITE_PROTOCOL = "humanwrite.m3.scientific_api_rewrites.v1"
 M3_BASELINE_VERIFY_PROTOCOL = "humanwrite.m3.baseline_draft_verification.v1"
 M3_EVAL_REWRITE_PROTOCOL = "humanwrite.m3.eval_rewrite_inputs.v1"
-M3_REWRITE_JUDGE_PROTOCOL = "humanwrite.m3.rewrite_pairwise_judge.v1"
+M3_REWRITE_JUDGE_PROTOCOL = "humanwrite.m3.rewrite_judge.v2"
 
 state_volume = modal.Volume.from_name("humanwrite-gateway-state", create_if_missing=True)
 checkpoint_volume = modal.Volume.from_name("humanwrite-checkpoints", create_if_missing=True)
@@ -1488,24 +1488,39 @@ def rewrite_judging_worker(run_id: str, payload: dict) -> dict:
                     raise RuntimeError("judge response omitted usage.cost")
                 attempt_cost += float(usage_cost)
                 content = str(body["choices"][0]["message"].get("content") or "").strip().upper()
-                if re.fullmatch(r"A|B|TIE", content) is None:
-                    raise RuntimeError(f"judge response contract failed: {content!r}")
-                outcome = (
-                    "tie"
-                    if content == "TIE"
-                    else ("win" if content == task["treatment_side"] else "loss")
-                )
+                if task["task_type"] == "pairwise":
+                    if re.fullmatch(r"A|B|TIE", content) is None:
+                        raise RuntimeError(f"pairwise response contract failed: {content!r}")
+                    task_result = {
+                        "treatment_side": task["treatment_side"],
+                        "choice": content,
+                        "outcome": (
+                            "tie"
+                            if content == "TIE"
+                            else "win"
+                            if content == task["treatment_side"]
+                            else "loss"
+                        ),
+                    }
+                else:
+                    if re.fullmatch(r"PASS|FAIL", content) is None:
+                        raise RuntimeError(f"preservation response contract failed: {content!r}")
+                    task_result = {
+                        "arm": task["arm"],
+                        "choice": content,
+                        "passed": content == "PASS",
+                    }
                 return (
                     {
                         "artifact_schema": M3_REWRITE_JUDGE_PROTOCOL,
+                        "task_id": task["task_id"],
+                        "task_type": task["task_type"],
                         "model": task["model"],
                         "dimension": task["dimension"],
                         "fingerprint": task["fingerprint"],
-                        "treatment_side": task["treatment_side"],
-                        "choice": content,
-                        "outcome": outcome,
                         "attempt": attempt + 1,
                         "cost_usd": round(attempt_cost, 8),
+                        **task_result,
                     },
                     attempt_cost,
                 )
@@ -1522,37 +1537,50 @@ def rewrite_judging_worker(run_id: str, payload: dict) -> dict:
         if len(panel) != int(data["panel_records"]):
             raise RuntimeError("judge panel cardinality mismatch")
         tasks = build_tasks(panel, sft, treatment)
-        task_by_key = {
-            (task["model"], task["dimension"], task["fingerprint"]): task
-            for task in tasks
-        }
-        completed: dict[tuple[str, str, str], dict] = {}
+        task_by_id = {str(task["task_id"]): task for task in tasks}
+        completed: dict[str, dict] = {}
         if output_path.exists():
             for row in rows(output_path, _file_sha256(output_path)):
-                key = (str(row.get("model")), str(row.get("dimension")), str(row.get("fingerprint")))
-                task = task_by_key.get(key)
-                expected_outcome = (
-                    "tie"
-                    if row.get("choice") == "TIE"
-                    else "win"
-                    if task is not None and row.get("choice") == task["treatment_side"]
-                    else "loss"
+                key = str(row.get("task_id") or "")
+                task = task_by_id.get(key)
+                common_valid = bool(
+                    task is not None
+                    and row.get("task_type") == task["task_type"]
+                    and row.get("model") == task["model"]
+                    and row.get("dimension") == task["dimension"]
+                    and row.get("fingerprint") == task["fingerprint"]
+                )
+                pairwise_valid = bool(
+                    task is not None
+                    and task["task_type"] == "pairwise"
+                    and row.get("choice") in {"A", "B", "TIE"}
+                    and row.get("treatment_side") == task["treatment_side"]
+                    and row.get("outcome")
+                    == (
+                        "tie"
+                        if row.get("choice") == "TIE"
+                        else "win"
+                        if row.get("choice") == task["treatment_side"]
+                        else "loss"
+                    )
+                )
+                preservation_valid = bool(
+                    task is not None
+                    and task["task_type"] == "preservation"
+                    and row.get("choice") in {"PASS", "FAIL"}
+                    and row.get("arm") == task["arm"]
+                    and row.get("passed") is (row.get("choice") == "PASS")
                 )
                 if (
                     row.get("artifact_schema") != M3_REWRITE_JUDGE_PROTOCOL
-                    or row.get("choice") not in {"A", "B", "TIE"}
-                    or row.get("outcome") not in {"win", "loss", "tie"}
-                    or task is None
-                    or row.get("treatment_side") != task["treatment_side"]
-                    or row.get("outcome") != expected_outcome
+                    or not common_valid
+                    or not (pairwise_valid or preservation_valid)
                     or key in completed
                 ):
                     raise RuntimeError("existing judge output is invalid")
                 completed[key] = row
         pending = [
-            task
-            for task in tasks
-            if (task["model"], task["dimension"], task["fingerprint"]) not in completed
+            task for task in tasks if str(task["task_id"]) not in completed
         ]
         with output_path.open("a", encoding="utf-8") as sink:
             for start in range(0, len(pending), int(judge["concurrency"])):
@@ -1568,7 +1596,7 @@ def rewrite_judging_worker(run_id: str, payload: dict) -> dict:
                             spent += cost
                             sink.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
                             sink.flush()
-                            key = (task["model"], task["dimension"], task["fingerprint"])
+                            key = str(task["task_id"])
                             completed[key] = row
                             processed += 1
                         except JudgeRequestError as exc:
@@ -1603,7 +1631,7 @@ def rewrite_judging_worker(run_id: str, payload: dict) -> dict:
             )
             summary = summarize(result_rows)
             manifest = {
-                "artifact_schema": "humanwrite.m3.rewrite_pairwise_judge_manifest.v1",
+                "artifact_schema": "humanwrite.m3.rewrite_judge_manifest.v2",
                 "status": "completed",
                 "comparison_id": config["run"]["comparison_id"],
                 "input_hashes": {

@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-19T14:31:52Z",
+  "updated_at": "2026-07-19T14:37:44Z",
   "phase": "M3 — rewriting-first Qwen3-14B program",
   "headline": "4K rewrite construction, base-draft generation, and fresh eval cleaning run concurrently",
-  "summary": "The 14B smoke gate remains fully passed. At 07:31 PDT the three concurrent constructors were healthy: scientific API rewrites had logged 432 accepted toward 2,048, base-Qwen generation had checkpointed 92 of 819 four-candidate records, and fresh Qwen3-32B evaluation cleaning had logged 323 accepted toward 640. The still-missing blinded evaluation stage is no longer an idle handoff: a resumable, SHA-bound, two-family Claude/Gemini pairwise judge for all 256 HUMANWRITE14-versus-SFT14 outputs and both frozen dimensions is implemented locally, with focused policy/evaluator tests passing 68/68. No scientific quality result exists yet; these jobs are constructing the data needed for matched training and a fresh test.",
+  "summary": "The 14B smoke gate remains fully passed. At 07:37 PDT the three concurrent constructors were healthy: scientific API rewrites had logged 552 accepted toward 2,048, base-Qwen generation had checkpointed 115 of 819 four-candidate records, and fresh Qwen3-32B evaluation cleaning had logged 502 accepted toward 640. The evaluation stage is fully specified before candidate outputs exist: 1,024 blinded Claude/Gemini human-style and overall-quality comparisons plus 1,024 separate arm-specific semantic fact-preservation checks, all resumable and SHA-bound. Focused policy/evaluator tests pass 68/68. No scientific quality result exists yet; these jobs are constructing the data needed for matched training and a fresh test.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 100,
@@ -26,6 +26,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "07:37",
+      "title": "Semantic fact-preservation gate added before outputs exist",
+      "detail": "The evaluator now runs 2,048 frozen checks: 1,024 blinded HUMANWRITE14-vs-SFT14 human-style/overall-quality comparisons and 1,024 independent Claude/Gemini PASS-or-FAIL assessments of each arm against the visible source, assignment, and protected literals. Results stay separate by judge family and bind panel/candidate hashes; deterministic literal preservation remains a hard sentinel. Direct live evidence simultaneously showed 552/2,048 API rewrites, 115/819 base drafts, and 502/640 clean evaluation references. Focused tests pass 68/68.",
+      "tone": "active"
+    },
     {
       "at": "07:31",
       "title": "Constructor growth verified; blinded evaluator built in parallel",

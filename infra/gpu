@@ -446,7 +446,7 @@ def _validate_submit(config: dict, budget_class: str) -> tuple[str, dict]:
         api_cap = float(judge.get("max_cost_usd", 0.0))
         if api_cap <= 0 or api_cap > 10:
             _die("rewrite_judging requires 0 < judge.max_cost_usd <= 10")
-        if judge.get("protocol") != "humanwrite.m3.rewrite_pairwise_judge.v1":
+        if judge.get("protocol") != "humanwrite.m3.rewrite_judge.v2":
             _die("rewrite_judging requires the frozen M3 protocol")
         if any(
             not str(data.get(field) or "").startswith(
