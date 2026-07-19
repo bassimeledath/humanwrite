@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-19T02:55:00Z",
+  "updated_at": "2026-07-19T03:18:11Z",
   "phase": "M2 — 4B data-scale ladder through 16K",
-  "headline": "Exact-token repair passed; 4K baseline witness is running",
-  "summary": "Exact-token normalization completed for all 4,096 rows at SHA `723ebf559a4139c49454f5898a0e51120cdf424bd3cd12e39466c6758d25217b`, correcting 4,079 provider estimates. Pinned baseline-witness run `dftr-1784429664-02939bdc` is now generating one EOS-aware 128-token training-only rollout per brief. On success, autonomy runs the 64-step H100 MMD timing gate and launches matched full arms only if it passes.",
+  "headline": "4K baseline witness is running; experiment log surface repaired",
+  "summary": "Scheduled safety audit on 2026-07-19 verified that pinned witness run `dftr-1784429664-02939bdc` is genuinely live rather than stale: at `2026-07-19T03:14:38Z` it was only 20.22 minutes into a 90-minute L40S budget. No extra remote launch was justified. The audit did find a real observability bug in sanctioned experiment logs, repaired it prospectively, and redeployed the Modal gateway; the next continuation still waits only on the witness terminal transition before validating artifacts and, if sound, launching the 64-step H100 MMD timing gate.",
   "run_state": "running",
   "budget": {
     "modal_cap_usd": 100,
@@ -26,6 +26,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "20:18",
+      "title": "Scheduled audit confirmed live witness and repaired experiment logs",
+      "detail": "Sanctioned gateway status confirmed witness run `dftr-1784429664-02939bdc` was still actively running on Sunday, July 19, 2026 at `2026-07-19T03:14:38Z`, only 20.22 minutes after launch, so no stale-handoff intervention or extra job launch was warranted. The real recoverable failure was observability: `/logs/{run_id}` read `/state/logs/<run_id>.log` while experiment workers wrote elsewhere, leaving running experiment logs blank. The gateway wrapper now writes worker logs to `/checkpoints/runs/<run_id>/worker.log`, reloads the checkpoint volume before serving logs, and was redeployed to `https://bassimfaizal--humanwrite-gpu-gateway-gateway.modal.run`. Post-deploy, the sanctioned log route returned non-empty output for completed normalization run `dftr-1784429472-96f16f75`.",
+      "tone": "active"
+    },
     {
       "at": "19:55",
       "title": "All 4K lengths normalized; baseline witness launched",

@@ -31,6 +31,12 @@ def checkpoint_volume_uri(path: str | Path, mount_path: str = "/checkpoints") ->
     return VOLUME_PREFIX + PurePosixPath(*relative.parts).as_posix()
 
 
+def run_worker_log_path(run_id: str, mount_path: str = "/checkpoints") -> Path:
+    if not run_id:
+        raise ValueError("run_id is required")
+    return Path(mount_path) / "runs" / run_id / "worker.log"
+
+
 def _sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as stream:

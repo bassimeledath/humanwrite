@@ -1,7 +1,7 @@
 {
   "schema": "humanwrite.autonomy_control.v1",
   "enabled": true,
-  "generation": 23,
+  "generation": 24,
   "objective": "Run the independently reviewed 4K chain: exact-token normalization, baseline witness, 64-step MMD timing gate, then matched full SFT and MMD-witness arms if gates pass.",
   "poll_interval_seconds": 600,
   "max_codex_wakes_per_24h": 16,

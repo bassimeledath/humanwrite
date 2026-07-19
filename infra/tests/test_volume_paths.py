@@ -7,6 +7,7 @@ from backend.volume_paths import (
     checkpoint_volume_uri,
     missing_run_artifact_metadata,
     run_artifact_metadata,
+    run_worker_log_path,
 )
 
 
@@ -19,6 +20,14 @@ def test_checkpoint_volume_path_preserves_mount_alias_without_resolving():
 def test_checkpoint_volume_uri_round_trips_mount_alias():
     assert checkpoint_volume_uri("/checkpoints/data/pilot/train.jsonl") == (
         "modal-volume://humanwrite-checkpoints/data/pilot/train.jsonl"
+    )
+
+
+def test_run_worker_log_path_stays_inside_checkpoint_mount(tmp_path):
+    path = run_worker_log_path("dftr-example", mount_path=str(tmp_path))
+    assert path == tmp_path / "runs" / "dftr-example" / "worker.log"
+    assert checkpoint_volume_uri(path, mount_path=str(tmp_path)) == (
+        "modal-volume://humanwrite-checkpoints/runs/dftr-example/worker.log"
     )
 
 

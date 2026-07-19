@@ -13,6 +13,7 @@ import os
 from pathlib import Path
 import re
 import subprocess
+import threading
 import time
 from urllib import request as urlrequest
 
@@ -50,6 +51,7 @@ from .volume_paths import (
     checkpoint_volume_path,
     missing_run_artifact_metadata,
     run_artifact_metadata,
+    run_worker_log_path,
 )
 
 
@@ -143,7 +145,53 @@ def _artifact_dir(run_id: str) -> Path:
 
 
 def _log_path(run_id: str) -> Path:
-    return Path("/state/logs") / f"{run_id}.log"
+    return run_worker_log_path(run_id, CHECKPOINT_PATH)
+
+
+def _run_logged_subprocess(
+    *,
+    command: list[str],
+    cwd: Path,
+    env: dict[str, str],
+    log_path: Path,
+    timeout_seconds: int,
+) -> int:
+    stop_flush = threading.Event()
+
+    def flush_loop() -> None:
+        while not stop_flush.wait(15):
+            try:
+                checkpoint_volume.commit()
+            except Exception:
+                pass
+
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    with log_path.open("w", encoding="utf-8") as logs:
+        flusher = threading.Thread(target=flush_loop, daemon=True)
+        flusher.start()
+        try:
+            process = subprocess.Popen(
+                command,
+                cwd=cwd,
+                env=env,
+                stdout=logs,
+                stderr=subprocess.STDOUT,
+            )
+            try:
+                return process.wait(timeout=timeout_seconds)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait()
+                raise
+        finally:
+            logs.flush()
+            try:
+                os.fsync(logs.fileno())
+            except OSError:
+                pass
+            stop_flush.set()
+            flusher.join(timeout=5)
+            checkpoint_volume.commit()
 
 
 def _resolved_model_manifest_path(run_id: str) -> Path:
@@ -264,7 +312,7 @@ def training_worker(run_id: str, payload: dict) -> dict:
     started = time.time()
     config = payload["config"]
     worktree = Path("/tmp") / run_id
-    log_path = Path("/tmp") / f"{run_id}.worker.log"
+    log_path = _log_path(run_id)
     log_path.parent.mkdir(parents=True, exist_ok=True)
     status = "failed"
     return_code = None
@@ -377,17 +425,13 @@ def training_worker(run_id: str, payload: dict) -> dict:
                 raise ValueError("A64 readiness evidence escapes the checkpoint volume") from exc
             clean_env["DFTR_M2_A64_READINESS_MANIFEST"] = str(readiness_path)
             clean_env["DFTR_M2_A64_READINESS_SHA256"] = str(readiness["manifest_sha256"])
-        with log_path.open("w", encoding="utf-8") as logs:
-            result = subprocess.run(
-                command,
-                cwd=worktree,
-                env=clean_env,
-                stdout=logs,
-                stderr=subprocess.STDOUT,
-                timeout=int(payload["timeout_seconds"]),
-                check=False,
-            )
-        return_code = result.returncode
+        return_code = _run_logged_subprocess(
+            command=command,
+            cwd=worktree,
+            env=clean_env,
+            log_path=log_path,
+            timeout_seconds=int(payload["timeout_seconds"]),
+        )
         status = "completed" if return_code == 0 else "failed"
     except subprocess.TimeoutExpired:
         status = "reaped"
@@ -412,8 +456,6 @@ def training_worker(run_id: str, payload: dict) -> dict:
             "artifact_dir": str(artifact_dir.resolve()),
         }
         result_payload.update(run_artifact_metadata(artifact_dir, mount_path=CHECKPOINT_PATH))
-        if log_path.is_file():
-            (artifact_dir / "worker.log").write_bytes(log_path.read_bytes())
         # Volume commits on container shutdown are not sufficiently prompt for
         # scientific handoffs.  Make the final checkpoint/manifest visible
         # before the successful FunctionCall result can be consumed.
@@ -1448,6 +1490,10 @@ def gateway():
         require_auth(authorization)
         if not run_snapshot(_events(), run_id):
             raise HTTPException(status_code=404, detail="run not found")
+        try:
+            checkpoint_volume.reload()
+        except Exception:
+            pass
         path = _log_path(run_id)
         if not path.exists():
             return {"run_id": run_id, "logs": ""}

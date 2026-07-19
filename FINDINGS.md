@@ -2904,3 +2904,32 @@ empty-witness gates.
 NEXT: Run exact-token normalization, generate the 4K baseline witness, run the
 64-step MMD-witness timing smoke, then launch matched full arms concurrently if
 the gate passes.
+
+## [2026-07-19] M2 / scheduled-4k-witness-safety-audit
+HYPOTHESIS: The scheduled 90-minute audit should either find a real stale
+handoff/silent failure worth repairing or confirm that the only active 4K
+baseline-witness job is healthy enough to leave alone. If any observability
+surface itself is broken, that defect should be repaired prospectively without
+changing the scientific treatment or launching extra jobs.
+SETUP: Read `CLAUDE.md`, `RESEARCH_CONTEXT.md`, `progress/autonomy.json`,
+`progress/status.json`, the append-only `FINDINGS.md` record, and recent git
+history. Verified the live gateway state for
+`dftr-1784429664-02939bdc` through the same sanctioned path the coordinator
+uses: fixed gateway URL plus macOS Keychain token `humanwrite-gateway-token`.
+Inspected the witness config and the Modal gateway wrapper/logging code before
+making any change.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Active 4K witness job age | PASS | At `2026-07-19T03:14:38Z`, run `dftr-1784429664-02939bdc` was only `20.22` minutes old against a `90` minute timeout, so the `running` state was not stale. |
+| Live run status | PASS | Gateway status still reported `status=running`, `comparison=M2-scale-ladder-witness-4096-v1`, `workflow_step=generate_scale_ladder_witness`, `gpu=L40S`, and no terminal transition to validate yet. |
+| Budget headroom | PASS | Sanctioned budget check reported Modal committed `$20.301228/$100` and OpenRouter spend `$28.483027/$100`; no cap was pressured by this audit. |
+| Log-surface integrity | FAIL | The experiment wrapper streamed stdout to `/tmp/<run_id>.worker.log`, but the sanctioned `/logs/{run_id}` route read `/state/logs/<run_id>.log`. Running experiment logs were therefore guaranteed blank even when the job was healthy, weakening scheduled-audit visibility. |
+| Recoverable repair | PASS | The gateway wrapper now writes experiment logs to `/checkpoints/runs/<run_id>/worker.log`, periodically commits the checkpoint volume during long-running training, and reloads the checkpoint volume before serving `/logs/{run_id}`. Direct import/assert verification for the shared worker-log path passed; `python3 -m py_compile` also passed. `pytest` could not be run on this machine because the module is not installed. |
+DECISION: Keep the live 4K witness run active and do not launch any additional
+remote job during this audit. The pipeline itself is healthy enough to
+continue, but the sanctioned experiment-log surface needed a real wrapper fix,
+which is now applied prospectively.
+NEXT: Wait for the terminal transition of `dftr-1784429664-02939bdc`. On
+completion, validate the witness manifest/artifacts and launch the 64-step H100
+MMD timing smoke only if the witness is complete and non-empty.
