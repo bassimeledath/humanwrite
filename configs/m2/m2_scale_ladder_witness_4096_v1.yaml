@@ -1,0 +1,57 @@
+artifact_schema: dftr.m2.scale_ladder_baseline_witness.v1
+run:
+  comparison_id: M2-scale-ladder-witness-4096-v1
+  arm: SFT-baseline-witness-4096
+  budget_class: screen
+  task_kind: experiment
+  command:
+  - python
+  - -m
+  - experiments.runner
+  seed: 41001
+compute:
+  gpu: L40S
+  gpus: 1
+  timeout_min: 90
+model:
+  base: Qwen/Qwen3-4B
+  revision: 1cfa9a7208912126459214e8b04321603b3df60c
+  torch_dtype: bfloat16
+initial_adapter:
+  path: /checkpoints/runs/dftr-1784216516-91130dd3/seed-11
+  adapter_model_sha256: b7b590ca0d40b8b51951d44beb2e7928fccabbd6a2a7290f47e927da0fb81178
+  adapter_config_sha256: 9a72a9527c48cc2acf703f40047f1a6dec59e92fdc7021d59523ba5ed6fb965c
+  file_manifest_sha256: bd9843c196f6685c3e3c83f829726b09e3c87188d07ccbe66613616cd032d643
+data:
+  briefs_path: /checkpoints/data/m2-scale-ladder-v1/train-briefs-4096-token-normalized-v1.jsonl
+  briefs_sha256: 723ebf559a4139c49454f5898a0e51120cdf424bd3cd12e39466c6758d25217b
+  expected_documents: 4096
+  output_dir: /checkpoints/data/m2-scale-ladder-v1/witness-4096-v1
+  prompt_format: 'USER:
+
+    {brief}
+
+    ASSISTANT:'
+  prompt_schema_version: dft.full-brief.tokens.v1
+  prompt_serializer_sha256: 1f92174518dfac375abbbbcf4ceba0659b726cabb215e0561a9fbffc4036b4a1
+  generation_batch_size: 8
+  prompt_max_length: 1024
+generation:
+  sampling_distribution: raw_policy_categorical.v1
+  temperature: 1.0
+  top_p: 1.0
+  top_k: 0
+  max_new_tokens: 128
+  stop_on_eos: true
+  post_eos_behavior: pad_and_mask
+  teacher_forced_eos: append_if_absent_after_truncation
+runtime:
+  torch_version: 2.13.0+cu130
+  transformers_version: 4.57.6
+  peft_version: 0.19.1
+  deterministic_algorithms: true
+  cublas_workspace_config: :4096:8
+workflow:
+  protocol_version: dftr.m2.scale_ladder_baseline_witness.v1
+  step: generate_scale_ladder_witness
+  witness_contract_sha256: 7e36cc95ab3b0bbd4ddf34d75685bbbb6728086fbef21742d6750d858f7b8178
