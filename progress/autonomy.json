@@ -1,7 +1,7 @@
 {
   "schema": "humanwrite.autonomy_control.v1",
   "enabled": true,
-  "generation": 54,
+  "generation": 55,
   "objective": "Run the preregistered M3 rewriting-first Qwen3-14B program autonomously through the 128-record task-construction smoke, matched 4K screen, gated 16K confirmation, and optional 46K extension only if the frozen 16K promotion gate passes. Diagnose and repair recoverable implementation or infrastructure failures without routine user sign-off. Stay within the existing $100 API and $100 GPU caps; do not launch Tier 3 detectors or raise either cap.",
   "poll_interval_seconds": 600,
   "max_codex_wakes_per_24h": 16,
@@ -22,7 +22,7 @@
       "purpose": "Generate four pinned Qwen3-14B baseline-draft candidates for each of the 819 frozen baseline-rewrite identities. If the 120-minute job ends partial, relaunch the exact same config against the resumable output. At 819, bind the terminal candidate SHA and launch Qwen3-32B verification."
     },
     {
-      "run_id": "dftr-1784473892-aa118338",
+      "run_id": "dftr-1784474462-ef661c68",
       "comparison": "M3-rewriting-14b-fresh-eval-inputs-v1",
       "progress_target": 224,
       "progress_milestones": [0.5, 0.75],
