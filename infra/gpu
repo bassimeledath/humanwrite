@@ -349,7 +349,7 @@ def _validate_submit(config: dict, budget_class: str) -> tuple[str, dict]:
         command = run.get("command", ["python", "-m", "experiments.runner"])
         if not isinstance(command, list) or command[:3] != ["python", "-m", "experiments.runner"]:
             _die("run.command must begin with: python -m experiments.runner")
-    elif task_kind in {"brief_synthesis", "document_cleaning"}:
+    elif task_kind in {"brief_synthesis", "document_cleaning", "rewrite_synthesis"}:
         api_cap = float((config.get("api") or {}).get("max_cost_usd", 0.0))
         if api_cap <= 0 or api_cap > 100:
             _die(f"{task_kind} requires 0 < api.max_cost_usd <= 100")
@@ -365,6 +365,16 @@ def _validate_submit(config: dict, budget_class: str) -> tuple[str, dict]:
                 _die("document_cleaning requires qwen/qwen3-32b")
             if data.get("input_uri") == data.get("output_uri"):
                 _die("document_cleaning input and output must be distinct")
+        elif task_kind == "rewrite_synthesis":
+            if api.get("protocol") != "humanwrite.m3.rewrite_tasks.v1":
+                _die("rewrite_synthesis requires the frozen M3 protocol")
+            if data.get("input_uri") == data.get("output_uri"):
+                _die("rewrite_synthesis input and output must be distinct")
+            maximum = int(data.get("max_records", 0))
+            if maximum not in {128, 4096, 16384, 46080}:
+                _die("rewrite_synthesis corpus must use a preregistered scale")
+            if int(data.get("target_records", 0)) != maximum * 3 // 4:
+                _die("rewrite_synthesis target must be exactly 75 percent")
         elif api.get("protocol") == LOWER_VARIANCE_BRIEF_PROTOCOL:
             if (
                 api.get("metadata_model") != "qwen/qwen3-32b"

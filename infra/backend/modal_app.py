@@ -65,6 +65,7 @@ LOWER_VARIANCE_BRIEF_PROTOCOL = "dftr.lower_variance_briefs.two_provider.v1"
 LOWER_VARIANCE_OUTLINE_MODEL = "openai/gpt-5-mini"
 LOWER_VARIANCE_BRIEF_CONCURRENCY = 8
 DOCUMENT_CLEANING_CONCURRENCY = 128
+M3_REWRITE_TASK_PROTOCOL = "humanwrite.m3.rewrite_tasks.v1"
 
 state_volume = modal.Volume.from_name("humanwrite-gateway-state", create_if_missing=True)
 checkpoint_volume = modal.Volume.from_name("humanwrite-checkpoints", create_if_missing=True)
@@ -944,6 +945,253 @@ def lower_variance_brief_synthesis_worker(run_id: str, payload: dict) -> dict:
     retries=0,
     single_use_containers=True,
 )
+def rewrite_synthesis_worker(run_id: str, payload: dict) -> dict:
+    """Construct cross-provider-verified M3 rewriting tasks."""
+    import requests
+    from transformers import AutoTokenizer
+    from data.rewrite_tasks import (
+        PROTOCOL,
+        assemble_rewrite_task,
+        deterministic_assignment,
+        generator_prompt,
+        generator_response_schema,
+        rewrite_source_records,
+        validate_rewrite_task,
+        verifier_prompt,
+        verifier_response_schema,
+    )
+
+    config = payload["config"]
+    data = config["data"]
+    api = config["api"]
+    tokenizer_config = config["tokenizer"]
+    input_path = _volume_path(str(data["input_uri"]))
+    output_path = _volume_path(str(data["output_uri"]))
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    cost_cap = float(payload["api_reserved_cost_usd"])
+    spent = 0.0
+    reported = 0.0
+    processed = 0
+    failed = 0
+    status = "failed"
+    log_path = Path("/state/logs") / f"{run_id}.log"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+
+    def provider_json(
+        *, model: str, prompt: str, schema_name: str, schema: dict, max_tokens: int
+    ) -> tuple[dict, float]:
+        response = requests.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {os.environ['OPENROUTER_API_KEY']}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://github.com/bassimeledath/humanwrite",
+                "X-OpenRouter-Title": "Humanwrite M3 rewrite task construction",
+            },
+            json={
+                "model": model,
+                "messages": [{"role": "user", "content": prompt}],
+                "response_format": _json_schema_response_format(schema_name, schema),
+                "reasoning": {"effort": "minimal", "exclude": True},
+                "max_completion_tokens": max_tokens,
+            },
+            timeout=240,
+        )
+        response.raise_for_status()
+        body = response.json()
+        usage_cost = (body.get("usage") or {}).get("cost")
+        if usage_cost is None:
+            raise RuntimeError("OpenRouter response omitted usage.cost")
+        choice = body["choices"][0]
+        if choice.get("finish_reason") != "stop":
+            raise RuntimeError(f"provider finish_reason={choice.get('finish_reason')}")
+        content = choice["message"].get("content")
+        if not isinstance(content, str):
+            raise TypeError("provider message content was not a string")
+        content = content.strip()
+        if content.startswith("```"):
+            content = content.split("\n", 1)[1].rsplit("```", 1)[0]
+        value = json.loads(content)
+        if not isinstance(value, dict):
+            raise TypeError("provider response was not a JSON object")
+        return value, float(usage_cost)
+
+    try:
+        if api["protocol"] != PROTOCOL or PROTOCOL != M3_REWRITE_TASK_PROTOCOL:
+            raise ValueError("M3 rewrite-task protocol mismatch")
+        checkpoint_volume.reload()
+        if not input_path.is_file() or _file_sha256(input_path) != data["input_sha256"]:
+            raise ValueError("M3 rewrite-task input hash mismatch")
+        all_records = [
+            json.loads(line)
+            for line in input_path.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ][: int(data["max_records"])]
+        if len(all_records) != int(data["max_records"]):
+            raise ValueError("M3 rewrite-task input cardinality mismatch")
+        records = rewrite_source_records(all_records)
+        if len(records) != int(data["target_records"]):
+            raise ValueError("M3 rewrite-task target cardinality mismatch")
+        source_index = {str(row["fingerprint"]): row for row in records}
+        if len(source_index) != len(records):
+            raise ValueError("M3 rewrite-task sources require unique fingerprints")
+
+        tokenizer = AutoTokenizer.from_pretrained(
+            tokenizer_config["model"],
+            revision=tokenizer_config["revision"],
+            token=os.environ.get("HF_TOKEN"),
+            cache_dir="/checkpoints/hf-cache",
+            trust_remote_code=True,
+        )
+
+        def token_counter(text: str) -> int:
+            return len(tokenizer.encode(text, add_special_tokens=False))
+
+        completed: set[str] = set()
+        if output_path.exists():
+            for raw in output_path.read_text(encoding="utf-8").splitlines():
+                if not raw.strip():
+                    continue
+                row = json.loads(raw)
+                fingerprint = str(row.get("fingerprint") or "")
+                if fingerprint in completed or fingerprint not in source_index:
+                    raise ValueError("existing M3 rewrite output has invalid identity")
+                validate_rewrite_task(
+                    row,
+                    source=source_index[fingerprint],
+                    token_counter=token_counter,
+                    semantic_similarity_min=float(api["semantic_similarity_min"]),
+                )
+                completed.add(fingerprint)
+
+        def synthesize_one(source: dict) -> tuple[dict | None, Exception | None, float]:
+            assignment = deterministic_assignment(str(source["fingerprint"]))
+            record_spent = 0.0
+            last_error: Exception | None = None
+            for attempt in range(1, int(api["max_attempts"]) + 1):
+                try:
+                    generated, generation_cost = provider_json(
+                        model=assignment["generator_model"],
+                        prompt=generator_prompt(source, assignment),
+                        schema_name="m3_rewrite_source",
+                        schema=generator_response_schema(),
+                        max_tokens=2500,
+                    )
+                    record_spent += generation_cost
+                    generated["generation_attempt"] = attempt
+                    verified, verification_cost = provider_json(
+                        model=assignment["verifier_model"],
+                        prompt=verifier_prompt(source, generated),
+                        schema_name="m3_rewrite_verification",
+                        schema=verifier_response_schema(),
+                        max_tokens=1400,
+                    )
+                    record_spent += verification_cost
+                    return (
+                        assemble_rewrite_task(
+                            source=source,
+                            generated=generated,
+                            verified=verified,
+                            assignment=assignment,
+                            token_counter=token_counter,
+                            semantic_similarity_min=float(api["semantic_similarity_min"]),
+                        ),
+                        None,
+                        record_spent,
+                    )
+                except Exception as exc:
+                    last_error = exc
+            return None, last_error, record_spent
+
+        pending = [record for record in records if str(record["fingerprint"]) not in completed]
+        with (
+            output_path.open("a", encoding="utf-8") as sink,
+            ThreadPoolExecutor(max_workers=int(api["concurrency"])) as pool,
+        ):
+            source_iterator = iter(pending)
+            futures = {}
+            for _ in range(int(api["concurrency"])):
+                source = next(source_iterator, None)
+                if source is None:
+                    break
+                futures[pool.submit(synthesize_one, source)] = source
+            while futures:
+                done, _ = wait(futures, return_when=FIRST_COMPLETED)
+                for future in done:
+                    source = futures.pop(future)
+                    emitted, last_error, record_spent = future.result()
+                    fingerprint = str(source["fingerprint"])
+                    spent += record_spent
+                    if emitted is None:
+                        failed += 1
+                        detail = re.sub(r"\s+", " ", str(last_error or "unknown"))[:240]
+                        with log_path.open("a", encoding="utf-8") as logs:
+                            logs.write(
+                                f"record failure id={fingerprint} "
+                                f"error={type(last_error).__name__} detail={detail}\n"
+                            )
+                    else:
+                        sink.write(json.dumps(emitted, ensure_ascii=False, sort_keys=True) + "\n")
+                        sink.flush()
+                        completed.add(fingerprint)
+                        processed += 1
+                    if spent < cost_cap:
+                        next_source = next(source_iterator, None)
+                        if next_source is not None:
+                            futures[pool.submit(synthesize_one, next_source)] = next_source
+                checkpoint_volume.commit()
+                if processed and (processed % 16 == 0 or spent - reported >= 0.02):
+                    _record({
+                        "kind": "api_cost",
+                        "run_id": run_id,
+                        "cost_usd": round(spent - reported, 6),
+                    })
+                    reported = spent
+                    with log_path.open("a", encoding="utf-8") as logs:
+                        logs.write(
+                            f"processed={processed} total_completed={len(completed)} "
+                            f"api_cost_usd={spent:.6f} concurrency={api['concurrency']}\n"
+                        )
+        checkpoint_volume.commit()
+        status = "completed" if len(completed) == len(records) and not failed else "failed"
+    except Exception as exc:
+        with log_path.open("a", encoding="utf-8") as logs:
+            logs.write(f"M3 rewrite synthesis failure: {type(exc).__name__}: {exc}\n")
+    finally:
+        if spent > reported:
+            _record({
+                "kind": "api_cost",
+                "run_id": run_id,
+                "cost_usd": round(spent - reported, 6),
+            })
+        _record({
+            "kind": "run_update",
+            "run_id": run_id,
+            "status": status,
+            "finished_at": time.time(),
+            "actual_api_cost_usd": round(spent, 6),
+            "records_processed": processed,
+            "records_failed": failed,
+            "output_uri": str(data["output_uri"]),
+            **_volume_artifact(str(data["output_uri"]), output_path, sha_key="output_sha256"),
+        })
+    return {
+        "run_id": run_id,
+        "status": status,
+        "records_processed": processed,
+        "records_failed": failed,
+        "actual_api_cost_usd": round(spent, 6),
+    }
+
+
+@app.function(
+    image=worker_image,
+    secrets=[provider_secret],
+    volumes={"/state": state_volume, CHECKPOINT_PATH: checkpoint_volume},
+    timeout=8 * 60 * 60,
+    retries=0,
+    single_use_containers=True,
+)
 def brief_synthesis_worker(run_id: str, payload: dict) -> dict:
     """Privileged fixed-code brief synthesis; never executes repository code."""
     import requests
@@ -1398,6 +1646,10 @@ def gateway():
                 ).spawn(run_id, worker_payload)
             elif policy.task_kind == "document_cleaning":
                 call = document_cleaning_worker.with_options(
+                    timeout=policy.timeout_seconds + 120,
+                ).spawn(run_id, worker_payload)
+            elif policy.task_kind == "rewrite_synthesis":
+                call = rewrite_synthesis_worker.with_options(
                     timeout=policy.timeout_seconds + 120,
                 ).spawn(run_id, worker_payload)
             elif policy.task_kind == "source_materialization":

@@ -8,6 +8,9 @@ import yaml
 
 from backend.policy import (
     LOWER_VARIANCE_BRIEF_PROTOCOL,
+    M3_REWRITE_GENERATOR_MODELS,
+    M3_REWRITE_TASK_PROTOCOL,
+    M3_REWRITE_VERIFIER_BY_GENERATOR,
     PolicyError,
     REPLAY_GENERATION_CONTRACT_PATH,
     REPLAY_GENERATION_CONTRACT_SHA256,
@@ -387,6 +390,58 @@ def test_document_cleaning_is_qwen32b_only_and_volume_scoped():
     value["config"]["api"]["model"] = "openai/gpt-5-mini"
     value["config_hash"] = canonical_hash(value["config"])
     with pytest.raises(PolicyError, match="qwen/qwen3-32b"):
+        validate_launch(value)
+
+
+def test_m3_rewrite_synthesis_is_cross_provider_hash_bound_and_budgeted():
+    value = payload()
+    value["budget_class"] = "promo"
+    value["config"] = {
+        "run": {
+            "comparison_id": "M3-rewrite-tasks-4k-v1",
+            "budget_class": "promo",
+            "task_kind": "rewrite_synthesis",
+        },
+        "compute": {"gpus": 1, "timeout_min": 480},
+        "data": {
+            "input_uri": "modal-volume://humanwrite-checkpoints/data/m3/briefs-4096.jsonl",
+            "output_uri": "modal-volume://humanwrite-checkpoints/data/m3/rewrite-3072.jsonl",
+            "input_sha256": "a" * 64,
+            "max_records": 4096,
+            "target_records": 3072,
+        },
+        "api": {
+            "protocol": M3_REWRITE_TASK_PROTOCOL,
+            "generator_models": M3_REWRITE_GENERATOR_MODELS,
+            "verifier_by_generator": M3_REWRITE_VERIFIER_BY_GENERATOR,
+            "max_cost_usd": 25.0,
+            "max_attempts": 4,
+            "semantic_similarity_min": 0.90,
+            "concurrency": 16,
+        },
+        "tokenizer": {
+            "model": "Qwen/Qwen3-14B",
+            "revision": "40c069824f4251a91eefaf281ebe4c544efd3e18",
+        },
+    }
+    value["preregistration"]["comparison"] = "M3-rewrite-tasks-4k-v1"
+    value["config_hash"] = canonical_hash(value["config"])
+    policy = validate_launch(value)
+    assert policy.task_kind == "rewrite_synthesis"
+    assert policy.worst_case_cost_usd == 0.0
+    assert policy.api_reserved_cost_usd == 25.0
+
+    value["config"]["data"]["target_records"] = 3071
+    value["config_hash"] = canonical_hash(value["config"])
+    with pytest.raises(PolicyError, match="75-percent"):
+        validate_launch(value)
+
+    value["config"]["data"]["target_records"] = 3072
+    value["config"]["api"]["verifier_by_generator"] = {
+        model: model for model in M3_REWRITE_GENERATOR_MODELS
+    }
+    value["config_hash"] = canonical_hash(value["config"])
+    with pytest.raises(PolicyError, match="provider contract"):
         validate_launch(value)
 
 

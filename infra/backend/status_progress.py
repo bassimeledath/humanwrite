@@ -5,7 +5,11 @@ import re
 from typing import Any, Mapping
 
 
-API_PROGRESS_TASK_KINDS = {"brief_synthesis", "document_cleaning"}
+API_PROGRESS_TASK_KINDS = {
+    "brief_synthesis",
+    "document_cleaning",
+    "rewrite_synthesis",
+}
 _PROGRESS_RE = re.compile(
     r"processed=(?P<processed>\d+)"
     r"(?: total_completed=(?P<total_completed>\d+))?"
@@ -25,7 +29,7 @@ def running_api_progress(log_path: Path) -> dict[str, Any]:
             failed += 1
         match = _PROGRESS_RE.search(line)
         if match:
-            processed = int(match.group("processed"))
+            processed = int(match.group("total_completed") or match.group("processed"))
             spent = round(float(match.group("api_cost_usd")), 6)
     progress: dict[str, Any] = {}
     if processed is not None:

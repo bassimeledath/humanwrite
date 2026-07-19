@@ -13,8 +13,8 @@ Modal jobs and bounded Codex continuation turns.
   unattended Codex CLI rejects GPT-5.6; interactive research model selection
   is unaffected.
 - A persisted transition signature prevents repeated invocations.
-- At most eight Codex continuations may start in any rolling 24-hour period
-  while the bounded 4K/16K ladder is active.
+- At most the control-file limit of Codex continuations may start in any
+  rolling 24-hour period while the bounded M3 14B ladder is active.
 - Each continuation must replace the monitored run list and increment the
   generation in `progress/autonomy.json` before exiting.
 - Tier 3 detectors remain human-triggered and are outside this coordinator.

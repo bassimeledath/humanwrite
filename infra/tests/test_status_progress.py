@@ -63,3 +63,15 @@ def test_enrich_running_api_state_only_mutates_running_api_tasks(tmp_path: Path)
 
     experiment = {"run_id": "dftr-test", "status": "running", "task_kind": "experiment"}
     assert enrich_running_api_state(experiment, log_path) == experiment
+
+
+def test_enrich_running_rewrite_synthesis_state(tmp_path: Path):
+    log_path = tmp_path / "rewrite.log"
+    log_path.write_text(
+        "processed=12 total_completed=108 api_cost_usd=1.250000 concurrency=16\n",
+        encoding="utf-8",
+    )
+    state = {"status": "running", "task_kind": "rewrite_synthesis"}
+    enriched = enrich_running_api_state(state, log_path)
+    assert enriched["records_processed"] == 108
+    assert enriched["actual_api_cost_usd"] == 1.25

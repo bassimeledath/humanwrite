@@ -177,9 +177,9 @@ def _continuation_prompt(
     }
     return f"""Continue the Humanwrite research pipeline autonomously.
 
-Core objective: obtain a model that demonstrably writes more like a human than its matched SFT control, or reach a defensible negative conclusion about the current method family.
+Core objective: obtain a Qwen3-14B model that rewrites AI-styled prose more humanly than its matched rewrite-SFT control while preserving facts, or reach a defensible negative conclusion under the frozen M3 protocol.
 
-Read CLAUDE.md, RESEARCH_CONTEXT.md, progress/autonomy.json, progress/status.json, FINDINGS.md, and recent git history. The user explicitly waived intermediate milestone sign-offs for this bounded cycle and authorized the preregistered 4K/16K data-scale ladder, but not the gated 46K cell. Tier 3 detectors remain human-triggered only. Respect the existing $100 Modal and $100 API caps.
+Read CLAUDE.md, RESEARCH_CONTEXT.md, research_reviews/m3_rewriting_14b_preregistration_2026-07-19.md, progress/autonomy.json, progress/status.json, FINDINGS.md, and recent git history. The user explicitly waived routine intermediate sign-offs and authorized the complete gate-controlled 4K/16K/46K M3 cycle using Qwen3-14B, subject to the frozen scientific gates and the existing $100 Modal plus $100 API caps. The 46K stage is authorized only if the 16K gate passes. Tier 3 detectors remain human-triggered only; budgets may never be raised automatically.
 
 The deterministic coordinator observed this run state transition:
 {json.dumps(compact_status, indent=2, sort_keys=True)}
@@ -190,7 +190,7 @@ completed job whose artifacts have not been validated. It is a real safety
 review, not a request to poll repeatedly or manufacture work when the pipeline
 is healthy.
 
-Do meaningful next work now: validate completed artifacts, repair recoverable failures, implement any missing fixed pipeline step, and launch the next safe asynchronous jobs when ready. Do not sleep, idle-poll, or repeatedly check unchanged jobs. Preserve prospective controls and never weaken quality gates merely to advance.
+Do meaningful next work now: validate completed artifacts, repair recoverable infrastructure failures, implement any missing fixed pipeline step, and launch the next already-authorized asynchronous job when ready. Do not sleep, idle-poll, or repeatedly check unchanged jobs. Preserve prospective controls, require matched SFT14/HUMANWRITE14 exposure, and never weaken data-quality, content-preservation, evaluation, or spend gates merely to advance.
 
 Before exiting, update progress/status.json and progress/autonomy.json. Increment autonomy generation by exactly one and set monitored_runs to only the asynchronous run IDs whose transition should wake the next continuation. If no remote job is active but local work remains, complete that work during this invocation. If the core scientific answer is complete or genuinely requires user authority, set enabled=false and state the reason. Commit and push coherent changes.
 """

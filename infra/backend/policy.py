@@ -17,6 +17,14 @@ MONTHLY_API_CAP_USD = 100.0
 LOWER_VARIANCE_BRIEF_PROTOCOL = "dftr.lower_variance_briefs.two_provider.v1"
 LOWER_VARIANCE_METADATA_MODEL = "qwen/qwen3-32b"
 LOWER_VARIANCE_OUTLINE_MODEL = "openai/gpt-5-mini"
+M3_REWRITE_TASK_PROTOCOL = "humanwrite.m3.rewrite_tasks.v1"
+M3_REWRITE_GENERATOR_MODELS = ["qwen/qwen3-32b", "openai/gpt-5-mini"]
+M3_REWRITE_VERIFIER_BY_GENERATOR = {
+    "qwen/qwen3-32b": "openai/gpt-5-mini",
+    "openai/gpt-5-mini": "qwen/qwen3-32b",
+}
+QWEN3_14B_MODEL = "Qwen/Qwen3-14B"
+QWEN3_14B_REVISION = "40c069824f4251a91eefaf281ebe4c544efd3e18"
 LOWER_VARIANCE_TRAIN_PROTOCOL = "dftr.m2.lower_variance_three_arm.v1"
 LOWER_VARIANCE_CONFIRMATION_PROTOCOL = "dftr.m2.lower_variance_confirmation.v2"
 LOWER_VARIANCE_TRAIN_PROTOCOLS = {
@@ -647,7 +655,13 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
     if timeout_seconds <= 0 or timeout_seconds > BUDGET_CLASSES[budget_class]["max_seconds"]:
         raise PolicyError("requested timeout exceeds budget class")
     task_kind = str(run.get("task_kind", "experiment"))
-    if task_kind not in {"experiment", "brief_synthesis", "document_cleaning", "source_materialization"}:
+    if task_kind not in {
+        "experiment",
+        "brief_synthesis",
+        "document_cleaning",
+        "rewrite_synthesis",
+        "source_materialization",
+    }:
         raise PolicyError("unsupported task_kind")
     gpu = str(compute.get("gpu", "L40S")).upper() if task_kind == "experiment" else "CPU"
     if task_kind == "experiment" and gpu not in GPU_USD_PER_SECOND:
@@ -970,6 +984,70 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
         if api_reserved <= 0 or api_reserved > MONTHLY_API_CAP_USD:
             raise PolicyError("document_cleaning requires api.max_cost_usd within the monthly cap")
         worst = 0.0
+    elif task_kind == "rewrite_synthesis":
+        data = config.get("data") or {}
+        api = config.get("api") or {}
+        tokenizer = config.get("tokenizer") or {}
+        if set(config) != {"run", "compute", "data", "api", "tokenizer"}:
+            raise PolicyError("rewrite_synthesis exact schema mismatch")
+        if set(data) != {
+            "input_uri",
+            "output_uri",
+            "input_sha256",
+            "max_records",
+            "target_records",
+        }:
+            raise PolicyError("rewrite_synthesis data schema mismatch")
+        if set(api) != {
+            "protocol",
+            "generator_models",
+            "verifier_by_generator",
+            "max_cost_usd",
+            "max_attempts",
+            "semantic_similarity_min",
+            "concurrency",
+        }:
+            raise PolicyError("rewrite_synthesis API schema mismatch")
+        if set(tokenizer) != {"model", "revision"}:
+            raise PolicyError("rewrite_synthesis tokenizer schema mismatch")
+        if any(
+            not str(data.get(field) or "").startswith(
+                "modal-volume://humanwrite-checkpoints/"
+            )
+            for field in ("input_uri", "output_uri")
+        ) or data.get("input_uri") == data.get("output_uri"):
+            raise PolicyError("rewrite_synthesis requires distinct checkpoint-volume paths")
+        if not re.fullmatch(r"[0-9a-f]{64}", str(data.get("input_sha256") or "")):
+            raise PolicyError("rewrite_synthesis requires lowercase data.input_sha256")
+        max_records = data.get("max_records")
+        target_records = data.get("target_records")
+        if (
+            not isinstance(max_records, int)
+            or isinstance(max_records, bool)
+            or max_records not in {128, 4096, 16384, 46080}
+            or target_records != (max_records * 3) // 4
+        ):
+            raise PolicyError("rewrite_synthesis requires a frozen 75-percent scale")
+        if (
+            api.get("protocol") != M3_REWRITE_TASK_PROTOCOL
+            or api.get("generator_models") != M3_REWRITE_GENERATOR_MODELS
+            or api.get("verifier_by_generator") != M3_REWRITE_VERIFIER_BY_GENERATOR
+            or api.get("max_attempts") != 4
+            or api.get("semantic_similarity_min") != 0.90
+            or api.get("concurrency") != 16
+        ):
+            raise PolicyError("rewrite_synthesis frozen provider contract mismatch")
+        if tokenizer != {
+            "model": QWEN3_14B_MODEL,
+            "revision": QWEN3_14B_REVISION,
+        }:
+            raise PolicyError("rewrite_synthesis requires the pinned Qwen3-14B tokenizer")
+        if budget_class != "promo":
+            raise PolicyError("rewrite_synthesis requires promo budget")
+        api_reserved = float(api.get("max_cost_usd") or 0.0)
+        if api_reserved <= 0 or api_reserved > 40.0:
+            raise PolicyError("rewrite_synthesis API reservation must be within (0, 40]")
+        worst = 0.0
     else:
         source = config.get("source") or {}
         data = config.get("data") or {}
@@ -1071,7 +1149,11 @@ def budget_snapshot(events: list[dict[str, Any]], month: str | None = None) -> d
         if str(launch.get("billing_month") or utc_month(float(launch.get("ts", 0)))) != month:
             continue
         state = run_snapshot(events, run_id) or {}
-        if state.get("task_kind") not in {"brief_synthesis", "document_cleaning"}:
+        if state.get("task_kind") not in {
+            "brief_synthesis",
+            "document_cleaning",
+            "rewrite_synthesis",
+        }:
             continue
         if state.get("status") not in TERMINAL:
             already_reported = sum(
