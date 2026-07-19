@@ -391,7 +391,7 @@ def _validate_submit(config: dict, budget_class: str) -> tuple[str, dict]:
             protocol = api.get("protocol")
             if protocol not in {
                 "humanwrite.m3.rewrite_tasks.v1",
-                "humanwrite.m3.scientific_api_rewrites.v1",
+                "humanwrite.m3.scientific_api_rewrites.v2",
                 "humanwrite.m3.baseline_draft_verification.v1",
                 "humanwrite.m3.eval_rewrite_inputs.v1",
             }:
@@ -414,7 +414,7 @@ def _validate_submit(config: dict, budget_class: str) -> tuple[str, dict]:
                     _die("rewrite_synthesis corpus must use a preregistered scale")
                 expected_target = (
                     maximum // 2
-                    if protocol == "humanwrite.m3.scientific_api_rewrites.v1"
+                    if protocol == "humanwrite.m3.scientific_api_rewrites.v2"
                     else maximum * 3 // 4
                 )
             if int(data.get("target_records", 0)) != expected_target:

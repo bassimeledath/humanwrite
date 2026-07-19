@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-19T14:37:44Z",
+  "updated_at": "2026-07-19T14:43:07Z",
   "phase": "M3 — rewriting-first Qwen3-14B program",
-  "headline": "4K rewrite construction, base-draft generation, and fresh eval cleaning run concurrently",
-  "summary": "The 14B smoke gate remains fully passed. At 07:37 PDT the three concurrent constructors were healthy: scientific API rewrites had logged 552 accepted toward 2,048, base-Qwen generation had checkpointed 115 of 819 four-candidate records, and fresh Qwen3-32B evaluation cleaning had logged 502 accepted toward 640. The evaluation stage is fully specified before candidate outputs exist: 1,024 blinded Claude/Gemini human-style and overall-quality comparisons plus 1,024 separate arm-specific semantic fact-preservation checks, all resumable and SHA-bound. Focused policy/evaluator tests pass 68/68. No scientific quality result exists yet; these jobs are constructing the data needed for matched training and a fresh test.",
+  "headline": "Silent no-op rewrite defect caught before training; versioned repair prepared while healthy jobs continue",
+  "summary": "The 14B smoke gate remains fully passed. A live construct audit found that 231/537 accepted multi-provider inputs were identical to their human targets after whitespace normalization, which would have silently diluted the rewriting signal. The defective constructor was stopped before corpus assembly or training; its artifact is excluded. Version 2 now requires genuine surface divergence while preserving all factual and provider-verification gates and writes to a new URI. Independent base-Qwen generation remains healthy at 132/819, and fresh evaluation cleaning is healthy at 579/640. The 2,048-check quality-plus-fact evaluator remains frozen and tested. No scientific quality result exists yet.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 100,
@@ -26,6 +26,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "07:43",
+      "title": "Whitespace-only rewrite defect stopped before training",
+      "detail": "A direct audit of 615 accepted API rows found 231/537 multi-provider inputs normalized-identical to the human target; median normalized character similarity was 0.99893. This violated the intended AI-paraphrase construct even though byte nonidentity and factual verification passed. The run was stopped and its artifact barred from training. A versioned protocol and new output URI now reject normalized identity and multi-provider surface similarity >=0.95, while leaving semantic >=0.90, factual, literal, length, language, provider-balance, and Qwen-verification gates intact. Base-Qwen drafts remained healthy at 132/819; evaluation cleaning reached 579/640.",
+      "tone": "active"
+    },
     {
       "at": "07:37",
       "title": "Semantic fact-preservation gate added before outputs exist",

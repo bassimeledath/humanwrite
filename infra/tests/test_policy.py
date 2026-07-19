@@ -462,7 +462,7 @@ def test_m3_scientific_rewrite_synthesis_accepts_exact_half_api_stratum():
             "target_records": 2048,
         },
         "api": {
-            "protocol": "humanwrite.m3.scientific_api_rewrites.v1",
+            "protocol": "humanwrite.m3.scientific_api_rewrites.v2",
             "generator_models": [
                 "google/gemini-3.1-flash-lite",
                 "anthropic/claude-haiku-4.5",
@@ -512,7 +512,7 @@ def test_m3_scientific_rewrite_synthesis_rejects_75_percent_target():
             "target_records": 3072,
         },
         "api": {
-            "protocol": "humanwrite.m3.scientific_api_rewrites.v1",
+            "protocol": "humanwrite.m3.scientific_api_rewrites.v2",
             "generator_models": [
                 "google/gemini-3.1-flash-lite",
                 "anthropic/claude-haiku-4.5",

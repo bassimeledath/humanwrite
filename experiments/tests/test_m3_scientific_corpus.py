@@ -47,7 +47,12 @@ def accepted_rewrite(
 ) -> dict:
     assignment = assignment or scientific_assignment(item, origin)
     target = item["completion"]
-    input_text = target.replace("explains", "provides an explanation of", 1)
+    sentences = target.split(". ")
+    input_text = (
+        ". ".join((sentences[1], sentences[2], sentences[0]))
+        if origin == "multi_provider_ai"
+        else target.replace("explains", "provides an explanation of", 1)
+    )
     verification = {
         "same_language": True,
         "all_target_facts_supported_by_source": True,
@@ -111,6 +116,17 @@ def test_scientific_rewrite_rejects_identity_and_provider_drift() -> None:
     with pytest.raises(M3ScientificCorpusError, match="non-noop"):
         validate_scientific_rewrite(
             identical, source=item, origin="multi_provider_ai", token_counter=token_counter
+        )
+    whitespace_only = row | {
+        "input_text": item["completion"].replace(". ", ".\n"),
+        "input_length": token_counter(item["completion"]),
+    }
+    with pytest.raises(M3ScientificCorpusError, match="whitespace or casing"):
+        validate_scientific_rewrite(
+            whitespace_only,
+            source=item,
+            origin="multi_provider_ai",
+            token_counter=token_counter,
         )
     drifted = row | {"generator_model": "unexpected/model"}
     with pytest.raises(M3ScientificCorpusError, match="assignment drift"):

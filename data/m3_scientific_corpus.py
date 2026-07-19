@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from difflib import SequenceMatcher
 import hashlib
 import re
 from typing import Any, Callable
@@ -22,7 +23,7 @@ from data.rewrite_tasks import (
 )
 
 
-SCIENTIFIC_REWRITE_PROTOCOL = "humanwrite.m3.scientific_rewrite.v1"
+SCIENTIFIC_REWRITE_PROTOCOL = "humanwrite.m3.scientific_rewrite.v2"
 BASE_MODEL = "Qwen/Qwen3-14B"
 BASE_REVISION = "40c069824f4251a91eefaf281ebe4c544efd3e18"
 API_REWRITE_ORIGINS = {"multi_provider_ai", "controlled_light_edit"}
@@ -152,8 +153,10 @@ def scientific_generator_prompt(
     else:
         mode = (
             "Create a realistic AI-written alternate draft with conventionally polished, somewhat "
-            "formulaic exposition. Change sentence structure, transitions, and unprotected wording "
-            "enough that the result is not byte-identical, while keeping it usable rather than a parody."
+            "formulaic exposition. Substantially recast sentence structure, paragraph flow, transitions, "
+            "and unprotected wording while keeping it usable rather than a parody. The result must not "
+            "be a whitespace-, formatting-, or punctuation-only variant and must not preserve nearly all "
+            "of the target's phrasing."
         )
         instruction = (
             "Rewrite this draft so it reads naturally and distinctly human while preserving every "
@@ -289,6 +292,15 @@ def validate_scientific_rewrite(
     instruction = str(row.get("rewrite_instruction") or "").strip()
     if not target or not input_text or not instruction or input_text == target:
         raise M3ScientificCorpusError("scientific non-noop rewrite text is invalid")
+    normalize = lambda text: re.sub(r"\s+", " ", text).strip().casefold()
+    normalized_target, normalized_input = normalize(target), normalize(input_text)
+    if normalized_input == normalized_target:
+        raise M3ScientificCorpusError("scientific rewrite differs only in whitespace or casing")
+    surface_similarity = SequenceMatcher(
+        None, normalized_input, normalized_target, autojunk=False
+    ).ratio()
+    if origin == "multi_provider_ai" and surface_similarity >= 0.95:
+        raise M3ScientificCorpusError("multi-provider rewrite is too surface-similar to target")
     if "�" in target or "�" in input_text:
         raise M3ScientificCorpusError("replacement character is forbidden")
     if contains_unexpected_non_latin(target) or contains_unexpected_non_latin(input_text):
