@@ -1,14 +1,14 @@
 {
-  "updated_at": "2026-07-19T07:25:11Z",
-  "phase": "M2 — 4B data-scale ladder through 16K",
-  "headline": "4K scoring complete: favorable trend, frozen validity gate stops 16K",
-  "summary": "The missing scorer was implemented, tested, preregistered, and run. MMD-witness improved BGE MMD by 3.6%, Nemotron MMD by 6.0%, token L2 by 4.5%, human-style preference to 54.7%, and overall-quality preference to 51.6%, but none is statistically decisive and 68% of outputs remain identical. The frozen 4K gate returns STOP solely because MMD-witness produced one real Unicode replacement-character defect; SFT also produced one on a different prompt. Automatic 16K launch is therefore disabled pending a decision to retire this ladder or preregister a separate byte-safe decoding experiment on a new panel.",
-  "run_state": "blocked",
+  "updated_at": "2026-07-19T08:20:56Z",
+  "phase": "M3 — rewriting-first Qwen3-14B program",
+  "headline": "14B rewrite task-construction smoke running under autonomous control",
+  "summary": "The rewriting-first Qwen3-14B protocol is frozen and deployed. Its 128-record construction smoke is generating and independently verifying 96 rewrite pairs before any GPU training spend. On success, the event-driven coordinator will validate the artifacts and continue through matched 4K and gated 16K training/evaluation without routine user prompts; a 46K extension is allowed only if the frozen 16K gate passes.",
+  "run_state": "active",
   "budget": {
     "modal_cap_usd": 100,
     "modal_committed_usd": 22.252709,
     "openrouter_cap_usd": 100,
-    "openrouter_spend_usd": 28.483027
+    "openrouter_spend_usd": 31.483027
   },
   "services": [
     {"name": "GPU gateway", "detail": "Constrained launch API", "status": "online"},
@@ -21,11 +21,17 @@
     {"id": "setup", "label": "Setup", "detail": "Harness, sources, storage, and guardrails", "status": "complete"},
     {"id": "M0", "label": "M0", "detail": "Data pipeline and GPU contract smoke test", "status": "complete"},
     {"id": "M1", "label": "M1", "detail": "4B three-seed directional confirmation passed", "status": "complete"},
-    {"id": "M2", "label": "M2", "detail": "Exact A64 recipe rejected; fresh unpaired instrument and estimator audit active", "status": "active"},
-    {"id": "M3", "label": "M3", "detail": "Length curriculum and LoRA staging", "status": "queued"},
+    {"id": "M2", "label": "M2", "detail": "4B reconstruction and 4K lower-variance screen completed; evidence weak and mixed", "status": "complete"},
+    {"id": "M3", "label": "M3", "detail": "Rewriting-first Qwen3-14B task construction, matched training, and fresh evaluation", "status": "active"},
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "01:20",
+      "title": "Autonomous 14B rewriting program armed",
+      "detail": "Commit `90f56dd` froze the rewriting-first Qwen3-14B protocol, implemented cross-provider rewrite-source synthesis and verification, added the constrained gateway worker, and passed 76 focused tests. The deployed 128-record smoke is running as `dftr-1784449129-4005c040`; sanctioned status at 08:20 UTC showed `$0.017771` API cost and no GPU use. The zero-token 10-minute watcher and independent 90-minute safety audit are now enabled for the full bounded M3 cycle.",
+      "tone": "active"
+    },
     {
       "at": "00:25",
       "title": "Decisive 4K score completed",
@@ -631,5 +637,5 @@
     {"at": "17:46", "title": "Storage created", "detail": "Gateway state, checkpoints, sealed state, and sealed artifacts volumes are online.", "tone": "complete"},
     {"at": "17:40", "title": "Engineering checks passed", "detail": "Harness, infrastructure, and private evaluator suites are green.", "tone": "complete"}
   ],
-  "next_action": "Implement and preregister a frozen scale-ladder non-training scoring protocol bound to the validated 128-prompt panel bundle and the completed 4K SFT/MMD generation artifacts. Do not re-enable terminal-driven autonomy until a new async scoring or 16K run is actually launched."
+  "next_action": "Wait for the zero-token watcher to observe terminal state for `dftr-1784449129-4005c040`; then validate the 96 rewrite artifacts, repair any recoverable construction defect, and autonomously advance to the preregistered matched 4K Qwen3-14B screen."
 }
