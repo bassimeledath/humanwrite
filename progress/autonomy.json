@@ -22,7 +22,7 @@
     {
       "run_id": "dftr-1784470455-18ab6597",
       "comparison": "M3-rewriting-14b-fresh-eval-clean-v1",
-      "purpose": "Clean the terminal-SHA-bound 1,200-document source into 640 human references, then launch the exact 224 API-input constructor and assemble the 32 deterministic no-op cases"
+      "purpose": "Clean the terminal-SHA-bound 1,200-document source into 640 human references; this cleaner is the correct wake target now that the source run has completed, after which launch the exact 224 API-input constructor and assemble the 32 deterministic no-op cases"
     }
   ]
 }

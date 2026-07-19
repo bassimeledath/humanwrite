@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-19T14:14:26Z",
+  "updated_at": "2026-07-19T14:15:59Z",
   "phase": "M3 — rewriting-first Qwen3-14B program",
   "headline": "4K rewrite construction, base-draft generation, and fresh eval cleaning run concurrently",
-  "summary": "The 14B smoke gate remains fully passed. Fresh evaluation source run `dftr-1784469891-83dfc7b5` froze 1,200 domain-disjoint documents at SHA `efe80040059f633f3361a1155c1c692972ea7061c74c1ecd81221c28196c0b03`; SHA-bound Qwen3-32B cleaner `dftr-1784470455-18ab6597` is active toward 640 accepted human targets. API rewrite construction `dftr-1784470057-7ab3e04f` and base-Qwen draft construction `dftr-1784470064-bf4ab7d8` continue in parallel. The exact 4K corpus materializer and fresh 256-item evaluation-input/panel pipeline are implemented and tested.",
+  "summary": "The 14B smoke gate remains fully passed. Fresh evaluation source run `dftr-1784469891-83dfc7b5` froze 1,200 domain-disjoint documents at SHA `efe80040059f633f3361a1155c1c692972ea7061c74c1ecd81221c28196c0b03`; SHA-bound Qwen3-32B cleaner `dftr-1784470455-18ab6597` is the correct active successor toward 640 accepted human targets. API rewrite construction `dftr-1784470057-7ab3e04f` continues with validator-driven attrition rather than transport failure, and base-Qwen draft construction `dftr-1784470064-bf4ab7d8` is still in initial 14B shard load. The exact 4K corpus materializer and fresh 256-item evaluation-input/panel pipeline are implemented and tested.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 100,
@@ -26,6 +26,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "07:15",
+      "title": "Scheduled audit retargeted monitoring to the live fresh-eval cleaner",
+      "detail": "The deterministic handoff was scientifically healthy but operationally stale: source run `dftr-1784469891-83dfc7b5` had already completed, and the SHA-bound cleaner `dftr-1784470455-18ab6597` was already launched in the ledger but not reflected in the committed monitor set. Sanctioned status confirmed the cleaner is `running`, the 4K API constructor log shows ordinary acceptance-gate failures rather than a systemic provider bug, and the 14B baseline-draft worker is still in startup shard load. No extra launch was justified.",
+      "tone": "complete"
+    },
     {
       "at": "07:14",
       "title": "Fresh evaluation source frozen; cleaner launched without pausing 4K work",

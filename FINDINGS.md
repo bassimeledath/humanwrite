@@ -3495,3 +3495,38 @@ NEXT: Let the watcher validate terminal run `dftr-1784469584-5ace5380`. If it
 completes with finite loss/gradients and deterministic artifacts, launch the
 already-prepared 4K API rewrite and base-draft constructors, then proceed into
 matched SFT14/HUMANWRITE14 4K training exactly as preregistered.
+
+## [2026-07-19] M3 / fresh-eval-clean-handoff-audit
+HYPOTHESIS: The reported terminal transition should not trigger any new M3
+launch if the fresh public evaluation source already handed off cleanly to its
+SHA-bound cleaner and the remaining active 4K constructors show only ordinary
+validator attrition rather than a recoverable infrastructure defect.
+SETUP: Scheduled 90-minute audit on Sunday, July 19, 2026. Read the frozen
+M3 preregistration, `progress/autonomy.json`, `progress/status.json`,
+`FINDINGS.md`, recent git history, `experiments/m3/materialize_eval_clean_config.py`,
+and the checked-in cleaner config. Queried sanctioned gateway status for
+completed source run `dftr-1784469891-83dfc7b5`, active API rewrite run
+`dftr-1784470057-7ab3e04f`, active baseline-draft run
+`dftr-1784470064-bf4ab7d8`, and active cleaner run
+`dftr-1784470455-18ab6597` using the fixed gateway URL plus macOS Keychain
+token `humanwrite-gateway-token`. Sampled the sanctioned log tails for the
+4K API rewrite constructor, the cleaner, and the baseline-draft generator.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Fresh eval source terminal artifact | PASS | `dftr-1784469891-83dfc7b5` completed with 1,400 records processed, 1,200-document public-pool SHA `efe80040059f633f3361a1155c1c692972ea7061c74c1ecd81221c28196c0b03`, and bound manifest SHA `b1aae96252e42d596f3a6221abebbd9c9114ca0c5e098ef786a774b7d9adbb42`. |
+| SHA-bound cleaner handoff | PASS | The committed cleaner config matches the terminal source SHA and the ledger already launched cleaner `dftr-1784470455-18ab6597` on config hash `61a0dbbe11733c9a28f87cbbaab8b81e9779c32427cf940de1ab062beab4488c`; sanctioned status shows it `running`. |
+| Missed monitor retarget | FAIL / REPAIRED | The prior committed monitor set still watched completed source run `dftr-1784469891-83dfc7b5` instead of its live successor `dftr-1784470455-18ab6597`. This was an autonomy bookkeeping defect, not a scientific or infrastructure failure. |
+| 4K API rewrite constructor health | PASS | Log tail for `dftr-1784470057-7ab3e04f` shows steady progress through at least 144 accepted attempts and `$0.573367` API cost, with failures dominated by preregistered content/verification gates such as `scientific non-noop rewrite text is invalid`, `scientific rewrite verification failed`, and protected-literal mismatches rather than transport/schema errors. |
+| 14B baseline-draft constructor health | PASS | Log tail for `dftr-1784470064-bf4ab7d8` shows normal Qwen3-14B shard loading with no startup failure yet surfaced. |
+| Additional launch need | FAIL | No missing already-authorized async launch remained once the cleaner handoff was validated; launching anything else here would have manufactured work. |
+DECISION: Keep the M3 program active with the monitor set retargeted to the
+three true live runs: `dftr-1784470057-7ab3e04f`,
+`dftr-1784470064-bf4ab7d8`, and `dftr-1784470455-18ab6597`. Do not relaunch
+source materialization or open any new stage until one of those runs reaches a
+terminal state that passes its frozen gate.
+NEXT: On the next terminal transition, validate whichever of the three live
+runs completed. If the fresh cleaner completes successfully, materialize and
+launch the already-preregistered fresh evaluation-input constructor; if either
+4K constructor fails for a concrete infrastructure reason, repair only that
+defect under the unchanged frozen corpus and budget contract.
