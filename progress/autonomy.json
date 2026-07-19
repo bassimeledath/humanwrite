@@ -1,7 +1,7 @@
 {
   "schema": "humanwrite.autonomy_control.v1",
   "enabled": true,
-  "generation": 47,
+  "generation": 48,
   "objective": "Run the preregistered M3 rewriting-first Qwen3-14B program autonomously through the 128-record task-construction smoke, matched 4K screen, gated 16K confirmation, and optional 46K extension only if the frozen 16K promotion gate passes. Diagnose and repair recoverable implementation or infrastructure failures without routine user sign-off. Stay within the existing $100 API and $100 GPU caps; do not launch Tier 3 detectors or raise either cap.",
   "poll_interval_seconds": 600,
   "max_codex_wakes_per_24h": 16,
@@ -20,9 +20,9 @@
       "purpose": "Generate four pinned Qwen3-14B baseline-draft candidates for each of the 819 frozen baseline-rewrite identities, then materialize Qwen verification"
     },
     {
-      "run_id": "dftr-1784469891-83dfc7b5",
-      "comparison": "M3-rewriting-14b-fresh-eval-source-v1",
-      "purpose": "Freeze a source/domain-disjoint 1,200-document raw pool for the fresh 256-item public rewrite evaluation panel, then launch its SHA-bound cleaner"
+      "run_id": "dftr-1784470455-18ab6597",
+      "comparison": "M3-rewriting-14b-fresh-eval-clean-v1",
+      "purpose": "Clean the terminal-SHA-bound 1,200-document source into 640 human references, then launch the exact 224 API-input constructor and assemble the 32 deterministic no-op cases"
     }
   ]
 }
