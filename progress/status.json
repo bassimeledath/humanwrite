@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-19T16:24:00Z",
+  "updated_at": "2026-07-19T16:34:00Z",
   "phase": "M3 — rewriting-first Qwen3-14B program",
-  "headline": "Three constructors are active; exact eval recovery continues from 203/224",
-  "summary": "Tail protocol v2 recovered four additional valid evaluation rewrites for `$0.53` and ended at 203/224; exact append-only rerun `dftr-1784476985-26ac83e5` is retrying only the 21 remaining identities with every gate unchanged. The surface-divergent API corpus is above 668/2,048. Resumable 14B draft run `dftr-1784476668-e05c3c4d` is healthy above 338/819. No scientific quality result exists yet because matched training has not started.",
+  "headline": "Three constructors are active; exact eval recovery has reached 206/224",
+  "summary": "Exact append-only evaluation rerun `dftr-1784476985-26ac83e5` has recovered three more identities and reached 206/224 with every gate unchanged. The surface-divergent API corpus is at least 740/2,048. Resumable 14B draft run `dftr-1784476668-e05c3c4d` is healthy at least 364/819. SHA-bound training and generation handoff materializers are committed, and the complete M3/policy/autonomy test slice passes 156/156. No scientific quality result exists yet because matched training has not started.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 100,
@@ -26,6 +26,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "09:34",
+      "title": "Post-construction handoffs are now deterministic and fully tested",
+      "detail": "Commits `6fbe921` and `775847c` added fail-closed SHA-bound materializers for the matched SFT14/HUMANWRITE14 training configs and the subsequent BASE/SFT14/HUMANWRITE14 fresh-panel generation configs. They refuse overwrite or aliasing and preserve the frozen method builders. The full M3, gateway-policy, progress, and autonomy test slice passes `156/156` while constructors continue remotely.",
+      "tone": "complete"
+    },
     {
       "at": "09:24",
       "title": "Exact evaluation recovery relaunched after meaningful four-row yield",
