@@ -1,7 +1,7 @@
 {
   "schema": "humanwrite.autonomy_control.v1",
   "enabled": true,
-  "generation": 48,
+  "generation": 49,
   "objective": "Run the preregistered M3 rewriting-first Qwen3-14B program autonomously through the 128-record task-construction smoke, matched 4K screen, gated 16K confirmation, and optional 46K extension only if the frozen 16K promotion gate passes. Diagnose and repair recoverable implementation or infrastructure failures without routine user sign-off. Stay within the existing $100 API and $100 GPU caps; do not launch Tier 3 detectors or raise either cap.",
   "poll_interval_seconds": 600,
   "max_codex_wakes_per_24h": 16,
@@ -12,17 +12,17 @@
     {
       "run_id": "dftr-1784470057-7ab3e04f",
       "comparison": "M3-rewriting-14b-4096-scientific-screen-v1",
-      "purpose": "Complete and validate the balanced 2,048-row Gemini/Claude rewrite construction with independent Qwen3-32B verification"
+      "purpose": "Complete and validate the balanced 2,048-row Gemini/Claude rewrite construction with independent Qwen3-32B verification. If terminal before 2,048 accepted identities, relaunch the exact same SHA-bound config against the resumable output without weakening gates."
     },
     {
       "run_id": "dftr-1784470064-bf4ab7d8",
       "comparison": "M3-rewriting-14b-4096-scientific-screen-v1",
-      "purpose": "Generate four pinned Qwen3-14B baseline-draft candidates for each of the 819 frozen baseline-rewrite identities, then materialize Qwen verification"
+      "purpose": "Generate four pinned Qwen3-14B baseline-draft candidates for each of the 819 frozen baseline-rewrite identities. If the 120-minute job ends partial, relaunch the exact same config against the resumable output. At 819, bind the terminal candidate SHA and launch Qwen3-32B verification."
     },
     {
       "run_id": "dftr-1784470455-18ab6597",
       "comparison": "M3-rewriting-14b-fresh-eval-clean-v1",
-      "purpose": "Clean the terminal-SHA-bound 1,200-document source into 640 human references; on completion deploy the latest gateway containing the frozen eval-input protocol, launch the exact 224 API-input constructor, and assemble the 32 deterministic no-op cases"
+      "purpose": "Clean the terminal-SHA-bound 1,200-document source into 640 human references. If terminal partial, relaunch the exact same cleaner. At 640, deploy gateway commit 2b6cb9d or later, launch the exact 224 API-input constructor, assemble the 32 deterministic no-op cases, and preserve the fresh-panel SHA for paired generation plus the frozen two-family judge."
     }
   ]
 }
