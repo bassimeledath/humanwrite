@@ -1,0 +1,58 @@
+artifact_schema: humanwrite.m3.rewrite_sft_14b_smoke.v1
+run:
+  comparison_id: M3-rewrite-sft-14b-mechanical-smoke-v1
+  arm: SFT14-mechanical-smoke
+  budget_class: smoke
+  task_kind: experiment
+  command:
+  - python
+  - -m
+  - experiments.runner
+  seed: 1701
+compute:
+  gpu: H100
+  gpus: 1
+  timeout_min: 20
+model:
+  base: Qwen/Qwen3-14B
+  revision: 40c069824f4251a91eefaf281ebe4c544efd3e18
+  torch_dtype: bfloat16
+data:
+  source_briefs_path: /checkpoints/data/m2-scale-ladder-v1/train-briefs-4096-token-normalized-v1.jsonl
+  source_briefs_sha256: 723ebf559a4139c49454f5898a0e51120cdf424bd3cd12e39466c6758d25217b
+  rewrite_tasks_path: /checkpoints/data/m3-rewriting-14b-v1/rewrite-tasks-96-smoke-v2.jsonl
+  rewrite_tasks_sha256: 51f38c80e11193d7a2b57144876d99d3d3e17f8ed39e353230f6cd52702de59c
+  source_records: 128
+  rewrite_records: 96
+lora:
+  r: 32
+  alpha: 64
+  dropout: 0.0
+  target_modules:
+  - q_proj
+  - k_proj
+  - v_proj
+  - o_proj
+  - gate_proj
+  - up_proj
+  - down_proj
+  bias: none
+  task_type: CAUSAL_LM
+training:
+  optimizer_steps: 16
+  microbatch_size: 1
+  gradient_accumulation_steps: 8
+  learning_rate: 2.0e-05
+  weight_decay: 0.0
+  gradient_clip_norm: 1.0
+  max_prompt_tokens: 640
+  max_completion_tokens: 383
+  max_sequence_tokens: 1024
+  checkpoint_every: 8
+  schedule: single_seeded_epoch.v1
+  deterministic_algorithms: true
+  cublas_workspace_config: :4096:8
+workflow:
+  protocol_version: humanwrite.m3.rewrite_sft_14b_smoke.v1
+  step: train_m3_rewrite_sft_smoke
+  method_contract_sha256: d6a384652cf225f991f04b2046eb2aff427485f7d2d77665c90f201baee2f63d
