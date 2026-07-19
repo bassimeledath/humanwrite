@@ -1,15 +1,12 @@
 {
   "schema": "humanwrite.autonomy_control.v1",
-  "enabled": true,
-  "generation": 29,
-  "objective": "Validate the matched held-out 128-prompt generation runs for the completed 4K SFT and MMD-witness checkpoints, then open prospective non-training scoring only if both terminal artifacts are sound and the preregistered gates remain intact.",
+  "enabled": false,
+  "generation": 30,
+  "objective": "The Sunday, July 19, 2026 terminal-transition cycle finished its bounded async work: the completed 4K held-out generation pair is validated locally and the deployed gateway now surfaces scorer-ready output URIs and signed receipts for `generate_lower_variance`. No active async run remains, and the next safe step is a fresh local implementation plus preregistration of a frozen scale-ladder non-training scoring protocol before any new scoring or 16K launch.",
   "poll_interval_seconds": 600,
   "max_codex_wakes_per_24h": 16,
   "audit_recent_continuation_seconds": 3600,
   "codex_timeout_seconds": 7200,
   "wake_policy": "once_per_new_terminal_transition",
-  "monitored_runs": [
-    {"run_id": "dftr-1784440682-c648bc57"},
-    {"run_id": "dftr-1784440682-36bfe848"}
-  ]
+  "monitored_runs": []
 }

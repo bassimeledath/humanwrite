@@ -1,12 +1,12 @@
 {
-  "updated_at": "2026-07-19T05:58:32Z",
+  "updated_at": "2026-07-19T06:20:04Z",
   "phase": "M2 — 4B data-scale ladder through 16K",
-  "headline": "Held-out 4K generation startup was repaired and the prospective 128-prompt panel is live again",
-  "summary": "Sanctioned status on Sunday, July 19, 2026 showed the first held-out generation pair failed for recoverable startup reasons, not scientific ones: SFT-generation run `dftr-1784439725-1082f9d4` failed after `260.644` accelerator-seconds and `$0.169523` because `generate_lower_variance()` still rejected the wrapper-owned `worker.log`, while MMD-witness-generation run `dftr-1784439725-6b6ec394` failed after `157.356` accelerator-seconds and `$0.102344` during wrapper `git clone` startup. Commit `87a0681` repaired the generation worker to allow the sanctioned wrapper log exactly, focused tests passed `13/13`, and the same preregistered comparison `M2-scale-ladder-4b-4096-generation-v1` was safely relaunched as SFT-generation `dftr-1784440682-c648bc57` and MMD-witness-generation `dftr-1784440682-36bfe848`. Immediate sanctioned status confirms both new runs are live on `L40S` under `workflow_step=generate_lower_variance` at pushed SHA `87a06818e1eada1dad01ab3d32352fefd93d978e`. The next continuation should validate their terminal generation manifests and only then open prospective non-training scoring.",
-  "run_state": "running",
+  "headline": "Held-out 4K generation artifacts are validated and the scorer handoff for this workflow is now live",
+  "summary": "Sanctioned status on Sunday, July 19, 2026 confirmed the relaunched 4K held-out generation pair completed cleanly: SFT-generation run `dftr-1784440682-c648bc57` completed at `2026-07-19T06:03:26.731823Z` after `314.483` accelerator-seconds for `$0.20454` with `tokens=16384`, and MMD-witness-generation run `dftr-1784440682-36bfe848` completed at `2026-07-19T06:04:08.622314Z` after `358.666` accelerator-seconds for `$0.233277` with `tokens=16384`. The audit found one more real orchestration gap rather than a scientific failure: the deployed gateway still withheld `output_uri`/`output_sha256` and signed wrapper receipts for completed `generate_lower_variance` runs even though the same metadata already existed for older generation routes. That handoff was repaired in the repo, focused tests passed `27/27` across infra and experiment suites, and the Modal gateway was redeployed to the existing production URL. Post-deploy sanctioned status for the same completed run IDs now surfaces output URIs, output SHAs, and wrapper-receipt SHAs, and the exact outputs, manifests, receipts, plus the frozen scale-dev panel bundle and prompt-source artifacts were downloaded into `.operator/scale_ladder/` and byte-validated locally. No non-training scoring or 16K launch was opened because there is still no frozen scale-ladder scoring protocol bound to this exact panel and artifact set.",
+  "run_state": "idle",
   "budget": {
     "modal_cap_usd": 100,
-    "modal_committed_usd": 31.180652,
+    "modal_committed_usd": 22.252709,
     "openrouter_cap_usd": 100,
     "openrouter_spend_usd": 28.483027
   },
@@ -26,6 +26,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "23:20",
+      "title": "4K generation artifacts validated and scorer handoff repaired",
+      "detail": "Sanctioned status on Sunday, July 19, 2026 confirmed SFT-generation `dftr-1784440682-c648bc57` and MMD-witness-generation `dftr-1784440682-36bfe848` completed cleanly with `tokens=16384` each, output SHAs `bf91a2418b681e892885f15f5cd05030534cab8c373e66fb1de89f7c8535bdac` and `abedf64c30740b16d28aebaf8ad57d3241b9f91ff96d3c61f8d6e90257588efb`, and signed wrapper receipts. The audit found the production gateway still omitted `output_uri`/`output_sha256` and wrapper receipts for completed `generate_lower_variance` runs, so that handoff path was patched, tested, and redeployed. The exact outputs, manifests, receipts, panel bundle, and prompt sources were then materialized locally under `.operator/scale_ladder/` and SHA-validated. No scoring launch followed because no frozen scale-ladder scoring protocol exists yet for this exact panel/artifact set.",
+      "tone": "complete"
+    },
     {
       "at": "22:58",
       "title": "Held-out generation startup repaired and relaunched",
@@ -619,5 +625,5 @@
     {"at": "17:46", "title": "Storage created", "detail": "Gateway state, checkpoints, sealed state, and sealed artifacts volumes are online.", "tone": "complete"},
     {"at": "17:40", "title": "Engineering checks passed", "detail": "Harness, infrastructure, and private evaluator suites are green.", "tone": "complete"}
   ],
-  "next_action": "Wait for terminal transitions of `dftr-1784436708-b6637838` and `dftr-1784436736-c94a4507`. On completion, validate checkpoint/run manifests and only then launch the next prospective held-out sampling/evaluation step."
+  "next_action": "Implement and preregister a frozen scale-ladder non-training scoring protocol bound to the validated 128-prompt panel bundle and the completed 4K SFT/MMD generation artifacts. Do not re-enable terminal-driven autonomy until a new async scoring or 16K run is actually launched."
 }

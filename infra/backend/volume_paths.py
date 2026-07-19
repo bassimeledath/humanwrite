@@ -98,6 +98,11 @@ def run_artifact_metadata(
         value = manifest.get(key)
         if value is not None:
             metadata[key] = _maybe_uri(value, mount_path)
+    output_path = manifest.get("output_path")
+    output_sha256 = manifest.get("output_sha256")
+    if output_path is not None and output_sha256 is not None:
+        metadata["output_uri"] = _maybe_uri(output_path, mount_path)
+        metadata["output_sha256"] = output_sha256
     arm = manifest.get("arm")
     executed_arm = str(manifest.get("executed_arm") or "")
     if (

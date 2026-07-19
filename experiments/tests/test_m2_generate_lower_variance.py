@@ -185,6 +185,11 @@ def test_gateway_rejects_sampling_drift_before_worker() -> None:
         validate_launch(payload(value), backend="modal")
 
 
+def test_receipt_finalization_covers_lower_variance_generation() -> None:
+    source = (ROOT / "infra/backend/modal_app.py").read_text(encoding="utf-8")
+    assert 'state.get("workflow_step") in {"generate_dft", "generate_lower_variance"}' in source
+
+
 def test_materializer_binds_completed_statuses(tmp_path: Path) -> None:
     sft_status = {
         "status": "completed",

@@ -3208,3 +3208,55 @@ weakening any panel or quality gate.
 NEXT: Wait for terminal transitions of `dftr-1784440682-c648bc57` and
 `dftr-1784440682-36bfe848`. On completion, validate both generation manifests
 and only then open prospective non-training scoring.
+
+## [2026-07-19] M2 / M2-scale-ladder-4b-4096-generation-v1-validation
+HYPOTHESIS: If the relaunched held-out 4K SFT and MMD-witness generation runs
+completed cleanly, then the correct next action is to validate their exact
+output bytes and restore any missing sanctioned handoff metadata required for a
+future non-training scoring step. That validation should not open scoring
+itself unless a frozen scale-ladder scoring protocol already exists for this
+exact 128-prompt panel.
+SETUP: Scheduled terminal-transition audit on Sunday, July 19, 2026 using the
+fixed gateway URL plus macOS Keychain token `humanwrite-gateway-token`.
+Sanctioned status confirmed SFT-generation run `dftr-1784440682-c648bc57`
+completed at `2026-07-19T06:03:26.731823Z` and MMD-witness-generation run
+`dftr-1784440682-36bfe848` completed at `2026-07-19T06:04:08.622314Z`, both
+under `workflow_step=generate_lower_variance`. The audit then identified a real
+handoff gap in the deployed gateway: completed `generate_lower_variance` runs
+still surfaced only `metrics_ptr` and `run_manifest_sha256`, not the scorer-
+ready `output_uri`/`output_sha256` or signed wrapper receipt already available
+for the older `generate_dft` path. Repaired that gap in
+`infra/backend/modal_app.py` and `infra/backend/volume_paths.py`, added focused
+tests in `infra/tests/test_volume_paths.py` and
+`experiments/tests/test_m2_generate_lower_variance.py`, verified
+`PYTHONPATH=. uv run --project infra pytest infra/tests/test_volume_paths.py -q`
+passed `13/13` and
+`PYTHONPATH=. uv run --project harness pytest experiments/tests/test_m2_generate_lower_variance.py -q`
+passed `14/14`, then redeployed the Modal gateway. After deployment, sanctioned
+status for the same completed run IDs surfaced `output_uri`, `output_sha256`,
+`wrapper_receipt_path`, and `wrapper_receipt_sha256`. The exact output,
+manifest, and wrapper-receipt files were then downloaded from the sanctioned
+`humanwrite-checkpoints` volume into `.operator/scale_ladder/4k_generation_v1/`
+and SHA-verified locally. The frozen scale-dev panel bundle and prompt-source
+artifacts were also materialized locally from
+`data/m2-scale-ladder-v1/scale-dev-panels/`.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Relaunched SFT-generation completion | PASS | Sanctioned status showed `dftr-1784440682-c648bc57` completed after `314.483` accelerator-seconds for `$0.20454`, with `tokens=16384`, manifest SHA `9c8d70a2d6822177254ec865746e9691987df1891c5def5bccf3a0de88af0588`, output SHA `bf91a2418b681e892885f15f5cd05030534cab8c373e66fb1de89f7c8535bdac`, and wrapper receipt SHA `460936b2e5ffdf0e8f2e160676fcee4cfda2503fd8d4a9841bf45ed6b7dd0d3a`. |
+| Relaunched MMD-witness-generation completion | PASS | Sanctioned status showed `dftr-1784440682-36bfe848` completed after `358.666` accelerator-seconds for `$0.233277`, with `tokens=16384`, manifest SHA `d8a1f9ba3bdc84ec872917f5055732f2d8a1ec3e16ed94641ade16213f594ad0`, output SHA `abedf64c30740b16d28aebaf8ad57d3241b9f91ff96d3c61f8d6e90257588efb`, and wrapper receipt SHA `aab40754cae57609b9b65b5adc11435aa08fd783269113d1342d803e1d9ff666`. |
+| Deployed handoff repair | PASS | The production gateway on Sunday, July 19, 2026 now treats `generate_lower_variance` like the existing generation path for wrapper-receipt finalization and sanctioned output surfacing, exposing `output_uri`, `output_sha256`, and `wrapper_receipt_sha256` for already-completed runs. |
+| Local byte validation | PASS | Downloaded local copies of both completed outputs, run manifests, and wrapper receipts matched the sanctioned SHA-256 values exactly under `.operator/scale_ladder/4k_generation_v1/`. |
+| Frozen panel recovery | PASS | The completed scale-dev freeze run still binds `panel_bundle_sha256=658b769d5de40fb70e01912ec5c936faba8dbf6f0805056f54ec5bd1151798c8` and `prompt_sources_sha256=2eba6d6e18131e5571ba19b7c7c9cd7f6e5643d60e08df26ad32a252e9a8f569`; those artifacts were materialized locally under `.operator/scale_ladder/scale_dev_panels/` for the next scoring step. |
+| Immediate budget state | PASS | Post-validation sanctioned budget on Sunday, July 19, 2026 reported Modal committed `$22.252709/$100` and OpenRouter spend `$28.483027/$100`, leaving the authorized 4K/16K ladder well inside both hard caps and still short of the unapproved 46K cell. |
+| Next-step readiness | BLOCKED | There is still no checked-in, frozen non-training scoring protocol or config bound specifically to the scale-ladder `scale-dev-panels` bundle and these exact 4K generation artifacts, so opening scoring in this turn would require inventing a new evaluation route rather than executing an approved one. |
+DECISION: Keep the scientific M2 ladder alive, but park this terminal-driven
+autonomy cycle. The 4K held-out generation pair is now complete and locally
+validated, and the missing sanctioned handoff metadata for this workflow has
+been repaired and deployed. The next work is a fresh local implementation and
+preregistration step for scale-ladder non-training scoring, not more polling or
+another remote launch.
+NEXT: When work resumes, bind a frozen scale-ladder scoring protocol to
+`data/m2-scale-ladder-v1/scale-dev-panels/panel_bundle.json`, the locally
+validated SFT/MMD output artifacts, and independent non-training embeddings
+before opening any scoring or the authorized 16K follow-up.

@@ -116,6 +116,30 @@ def test_run_artifact_metadata_surfaces_lower_variance_checkpoint_handoff(tmp_pa
     assert metadata["arm_method_contract_sha256"] == "a" * 64
 
 
+def test_run_artifact_metadata_surfaces_generation_output_handoff(tmp_path):
+    artifact_dir = tmp_path / "runs" / "dftr-generation"
+    artifact_dir.mkdir(parents=True)
+    (artifact_dir / "run_manifest.json").write_text(
+        (
+            "{"
+            "\"output_path\":\"/checkpoints/runs/dftr-generation/outputs.jsonl\","
+            "\"output_sha256\":\""
+            + ("c" * 64)
+            + "\""
+            "}\n"
+        ),
+        encoding="utf-8",
+    )
+    metadata = run_artifact_metadata(artifact_dir, mount_path=str(tmp_path))
+    assert metadata["metrics_ptr"] == (
+        "modal-volume://humanwrite-checkpoints/runs/dftr-generation/run_manifest.json"
+    )
+    assert metadata["output_uri"] == (
+        "modal-volume://humanwrite-checkpoints/runs/dftr-generation/outputs.jsonl"
+    )
+    assert metadata["output_sha256"] == "c" * 64
+
+
 def test_missing_run_artifact_metadata_backfills_terminal_snapshot(tmp_path):
     artifact_dir = tmp_path / "runs" / "dftr-example"
     artifact_dir.mkdir(parents=True)
@@ -149,6 +173,34 @@ def test_missing_run_artifact_metadata_backfills_terminal_snapshot(tmp_path):
         "modal-volume://humanwrite-checkpoints/data/scale/prompt_sources.jsonl"
     )
     assert missing["prompt_sources_sha256"] == "b"
+    assert missing["run_manifest_sha256"]
+
+
+def test_missing_run_artifact_metadata_backfills_generation_output_handoff(tmp_path):
+    artifact_dir = tmp_path / "runs" / "dftr-generation"
+    artifact_dir.mkdir(parents=True)
+    (artifact_dir / "run_manifest.json").write_text(
+        (
+            "{"
+            "\"output_path\":\"/checkpoints/runs/dftr-generation/outputs.jsonl\","
+            "\"output_sha256\":\""
+            + ("d" * 64)
+            + "\""
+            "}\n"
+        ),
+        encoding="utf-8",
+    )
+    state = {
+        "run_id": "dftr-generation",
+        "status": "completed",
+        "artifact_dir": "/__modal/volumes/opaque/runs/dftr-generation",
+        "output_uri": "",
+    }
+    missing = missing_run_artifact_metadata(state, mount_path=str(tmp_path))
+    assert missing["output_uri"] == (
+        "modal-volume://humanwrite-checkpoints/runs/dftr-generation/outputs.jsonl"
+    )
+    assert missing["output_sha256"] == "d" * 64
     assert missing["run_manifest_sha256"]
 
 

@@ -1451,7 +1451,7 @@ def gateway():
         state = enrich_running_api_state(state, _log_path(run_id))
         if (
             state.get("status") == "completed"
-            and state.get("workflow_step") == "generate_dft"
+            and state.get("workflow_step") in {"generate_dft", "generate_lower_variance"}
             and not state.get("wrapper_receipt_sha256")
         ):
             try:
