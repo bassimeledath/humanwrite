@@ -2784,3 +2784,44 @@ artifact and launch the pinned train-prefix freezer before any 4K training
 run. If it fails again, inspect whether the remaining gap is due to timeout,
 insufficient remaining valid candidates, or a new contract failure before
 considering any further relaunch.
+
+## [2026-07-18] M2 / scale-ladder-4k-terminal-brief-recovery-audit
+HYPOTHESIS: The 4K brief pipeline did not need a new scientific branch; it
+needed the continuation state repaired to follow the actual bounded retries.
+If the narrow safe-excerpt recovery path works as intended, the frozen
+4,096-document brief artifact should advance materially beyond 4,078 valid
+rows without weakening provenance or opening candidate outputs, leaving only a
+small final retry set if the remaining misses are ordinary provider or
+validator failures.
+SETUP: Scheduled 90-minute safety audit on Saturday, July 18, 2026 after the
+deterministic coordinator surfaced failed retry `dftr-1784418273-0bb9e6ef`.
+The repo read `CLAUDE.md`, `RESEARCH_CONTEXT.md`, `progress/autonomy.json`,
+`progress/status.json`, `FINDINGS.md`, and recent git history, then queried
+the sanctioned gateway status for `dftr-1784418273-0bb9e6ef`,
+`dftr-1784418784-df1cd806`, and `dftr-1784419062-7c7e2b47` through the same
+keychain-backed status path used by the local coordinator. Evidence remained
+limited to approved status and budget surfaces plus the append-only ledger and
+git history; no direct checkpoint-volume access or unapproved provider route
+was used.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Terminal failure for first final retry | PASS | Run `dftr-1784418273-0bb9e6ef` was genuinely terminal, not stale: it finished `failed` after recovering `records_processed=4`, leaving `records_failed=18`, with `actual_api_cost_usd=$0.029285` and output SHA `40802d4fd03836bed2a94487e797b70de4a6c0570d6a5fee30af2ce89eca7c31`. |
+| Safe-excerpt recovery value | PASS | Run `dftr-1784418784-df1cd806` used the narrowed fallback path and recovered `records_processed=12` additional identities while leaving only `records_failed=6`, at `actual_api_cost_usd=$0.038267` and output SHA `ae8ace39980fa587c9cacd9ac8b1508bb494bfc607bae813830c15b4dc26a83b`. |
+| Current 4K brief cardinality | PASS | Starting from 4,024 validated rows, then adding 50, 4, and 12 across the successive bounded retries yields 4,090 validated training briefs, so the exact 4,096-row contract is now six identities short rather than twenty-two. |
+| Active remote work after audit | PASS | Run `dftr-1784419062-7c7e2b47` is the only active remote job. It is a same-comparison, same-config final retry over the remaining six identities under the unchanged output URI `modal-volume://humanwrite-checkpoints/data/m2-scale-ladder-v1/train-briefs-4096.jsonl`. |
+| Continuity state integrity | FAIL | `progress/autonomy.json` and `progress/status.json` were still pointing at failed run `dftr-1784418273-0bb9e6ef` even though the ledger and git history had already advanced through two later relaunches. This was a real missed handoff / stale monitor target, not a scientific failure. |
+| Budget boundary during audit | PASS | Approved budget remained within the user caps at Modal committed `$16.778820/$100` and OpenRouter spend `$43.475634/$100`, leaving `$83.221180` Modal and `$56.524366` API. |
+DECISION: Keep autonomy enabled, append the missing terminal evidence to the
+ledger, and retarget monitoring to `dftr-1784419062-7c7e2b47` only. Do not
+launch the 4K baseline witness, matched 4B SFT control, or matched 4B
+MMD-witness arm until the exact 4,096-row brief artifact is complete and
+validated. This audit repaired continuity and evidence capture; it did not
+justify weakening the brief-quality gate.
+NEXT: Wake only on terminal transition from `dftr-1784419062-7c7e2b47`. If it
+completes with all 4,096 validated briefs, validate the surfaced output SHA
+and immediately launch the pinned 4K baseline-witness and matched fine-tuning
+handoff. If it fails again, inspect whether the remaining six are persistent
+provider/validator misses and decide whether the current faithful-brief method
+family has reached a defensible negative conclusion at the 4K data cell
+rather than reopening panels or relaxing quality rules.

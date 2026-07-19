@@ -1,14 +1,14 @@
 {
-  "updated_at": "2026-07-18T23:45:00Z",
+  "updated_at": "2026-07-18T23:59:43Z",
   "phase": "M2 — 4B data-scale ladder through 16K",
-  "headline": "4K briefs reached 4,074; final 22-row retry is running",
-  "summary": "The immutable 4,096-document corpus remains frozen. Initial brief synthesis produced 4,024 valid rows; bounded resume `dftr-1784417670-e1bb510b` recovered 50 of the remaining 72 and left 22 strict validator or provider-filter misses. Final bounded retry `dftr-1784418273-0bb9e6ef` is running against the same frozen config and canonical output. Fine-tuning has not started yet because the exact 4,096-row contract remains mandatory. The event watcher has sufficient continuation capacity to validate completion and begin the matched 4B SFT/MMD-witness handoff.",
+  "headline": "4K briefs reached 4,090; final 6-row retry is running",
+  "summary": "The immutable 4,096-document corpus remains frozen. Initial brief synthesis produced 4,024 valid rows; bounded resume `dftr-1784417670-e1bb510b` recovered 50, retry `dftr-1784418273-0bb9e6ef` recovered 4 more, and safe-excerpt retry `dftr-1784418784-df1cd806` recovered 12 more for 4,090 validated briefs total. Final bounded retry `dftr-1784419062-7c7e2b47` is now the only active remote job, attempting the remaining six identities under the unchanged provider and validation contract. Fine-tuning has not started yet because the exact 4,096-row contract remains mandatory; the watcher has been retargeted from the stale failed run to the real active retry.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 100,
-    "modal_committed_usd": 16.769555,
+    "modal_committed_usd": 16.77882,
     "openrouter_cap_usd": 100,
-    "openrouter_spend_usd": 24.235771
+    "openrouter_spend_usd": 43.475634
   },
   "services": [
     {"name": "GPU gateway", "detail": "Constrained launch API", "status": "online"},
@@ -25,6 +25,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "16:57",
+      "title": "Safe-excerpt retry reduced the 4K brief gap to six; monitor retargeted",
+      "detail": "Terminal retry `dftr-1784418273-0bb9e6ef` recovered 4 of the remaining 22 identities before failing with 18 misses. Safe-excerpt recovery run `dftr-1784418784-df1cd806` then recovered 12 more under the same frozen config and canonical output, leaving only six unresolved identities. Final retry `dftr-1784419062-7c7e2b47` is now the sole active remote job, and autonomy has been retargeted to that run rather than the stale failed monitor target.",
+      "tone": "active"
+    },
     {
       "at": "16:45",
       "title": "Brief recovery reduced gap to 22; final retry launched",
