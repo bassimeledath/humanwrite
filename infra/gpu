@@ -386,6 +386,7 @@ def _validate_submit(config: dict, budget_class: str) -> tuple[str, dict]:
                 "humanwrite.m3.rewrite_tasks.v1",
                 "humanwrite.m3.scientific_api_rewrites.v1",
                 "humanwrite.m3.baseline_draft_verification.v1",
+                "humanwrite.m3.eval_rewrite_inputs.v1",
             }:
                 _die("rewrite_synthesis requires the frozen M3 protocol")
             if data.get("input_uri") == data.get("output_uri"):
@@ -397,6 +398,10 @@ def _validate_submit(config: dict, budget_class: str) -> tuple[str, dict]:
                 expected_target = maximum
                 if api.get("verifier_model") != "qwen/qwen3-32b":
                     _die("baseline verification requires qwen/qwen3-32b")
+            elif protocol == "humanwrite.m3.eval_rewrite_inputs.v1":
+                if maximum != 640:
+                    _die("evaluation rewrite synthesis requires the frozen 640-row source pool")
+                expected_target = 224
             else:
                 if maximum not in {128, 4096, 16384, 46080}:
                     _die("rewrite_synthesis corpus must use a preregistered scale")

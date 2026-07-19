@@ -73,6 +73,7 @@ DOCUMENT_CLEANING_CONCURRENCY = 128
 M3_REWRITE_TASK_PROTOCOL = "humanwrite.m3.rewrite_tasks.v1"
 M3_SCIENTIFIC_REWRITE_PROTOCOL = "humanwrite.m3.scientific_api_rewrites.v1"
 M3_BASELINE_VERIFY_PROTOCOL = "humanwrite.m3.baseline_draft_verification.v1"
+M3_EVAL_REWRITE_PROTOCOL = "humanwrite.m3.eval_rewrite_inputs.v1"
 
 state_volume = modal.Volume.from_name("humanwrite-gateway-state", create_if_missing=True)
 checkpoint_volume = modal.Volume.from_name("humanwrite-checkpoints", create_if_missing=True)
@@ -986,6 +987,12 @@ def rewrite_synthesis_worker(run_id: str, payload: dict) -> dict:
         scientific_manifest,
         validate_scientific_rewrite,
     )
+    from data.m3_eval_panel import (
+        API_CATEGORIES,
+        emit_eval_rewrite_input,
+        eval_panel_manifest,
+        validate_eval_rewrite_input,
+    )
 
     config = payload["config"]
     data = config["data"]
@@ -1115,6 +1122,7 @@ def rewrite_synthesis_worker(run_id: str, payload: dict) -> dict:
             PROTOCOL,
             M3_SCIENTIFIC_REWRITE_PROTOCOL,
             M3_BASELINE_VERIFY_PROTOCOL,
+            M3_EVAL_REWRITE_PROTOCOL,
         }:
             raise ValueError("M3 rewrite-task protocol mismatch")
         checkpoint_volume.reload()
@@ -1134,6 +1142,16 @@ def rewrite_synthesis_worker(run_id: str, payload: dict) -> dict:
                 str(row["fingerprint"]): row
                 for row in manifest
                 if row["origin"] in API_REWRITE_ORIGINS
+            }
+            records = [
+                row for row in all_records if str(row["fingerprint"]) in manifest_by_id
+            ]
+        elif protocol == M3_EVAL_REWRITE_PROTOCOL:
+            manifest = eval_panel_manifest(all_records)
+            manifest_by_id = {
+                str(row["fingerprint"]): row
+                for row in manifest
+                if row["category"] in API_CATEGORIES
             }
             records = [
                 row for row in all_records if str(row["fingerprint"]) in manifest_by_id
@@ -1196,6 +1214,14 @@ def rewrite_synthesis_worker(run_id: str, payload: dict) -> dict:
                             )
                         },
                     )
+                elif protocol == M3_EVAL_REWRITE_PROTOCOL:
+                    validate_eval_rewrite_input(
+                        row,
+                        source=source_index[fingerprint],
+                        manifest_row=manifest_by_id[fingerprint],
+                        token_counter=token_counter,
+                        semantic_similarity_min=float(api["semantic_similarity_min"]),
+                    )
                 else:
                     validate_rewrite_task(
                         row,
@@ -1209,6 +1235,7 @@ def rewrite_synthesis_worker(run_id: str, payload: dict) -> dict:
             if protocol in {
                 M3_SCIENTIFIC_REWRITE_PROTOCOL,
                 M3_BASELINE_VERIFY_PROTOCOL,
+                M3_EVAL_REWRITE_PROTOCOL,
             }:
                 manifest_row = manifest_by_id[str(source["fingerprint"])]
                 assignment = {
@@ -1245,7 +1272,10 @@ def rewrite_synthesis_worker(run_id: str, payload: dict) -> dict:
                                     attempt=attempt,
                                     previous_error=str(last_error or ""),
                                 )
-                                if protocol == M3_SCIENTIFIC_REWRITE_PROTOCOL
+                                if protocol in {
+                                    M3_SCIENTIFIC_REWRITE_PROTOCOL,
+                                    M3_EVAL_REWRITE_PROTOCOL,
+                                }
                                 else generator_prompt(
                                     source,
                                     assignment,
@@ -1270,6 +1300,7 @@ def rewrite_synthesis_worker(run_id: str, payload: dict) -> dict:
                     if protocol in {
                         M3_SCIENTIFIC_REWRITE_PROTOCOL,
                         M3_BASELINE_VERIFY_PROTOCOL,
+                        M3_EVAL_REWRITE_PROTOCOL,
                     }:
                         emitted = assemble_scientific_rewrite(
                             source=source,
@@ -1280,6 +1311,10 @@ def rewrite_synthesis_worker(run_id: str, payload: dict) -> dict:
                             token_counter=token_counter,
                             semantic_similarity_min=float(api["semantic_similarity_min"]),
                         )
+                        if protocol == M3_EVAL_REWRITE_PROTOCOL:
+                            emitted = emit_eval_rewrite_input(
+                                emitted, str(manifest_row["category"])
+                            )
                     else:
                         emitted = assemble_rewrite_task(
                             source=source,

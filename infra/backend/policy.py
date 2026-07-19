@@ -20,6 +20,7 @@ LOWER_VARIANCE_OUTLINE_MODEL = "openai/gpt-5-mini"
 M3_REWRITE_TASK_PROTOCOL = "humanwrite.m3.rewrite_tasks.v1"
 M3_SCIENTIFIC_REWRITE_PROTOCOL = "humanwrite.m3.scientific_api_rewrites.v1"
 M3_BASELINE_VERIFY_PROTOCOL = "humanwrite.m3.baseline_draft_verification.v1"
+M3_EVAL_REWRITE_PROTOCOL = "humanwrite.m3.eval_rewrite_inputs.v1"
 M3_REWRITE_GENERATOR_MODELS = [
     "google/gemini-3.1-flash-lite",
     "anthropic/claude-haiku-4.5",
@@ -1216,6 +1217,8 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
                 and max_records in {819, 3277, 9216}
                 and target_records == max_records
             )
+        elif protocol == M3_EVAL_REWRITE_PROTOCOL:
+            valid_scale = max_records == 640 and target_records == 224
         else:
             valid_scale = (
                 isinstance(max_records, int)
@@ -1229,7 +1232,11 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
             api.get("verifier_model") == "qwen/qwen3-32b"
             if protocol == M3_BASELINE_VERIFY_PROTOCOL
             else (
-                protocol in {M3_REWRITE_TASK_PROTOCOL, M3_SCIENTIFIC_REWRITE_PROTOCOL}
+                protocol in {
+                    M3_REWRITE_TASK_PROTOCOL,
+                    M3_SCIENTIFIC_REWRITE_PROTOCOL,
+                    M3_EVAL_REWRITE_PROTOCOL,
+                }
                 and api.get("generator_models") == M3_REWRITE_GENERATOR_MODELS
                 and api.get("verifier_by_generator") == M3_REWRITE_VERIFIER_BY_GENERATOR
             )
