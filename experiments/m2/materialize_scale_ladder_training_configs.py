@@ -31,7 +31,7 @@ def materialize(
     ):
         raise ValueError("4K witness manifest does not bind the exact training corpus")
     base["run"]["comparison_id"] = "M2-scale-ladder-4b-4096-v1"
-    base["compute"] = {"gpu": "H100", "gpus": 1, "timeout_min": 120}
+    base["compute"] = {"gpu": "L40S", "gpus": 1, "timeout_min": 120}
     base["data"].update(
         anchor_path="/checkpoints/data/m2-scale-ladder-v1/train-briefs-4096-token-normalized-v1.jsonl",
         anchor_sha256=briefs_sha256,

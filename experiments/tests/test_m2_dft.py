@@ -31,6 +31,7 @@ from experiments.m2.dft import (
     FULL_BRIEF_SCHEMA,
     FULL_BRIEF_SERIALIZER_SHA256,
     M2ConfigError,
+    _require_no_existing_files,
     _render_prompt,
     _materialize_sampled_token_ids,
     _sample_raw_policy,
@@ -232,6 +233,16 @@ def test_prompt_serializer_is_exactly_the_source_sft_full_brief_contract():
     assert _render_prompt(record, config) == render_m1_prompt(
         record, config["data"]["prompt_format"], FULL_BRIEF_SCHEMA
     )
+
+
+def test_require_no_existing_files_allows_worker_log_only(tmp_path):
+    root = tmp_path / "run"
+    root.mkdir()
+    (root / "worker.log").write_text("log output\n", encoding="utf-8")
+    _require_no_existing_files(root, "checkpoint directory")
+    (root / "run_manifest.json").write_text("{}", encoding="utf-8")
+    with pytest.raises(M2ConfigError, match="already contains artifacts"):
+        _require_no_existing_files(root, "checkpoint directory")
 
 
 def test_source_adapter_data_and_human_only_bandwidth_hashes_fail_closed(

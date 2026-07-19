@@ -412,7 +412,8 @@ def test_scale_ladder_timing_smoke_is_bounded_and_uses_random_schedule(tmp_path)
     source.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
     smoke = materialize_timing_smoke(source, output)
     assert smoke["run"]["budget_class"] == "smoke"
-    assert smoke["compute"] == {"gpu": "H100", "gpus": 1, "timeout_min": 20}
+    assert smoke["run"]["comparison_id"] == "M2-scale-ladder-4b-4096-timing-smoke-l40s-v1"
+    assert smoke["compute"] == {"gpu": "L40S", "gpus": 1, "timeout_min": 20}
     assert smoke["training"]["steps"] == 64
     assert smoke["training"]["checkpoint_every"] == 64
     assert smoke["training"]["schedule"] == "python_random_sample_without_replacement.v1"

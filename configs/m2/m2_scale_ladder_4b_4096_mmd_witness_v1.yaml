@@ -10,7 +10,7 @@ run:
   - experiments.runner
   seed: 11
 compute:
-  gpu: H100
+  gpu: L40S
   gpus: 1
   timeout_min: 120
 model:

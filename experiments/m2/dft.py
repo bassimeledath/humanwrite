@@ -587,8 +587,13 @@ def _directory_file_map(root: Path, label: str) -> dict[str, str]:
 
 
 def _require_no_existing_files(root: Path, label: str) -> None:
-    if any(item.is_file() or item.is_symlink() for item in root.rglob("*")):
-        raise M2ConfigError(f"{label} already contains artifacts")
+    allowed_existing = {"worker.log"}
+    for item in root.rglob("*"):
+        relative = item.relative_to(root).as_posix()
+        if item.is_symlink():
+            raise M2ConfigError(f"{label} already contains artifacts")
+        if item.is_file() and relative not in allowed_existing:
+            raise M2ConfigError(f"{label} already contains artifacts")
 
 
 def _verify_inputs(config: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]], list[float]]:

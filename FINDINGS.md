@@ -2981,3 +2981,44 @@ completes within the smoke budget and does not expose a contract/runtime
 failure, preregister and launch the matched full 4K SFT and MMD-witness arms
 from the newly materialized configs. If it fails or overruns, record the defect
 and do not open the full 4K arms.
+
+## [2026-07-19] M2 / M2-scale-ladder-4b-4096-timing-smoke-v1-terminal-audit
+HYPOTHESIS: The terminal failure of `dftr-1784434111-716a0ed8` should be
+treated as a real scientific negative only if the sanctioned worker log shows
+the MMD-witness trainer actually reached the frozen training path. If the job
+failed before step 1 because of a wrapper/runtime handoff defect, the correct
+action is to repair the defect, preserve the failed run as invalid evidence,
+and relaunch a fresh preregistered smoke without weakening any quality gate.
+SETUP: Read the sanctioned status and worker log for
+`dftr-1784434111-716a0ed8` through the same fixed gateway URL and Keychain
+token the autonomy coordinator uses. Inspected the exact traceback against the
+current repo code after the earlier log-surface repair. Updated the lower
+variance runner so the sanctioned wrapper-owned `worker.log` does not trip the
+artifact-dir emptiness guard, and realigned the 4K scale-ladder materializers
+to the already-recorded `L40S`-only execution policy. The repaired 4K config
+hashes are `configs/m2/m2_scale_ladder_4b_4096_sft_v1.yaml`
+`sha256=c859da292b8a81cc8f00bcaf3055d6a698c66e44e28f2b933109feeff6efa7bd`,
+`configs/m2/m2_scale_ladder_4b_4096_mmd_witness_v1.yaml`
+`sha256=5382aaa5df25a138b675f532697dffc03ec1b55a3891661077b8596302ee232e`,
+and fresh smoke config
+`configs/m2/m2_scale_ladder_4b_4096_timing_smoke_l40s_v1.yaml`
+`sha256=e2dd1da0d70b7cf57fcbfe7a7bf78518d77d598dc2a846ee014bb97215b2525a`.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| Terminal run validity | FAIL | Sanctioned status shows `dftr-1784434111-716a0ed8` failed on Sunday, July 19, 2026 after only `14.154` accelerator-seconds, `tokens=0`, and `actual_cost_usd=$0.018632`, so the run never became a scientific timing result. |
+| Root cause | FAIL | Sanctioned worker log ends with `M2ConfigError: lower-variance checkpoint directory already contains artifacts`. The earlier log-surface repair now writes `/checkpoints/runs/<run_id>/worker.log`, and `run_lower_variance()` still called `_require_no_existing_files()` on that same directory before training. |
+| Scientific interpretation | PASS | Because the failure happened before step 1 and before any completion tokens were generated, it is an infrastructure/handoff defect, not evidence against MMD-witness on the 4K ladder. |
+| Recoverable code repair | PASS | `_require_no_existing_files()` now tolerates only the sanctioned precreated `worker.log`, while still failing closed on any other preexisting artifact or symlink. `python3 -m py_compile` passed for the repaired training/materializer modules. |
+| Ladder backend alignment | PASS | The 4K scale-ladder timing and full-arm configs are now aligned with the existing `L40S`-only execution policy recorded earlier in `progress/status.json`, instead of reopening the stale `H100` path. |
+| Local verification gap | WARN | Focused `pytest` was not runnable in this shell because the main environment lacks `pytest`, `torch`, and `yaml`, while the checked-in infra venv lacks the full training stack. The sanctioned worker traceback supplied the decisive failure evidence. |
+DECISION: Discard `M2-scale-ladder-4b-4096-timing-smoke-v1` as invalid due to a
+wrapper-owned artifact collision and do not use it for any scientific gate. A
+fresh `L40S` smoke is the next safe step because it preserves the same 64-step
+two-arm MMD timing purpose while matching the active ladder runtime policy and
+the repaired wrapper/trainer contract.
+NEXT: Commit the repair, preregister
+`M2-scale-ladder-4b-4096-timing-smoke-l40s-v1`, launch it through the
+sanctioned wrapper, and monitor only that new run. Launch the matched 4K SFT
+and MMD-witness full arms only if the fresh smoke completes without a contract
+or runtime failure.

@@ -20,10 +20,10 @@ def materialize(source_path: Path, output_path: Path) -> dict:
     if (config.get("execution") or {}).get("arm") != "MMD_WITNESS":
         raise ValueError("timing smoke must derive from the frozen MMD_WITNESS config")
     config["run"].update(
-        comparison_id="M2-scale-ladder-4b-4096-timing-smoke-v1",
+        comparison_id="M2-scale-ladder-4b-4096-timing-smoke-l40s-v1",
         budget_class="smoke",
     )
-    config["compute"] = {"gpu": "H100", "gpus": 1, "timeout_min": 20}
+    config["compute"] = {"gpu": "L40S", "gpus": 1, "timeout_min": 20}
     config["training"].update(
         steps=64,
         checkpoint_every=64,

@@ -1,8 +1,8 @@
 artifact_schema: dftr.m2.lower_variance_confirmation.v2
 run:
-  comparison_id: M2-scale-ladder-4b-4096-v1
+  comparison_id: M2-scale-ladder-4b-4096-timing-smoke-l40s-v1
   arm: SFT-vs-MMD_WITNESS
-  budget_class: screen
+  budget_class: smoke
   task_kind: experiment
   command:
   - python
@@ -12,7 +12,7 @@ run:
 compute:
   gpu: L40S
   gpus: 1
-  timeout_min: 120
+  timeout_min: 20
 model:
   base: Qwen/Qwen3-4B
   revision: 1cfa9a7208912126459214e8b04321603b3df60c
@@ -589,14 +589,14 @@ runtime:
   deterministic_algorithms: true
   cublas_workspace_config: :4096:8
 training:
-  steps: 2048
+  steps: 64
   batch_size: 2
   learning_rate: 1.0e-05
   weight_decay: 0.01
   gradient_clip_norm: 1.0
   max_input_tokens: 1024
   checkpoint_every: 64
-  schedule: python_random_epoch_shuffle.v1
+  schedule: python_random_sample_without_replacement.v1
 arms:
 - id: SFT
   sft_weighting: uniform
@@ -608,8 +608,8 @@ resume:
   SFT: null
   MMD_WITNESS: null
 execution:
-  arm: SFT
+  arm: MMD_WITNESS
 workflow:
   protocol_version: dftr.m2.lower_variance_confirmation.v2
   step: train_lower_variance
-  method_contract_sha256: a30a817e00f5a3d8ea300853eab0161163d7c4c29566e2e8edeb82c9c417b150
+  method_contract_sha256: c3f4aa34f56a39c173109887f07d96ac2cbec3970ac6743506fc77519b09b75e
