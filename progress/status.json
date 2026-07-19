@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-07-19T08:20:56Z",
+  "updated_at": "2026-07-19T08:26:49Z",
   "phase": "M3 — rewriting-first Qwen3-14B program",
   "headline": "14B rewrite task-construction smoke running under autonomous control",
   "summary": "The rewriting-first Qwen3-14B protocol is frozen and deployed. Its 128-record construction smoke is generating and independently verifying 96 rewrite pairs before any GPU training spend. On success, the event-driven coordinator will validate the artifacts and continue through matched 4K and gated 16K training/evaluation without routine user prompts; a 46K extension is allowed only if the frozen 16K gate passes.",
@@ -8,7 +8,7 @@
     "modal_cap_usd": 100,
     "modal_committed_usd": 22.252709,
     "openrouter_cap_usd": 100,
-    "openrouter_spend_usd": 31.483027
+    "openrouter_spend_usd": 31.627561
   },
   "services": [
     {"name": "GPU gateway", "detail": "Constrained launch API", "status": "online"},
@@ -26,6 +26,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "01:26",
+      "title": "Rewrite-construction failure repaired and resumed",
+      "detail": "Early container inspection found the first smoke was making progress but rejected many unchanged generator copies because retries did not receive validation feedback. The run was cancelled after preserving 39 validated rows, commit `bfc2e96` added error-aware recovery prompts and larger structured-output headroom, 77 focused tests passed, the gateway was redeployed, and resume run `dftr-1784449586-c1fcafbb` launched against the same frozen identities and append-only output artifact. Current API commitment is `$31.627561/$100`; GPU commitment remains `$22.252709/$100`.",
+      "tone": "active"
+    },
     {
       "at": "01:20",
       "title": "Autonomous 14B rewriting program armed",
@@ -637,5 +643,5 @@
     {"at": "17:46", "title": "Storage created", "detail": "Gateway state, checkpoints, sealed state, and sealed artifacts volumes are online.", "tone": "complete"},
     {"at": "17:40", "title": "Engineering checks passed", "detail": "Harness, infrastructure, and private evaluator suites are green.", "tone": "complete"}
   ],
-  "next_action": "Wait for the zero-token watcher to observe terminal state for `dftr-1784449129-4005c040`; then validate the 96 rewrite artifacts, repair any recoverable construction defect, and autonomously advance to the preregistered matched 4K Qwen3-14B screen."
+  "next_action": "Wait for the zero-token watcher to observe terminal state for resume run `dftr-1784449586-c1fcafbb`; then validate all 96 rewrite artifacts and autonomously advance to the preregistered matched 4K Qwen3-14B screen."
 }
