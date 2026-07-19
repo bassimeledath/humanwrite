@@ -440,6 +440,32 @@ def _validate_submit(config: dict, budget_class: str) -> tuple[str, dict]:
                 _die("prompt repair is limited to the frozen 320-record corpus")
         elif not str(api.get("model", "")):
             _die("brief_synthesis requires a frozen api.model")
+    elif task_kind == "rewrite_judging":
+        judge = config.get("judge") or {}
+        data = config.get("data") or {}
+        api_cap = float(judge.get("max_cost_usd", 0.0))
+        if api_cap <= 0 or api_cap > 10:
+            _die("rewrite_judging requires 0 < judge.max_cost_usd <= 10")
+        if judge.get("protocol") != "humanwrite.m3.rewrite_pairwise_judge.v1":
+            _die("rewrite_judging requires the frozen M3 protocol")
+        if any(
+            not str(data.get(field) or "").startswith(
+                "modal-volume://humanwrite-checkpoints/"
+            )
+            for field in (
+                "panel_uri",
+                "sft_uri",
+                "treatment_uri",
+                "output_uri",
+                "manifest_uri",
+            )
+        ):
+            _die("rewrite_judging artifacts must use the checkpoint volume")
+        if any(
+            not re.fullmatch(r"[0-9a-f]{64}", str(data.get(field) or ""))
+            for field in ("panel_sha256", "sft_sha256", "treatment_sha256")
+        ):
+            _die("rewrite_judging requires lowercase artifact SHA-256 bindings")
     elif task_kind == "source_materialization":
         data = config.get("data") or {}
         for field in ("train_output_uri", "dev_output_uri", "manifest_output_uri"):

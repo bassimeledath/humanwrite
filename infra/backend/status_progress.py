@@ -9,6 +9,7 @@ API_PROGRESS_TASK_KINDS = {
     "brief_synthesis",
     "document_cleaning",
     "rewrite_synthesis",
+    "rewrite_judging",
 }
 _PROGRESS_RE = re.compile(
     r"processed=(?P<processed>\d+)"

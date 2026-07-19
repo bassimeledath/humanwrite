@@ -21,6 +21,7 @@ M3_REWRITE_TASK_PROTOCOL = "humanwrite.m3.rewrite_tasks.v1"
 M3_SCIENTIFIC_REWRITE_PROTOCOL = "humanwrite.m3.scientific_api_rewrites.v1"
 M3_BASELINE_VERIFY_PROTOCOL = "humanwrite.m3.baseline_draft_verification.v1"
 M3_EVAL_REWRITE_PROTOCOL = "humanwrite.m3.eval_rewrite_inputs.v1"
+M3_REWRITE_JUDGE_PROTOCOL = "humanwrite.m3.rewrite_pairwise_judge.v1"
 M3_REWRITE_GENERATOR_MODELS = [
     "google/gemini-3.1-flash-lite",
     "anthropic/claude-haiku-4.5",
@@ -28,6 +29,27 @@ M3_REWRITE_GENERATOR_MODELS = [
 M3_REWRITE_VERIFIER_BY_GENERATOR = {
     "google/gemini-3.1-flash-lite": "qwen/qwen3-32b",
     "anthropic/claude-haiku-4.5": "qwen/qwen3-32b",
+}
+M3_REWRITE_JUDGE_MODELS = [
+    "anthropic/claude-haiku-4.5",
+    "google/gemini-3.1-flash-lite",
+]
+M3_REWRITE_JUDGE_DIMENSIONS = {
+    "human_style": (
+        "Choose the response that reads more like careful human-authored prose. "
+        "Favor natural variation, specific development, and context-appropriate "
+        "phrasing; penalize formulaic structure, canned transitions, repetition, "
+        "and conspicuous model-like artifacts."
+    ),
+    "overall_quality": (
+        "Choose the response with better writing quality while following the rewrite "
+        "assignment. Favor clear, coherent, specific, engaging prose, and penalize "
+        "generic, repetitive, awkward, unsupported, or instruction-violating writing."
+    ),
+}
+M3_REWRITE_JUDGE_RANDOMIZATION = {
+    "algorithm": "sha256(master_seed:model:dimension:fingerprint).parity.v1",
+    "master_seed": 8903,
 }
 QWEN3_14B_MODEL = "Qwen/Qwen3-14B"
 QWEN3_14B_REVISION = "40c069824f4251a91eefaf281ebe4c544efd3e18"
@@ -712,6 +734,7 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
         "brief_synthesis",
         "document_cleaning",
         "rewrite_synthesis",
+        "rewrite_judging",
         "model_cache",
         "source_materialization",
     }:
@@ -1325,6 +1348,74 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
         if api_reserved <= 0 or api_reserved > 40.0:
             raise PolicyError("rewrite_synthesis API reservation must be within (0, 40]")
         worst = 0.0
+    elif task_kind == "rewrite_judging":
+        data = config.get("data") or {}
+        judge = config.get("judge") or {}
+        if set(config) != {"artifact_schema", "run", "compute", "data", "judge"}:
+            raise PolicyError("rewrite_judging exact schema mismatch")
+        if set(data) != {
+            "panel_uri",
+            "panel_sha256",
+            "panel_records",
+            "sft_uri",
+            "sft_sha256",
+            "treatment_uri",
+            "treatment_sha256",
+            "output_uri",
+            "manifest_uri",
+        }:
+            raise PolicyError("rewrite_judging data schema mismatch")
+        if set(judge) != {
+            "protocol",
+            "models",
+            "dimensions",
+            "randomization",
+            "temperature",
+            "max_completion_tokens",
+            "response_contract",
+            "concurrency",
+            "retry_attempts",
+            "max_cost_usd",
+        }:
+            raise PolicyError("rewrite_judging judge schema mismatch")
+        uris = [
+            str(data.get(field) or "")
+            for field in (
+                "panel_uri",
+                "sft_uri",
+                "treatment_uri",
+                "output_uri",
+                "manifest_uri",
+            )
+        ]
+        if (
+            any(not value.startswith("modal-volume://humanwrite-checkpoints/") for value in uris)
+            or len(set(uris)) != len(uris)
+            or any(
+                not re.fullmatch(r"[0-9a-f]{64}", str(data.get(field) or ""))
+                for field in ("panel_sha256", "sft_sha256", "treatment_sha256")
+            )
+            or data.get("panel_records") != 256
+        ):
+            raise PolicyError("rewrite_judging artifact bindings are invalid")
+        if (
+            config.get("artifact_schema") != M3_REWRITE_JUDGE_PROTOCOL
+            or judge.get("protocol") != M3_REWRITE_JUDGE_PROTOCOL
+            or judge.get("models") != M3_REWRITE_JUDGE_MODELS
+            or judge.get("dimensions") != M3_REWRITE_JUDGE_DIMENSIONS
+            or judge.get("randomization") != M3_REWRITE_JUDGE_RANDOMIZATION
+            or judge.get("temperature") != 0.0
+            or judge.get("max_completion_tokens") != 512
+            or judge.get("response_contract") != "single uppercase A, B, or TIE"
+            or judge.get("concurrency") != 16
+            or judge.get("retry_attempts") != 3
+            or budget_class != "promo"
+        ):
+            raise PolicyError("rewrite_judging frozen contract mismatch")
+        api_reserved = float(judge.get("max_cost_usd") or 0.0)
+        if api_reserved <= 0 or api_reserved > 10.0:
+            raise PolicyError("rewrite_judging API reservation must be within (0, 10]")
+        worst = 0.0
     else:
         source = config.get("source") or {}
         data = config.get("data") or {}
@@ -1430,6 +1521,7 @@ def budget_snapshot(events: list[dict[str, Any]], month: str | None = None) -> d
             "brief_synthesis",
             "document_cleaning",
             "rewrite_synthesis",
+            "rewrite_judging",
         }:
             continue
         if state.get("status") not in TERMINAL:

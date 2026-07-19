@@ -155,6 +155,19 @@ MMD families, repetition, length adherence, unexpected-language rate, and
 malformed-character rate. Detector scores are excluded from training and model
 selection.
 
+### Frozen blinded-judge execution
+
+Human-style and overall-quality comparisons use both
+`anthropic/claude-haiku-4.5` and `google/gemini-3.1-flash-lite` through
+OpenRouter. Each family judges all 256 HUMANWRITE14-versus-SFT14 pairs on both
+dimensions. Candidate order is independently fixed by
+`sha256(8903:model:dimension:fingerprint)` parity. The response contract is
+exactly `A`, `B`, or `TIE`; ties count as one half only in the descriptive
+preference rate and are also reported separately. The rubrics and execution
+contract are implemented in `data/m3_rewrite_judge.py` before the panel or
+candidate outputs are available. The two model-family results remain separate;
+they may not be pooled to conceal disagreement.
+
 ## Frozen promotion gates
 
 ### 4K to 16K

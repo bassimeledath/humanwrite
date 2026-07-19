@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-19T14:15:59Z",
+  "updated_at": "2026-07-19T14:31:52Z",
   "phase": "M3 — rewriting-first Qwen3-14B program",
   "headline": "4K rewrite construction, base-draft generation, and fresh eval cleaning run concurrently",
-  "summary": "The 14B smoke gate remains fully passed. Fresh evaluation source run `dftr-1784469891-83dfc7b5` froze 1,200 domain-disjoint documents at SHA `efe80040059f633f3361a1155c1c692972ea7061c74c1ecd81221c28196c0b03`; SHA-bound Qwen3-32B cleaner `dftr-1784470455-18ab6597` is the correct active successor toward 640 accepted human targets. API rewrite construction `dftr-1784470057-7ab3e04f` continues with validator-driven attrition rather than transport failure, and base-Qwen draft construction `dftr-1784470064-bf4ab7d8` is still in initial 14B shard load. The exact 4K corpus materializer and fresh 256-item evaluation-input/panel pipeline are implemented and tested.",
+  "summary": "The 14B smoke gate remains fully passed. At 07:31 PDT the three concurrent constructors were healthy: scientific API rewrites had logged 432 accepted toward 2,048, base-Qwen generation had checkpointed 92 of 819 four-candidate records, and fresh Qwen3-32B evaluation cleaning had logged 323 accepted toward 640. The still-missing blinded evaluation stage is no longer an idle handoff: a resumable, SHA-bound, two-family Claude/Gemini pairwise judge for all 256 HUMANWRITE14-versus-SFT14 outputs and both frozen dimensions is implemented locally, with focused policy/evaluator tests passing 68/68. No scientific quality result exists yet; these jobs are constructing the data needed for matched training and a fresh test.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 100,
@@ -26,6 +26,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "07:31",
+      "title": "Constructor growth verified; blinded evaluator built in parallel",
+      "detail": "Direct gateway and checkpoint inspection found all three jobs advancing without failure: 432/2,048 scientific API rewrites logged, 92/819 base-Qwen draft records checkpointed, and 323/640 fresh evaluation references logged. While they run, the frozen evaluator was implemented as 1,024 resumable comparisons: 256 prompt-paired HUMANWRITE14-vs-SFT14 outputs times human-style and overall-quality rubrics times independent Claude Haiku 4.5 and Gemini 3.1 Flash Lite judges, with SHA-derived side randomization, separate-family reporting, output hash binding, API budget enforcement, and no detector calls. Focused evaluator and gateway-policy tests pass 68/68.",
+      "tone": "active"
+    },
     {
       "at": "07:15",
       "title": "Scheduled audit retargeted monitoring to the live fresh-eval cleaner",

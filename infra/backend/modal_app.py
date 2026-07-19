@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import base64
-from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, as_completed, wait
 import hashlib
 import json
 import os
@@ -74,6 +74,7 @@ M3_REWRITE_TASK_PROTOCOL = "humanwrite.m3.rewrite_tasks.v1"
 M3_SCIENTIFIC_REWRITE_PROTOCOL = "humanwrite.m3.scientific_api_rewrites.v1"
 M3_BASELINE_VERIFY_PROTOCOL = "humanwrite.m3.baseline_draft_verification.v1"
 M3_EVAL_REWRITE_PROTOCOL = "humanwrite.m3.eval_rewrite_inputs.v1"
+M3_REWRITE_JUDGE_PROTOCOL = "humanwrite.m3.rewrite_pairwise_judge.v1"
 
 state_volume = modal.Volume.from_name("humanwrite-gateway-state", create_if_missing=True)
 checkpoint_volume = modal.Volume.from_name("humanwrite-checkpoints", create_if_missing=True)
@@ -1414,6 +1415,250 @@ def rewrite_synthesis_worker(run_id: str, payload: dict) -> dict:
     image=worker_image,
     secrets=[provider_secret],
     volumes={"/state": state_volume, CHECKPOINT_PATH: checkpoint_volume},
+    timeout=2 * 60 * 60,
+    retries=0,
+    single_use_containers=True,
+)
+def rewrite_judging_worker(run_id: str, payload: dict) -> dict:
+    """Run the frozen, resumable, two-family M3 blinded rewrite judge."""
+    import requests
+    from data.m3_rewrite_judge import build_tasks, summarize
+
+    config = payload["config"]
+    data = config["data"]
+    judge = config["judge"]
+    panel_path = _volume_path(str(data["panel_uri"]))
+    sft_path = _volume_path(str(data["sft_uri"]))
+    treatment_path = _volume_path(str(data["treatment_uri"]))
+    output_path = _volume_path(str(data["output_uri"]))
+    manifest_path = _volume_path(str(data["manifest_uri"]))
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    log_path = _log_path(run_id)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    cost_cap = float(payload["api_reserved_cost_usd"])
+    spent = 0.0
+    reported = 0.0
+    processed = 0
+    failed = 0
+    status = "failed"
+
+    def rows(path: Path, expected_sha: str) -> list[dict]:
+        if not path.is_file() or path.is_symlink() or _file_sha256(path) != expected_sha:
+            raise RuntimeError(f"judge artifact binding failed: {path.name}")
+        return [
+            json.loads(line)
+            for line in path.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+
+    class JudgeRequestError(RuntimeError):
+        def __init__(self, message: str, cost: float):
+            super().__init__(message)
+            self.cost = cost
+
+    headers = {
+        "Authorization": f"Bearer {os.environ['OPENROUTER_API_KEY']}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://github.com/bassimeledath/humanwrite",
+        "X-OpenRouter-Title": "Humanwrite M3 blinded rewrite judge",
+    }
+
+    def request_one(task: dict) -> tuple[dict, float]:
+        attempt_cost = 0.0
+        last_error: Exception | None = None
+        for attempt in range(int(judge["retry_attempts"])):
+            try:
+                response = requests.post(
+                    "https://openrouter.ai/api/v1/chat/completions",
+                    headers=headers,
+                    json={
+                        "model": task["model"],
+                        "messages": [{"role": "user", "content": task["prompt"]}],
+                        "temperature": judge["temperature"],
+                        "max_completion_tokens": judge["max_completion_tokens"],
+                        "reasoning": {"effort": "minimal", "exclude": True},
+                        "provider": {"require_parameters": True},
+                    },
+                    timeout=180,
+                )
+                response.raise_for_status()
+                body = response.json()
+                usage_cost = (body.get("usage") or {}).get("cost")
+                if usage_cost is None:
+                    raise RuntimeError("judge response omitted usage.cost")
+                attempt_cost += float(usage_cost)
+                content = str(body["choices"][0]["message"].get("content") or "").strip().upper()
+                if re.fullmatch(r"A|B|TIE", content) is None:
+                    raise RuntimeError(f"judge response contract failed: {content!r}")
+                outcome = (
+                    "tie"
+                    if content == "TIE"
+                    else ("win" if content == task["treatment_side"] else "loss")
+                )
+                return (
+                    {
+                        "artifact_schema": M3_REWRITE_JUDGE_PROTOCOL,
+                        "model": task["model"],
+                        "dimension": task["dimension"],
+                        "fingerprint": task["fingerprint"],
+                        "treatment_side": task["treatment_side"],
+                        "choice": content,
+                        "outcome": outcome,
+                        "attempt": attempt + 1,
+                        "cost_usd": round(attempt_cost, 8),
+                    },
+                    attempt_cost,
+                )
+            except Exception as exc:
+                last_error = exc
+                time.sleep(1.0 + attempt)
+        raise JudgeRequestError(str(last_error), attempt_cost)
+
+    try:
+        checkpoint_volume.reload()
+        panel = rows(panel_path, str(data["panel_sha256"]))
+        sft = rows(sft_path, str(data["sft_sha256"]))
+        treatment = rows(treatment_path, str(data["treatment_sha256"]))
+        if len(panel) != int(data["panel_records"]):
+            raise RuntimeError("judge panel cardinality mismatch")
+        tasks = build_tasks(panel, sft, treatment)
+        task_by_key = {
+            (task["model"], task["dimension"], task["fingerprint"]): task
+            for task in tasks
+        }
+        completed: dict[tuple[str, str, str], dict] = {}
+        if output_path.exists():
+            for row in rows(output_path, _file_sha256(output_path)):
+                key = (str(row.get("model")), str(row.get("dimension")), str(row.get("fingerprint")))
+                task = task_by_key.get(key)
+                expected_outcome = (
+                    "tie"
+                    if row.get("choice") == "TIE"
+                    else "win"
+                    if task is not None and row.get("choice") == task["treatment_side"]
+                    else "loss"
+                )
+                if (
+                    row.get("artifact_schema") != M3_REWRITE_JUDGE_PROTOCOL
+                    or row.get("choice") not in {"A", "B", "TIE"}
+                    or row.get("outcome") not in {"win", "loss", "tie"}
+                    or task is None
+                    or row.get("treatment_side") != task["treatment_side"]
+                    or row.get("outcome") != expected_outcome
+                    or key in completed
+                ):
+                    raise RuntimeError("existing judge output is invalid")
+                completed[key] = row
+        pending = [
+            task
+            for task in tasks
+            if (task["model"], task["dimension"], task["fingerprint"]) not in completed
+        ]
+        with output_path.open("a", encoding="utf-8") as sink:
+            for start in range(0, len(pending), int(judge["concurrency"])):
+                batch = pending[start : start + int(judge["concurrency"])]
+                if spent >= cost_cap:
+                    break
+                with ThreadPoolExecutor(max_workers=int(judge["concurrency"])) as pool:
+                    futures = {pool.submit(request_one, task): task for task in batch}
+                    for future in as_completed(futures):
+                        task = futures[future]
+                        try:
+                            row, cost = future.result()
+                            spent += cost
+                            sink.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
+                            sink.flush()
+                            key = (task["model"], task["dimension"], task["fingerprint"])
+                            completed[key] = row
+                            processed += 1
+                        except JudgeRequestError as exc:
+                            spent += exc.cost
+                            failed += 1
+                            with log_path.open("a", encoding="utf-8") as logs:
+                                logs.write(
+                                    f"record failure id={task['fingerprint']} "
+                                    f"error=JudgeRequestError detail={exc}\n"
+                                )
+                checkpoint_volume.commit()
+                if spent > reported:
+                    _record({
+                        "kind": "api_cost",
+                        "run_id": run_id,
+                        "cost_usd": round(spent - reported, 6),
+                    })
+                    reported = spent
+                with log_path.open("a", encoding="utf-8") as logs:
+                    logs.write(
+                        f"processed={processed} total_completed={len(completed)} "
+                        f"api_cost_usd={spent:.6f} concurrency={judge['concurrency']}\n"
+                    )
+        if len(completed) == len(tasks) and failed == 0:
+            result_rows = [completed[key] for key in sorted(completed)]
+            output_path.write_text(
+                "".join(
+                    json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n"
+                    for row in result_rows
+                ),
+                encoding="utf-8",
+            )
+            summary = summarize(result_rows)
+            manifest = {
+                "artifact_schema": "humanwrite.m3.rewrite_pairwise_judge_manifest.v1",
+                "status": "completed",
+                "comparison_id": config["run"]["comparison_id"],
+                "input_hashes": {
+                    "panel": data["panel_sha256"],
+                    "sft": data["sft_sha256"],
+                    "treatment": data["treatment_sha256"],
+                },
+                "results_uri": data["output_uri"],
+                "results_sha256": _file_sha256(output_path),
+                "summary": summary,
+                "cost_usd": round(sum(float(row["cost_usd"]) for row in result_rows), 6),
+            }
+            manifest_path.write_text(
+                json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+            )
+            checkpoint_volume.commit()
+            status = "completed"
+    except Exception as exc:
+        with log_path.open("a", encoding="utf-8") as logs:
+            logs.write(f"M3 rewrite judge failure: {type(exc).__name__}: {exc}\n")
+    finally:
+        if spent > reported:
+            _record({
+                "kind": "api_cost",
+                "run_id": run_id,
+                "cost_usd": round(spent - reported, 6),
+            })
+        update = {
+            "kind": "run_update",
+            "run_id": run_id,
+            "status": status,
+            "finished_at": time.time(),
+            "actual_api_cost_usd": round(spent, 6),
+            "records_processed": processed,
+            "records_failed": failed,
+            "output_uri": str(data["output_uri"]),
+            **_volume_artifact(str(data["output_uri"]), output_path, sha_key="output_sha256"),
+        }
+        if manifest_path.is_file():
+            update["manifest_uri"] = str(data["manifest_uri"])
+            update["manifest_sha256"] = _file_sha256(manifest_path)
+        _record(update)
+    return {
+        "run_id": run_id,
+        "status": status,
+        "records_processed": processed,
+        "records_failed": failed,
+        "actual_api_cost_usd": round(spent, 6),
+    }
+
+
+@app.function(
+    image=worker_image,
+    secrets=[provider_secret],
+    volumes={"/state": state_volume, CHECKPOINT_PATH: checkpoint_volume},
     timeout=8 * 60 * 60,
     retries=0,
     single_use_containers=True,
@@ -1942,6 +2187,10 @@ def gateway():
                 ).spawn(run_id, worker_payload)
             elif policy.task_kind == "rewrite_synthesis":
                 call = rewrite_synthesis_worker.with_options(
+                    timeout=policy.timeout_seconds + 120,
+                ).spawn(run_id, worker_payload)
+            elif policy.task_kind == "rewrite_judging":
+                call = rewrite_judging_worker.with_options(
                     timeout=policy.timeout_seconds + 120,
                 ).spawn(run_id, worker_payload)
             elif policy.task_kind == "model_cache":
