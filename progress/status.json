@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-07-19T15:03:00Z",
+  "updated_at": "2026-07-19T15:10:00Z",
   "phase": "M3 — rewriting-first Qwen3-14B program",
   "headline": "Fresh rewrite panel is two-thirds built while 4K construction and base-Qwen drafting continue",
   "summary": "The 14B smoke gate remains fully passed. Direct checkpoint inspection now shows 130/2,048 repaired API rewrites, 197/819 four-candidate base-Qwen draft records, and 148/224 fresh evaluation rewrites. The accepted repaired artifacts contain zero normalized identities; multi-provider rewrites remain below the frozen 0.95 surface-similarity ceiling. The full automatic, two-embedder, and 2,048-check two-family judge evaluation path is deployed. A fail-closed 4K promotion program now encodes every frozen gate and requires both judge families independently. No scientific quality result exists yet because matched training has not started.",
@@ -26,6 +26,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "08:10",
+      "title": "Missing witness-rollout stop condition repaired before training",
+      "detail": "A prelaunch trainer audit found that the frozen more-than-10-percent malformed or unexpected-language stop was not enforced on the 512 stage-one witness generations. Commit `72c4e5f` now rejects wrong cardinality and stops before stage-two weighting if empty, replacement-character, or unexpected-language rollouts exceed the exclusive 10% threshold; exact counts are retained in the witness artifact. Forty-two focused trainer, objective, generation, decision, and autonomy tests pass, and the patched worker is deployed before either matched arm launches.",
+      "tone": "complete"
+    },
     {
       "at": "08:03",
       "title": "Evaluation stack deployed and 4K decision frozen",
