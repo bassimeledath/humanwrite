@@ -5,6 +5,20 @@
   "candidate_outputs_existed_before_binding": true,
   "metric_values_observed_before_binding": false,
   "decision_rule_source": "research_reviews/mmd_witness_scale_ladder_preregistration_2026-07-17.md#4096-gate",
+  "transport_repair": {
+    "prior_contract_sha256": "9877005cbc913a763610b1cf5ab2c6c96a002bffa5301fcae46c41f32eecfa1d",
+    "reason": "The initial 32-token judge response allowance produced only finish_reason=length and no valid A/B choices. It was increased to the previously proven 512-token allowance before any judge result or scoring metric existed.",
+    "embedding_outputs_reusable": true,
+    "scientific_fields_unchanged": [
+      "artifact_bindings",
+      "embedding_models",
+      "embedding_preprocessing",
+      "rubrics",
+      "judge_model",
+      "side_randomization",
+      "decision_rules"
+    ]
+  },
   "artifacts": {
     "prompt_briefs": {
       "path": "/checkpoints/data/m2-scale-ladder-v1/scale-dev-panels/prompt_briefs-128.jsonl",
@@ -79,7 +93,7 @@
       "master_seed": 104101
     },
     "temperature": 0.0,
-    "max_completion_tokens": 32,
+    "max_completion_tokens": 512,
     "concurrency": 8,
     "retry_attempts": 3,
     "cost_cap_usd": 2.5

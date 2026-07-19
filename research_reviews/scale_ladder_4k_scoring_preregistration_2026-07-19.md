@@ -45,3 +45,15 @@ cell unless any of the following occurs:
 Opening this panel does not authorize hyperparameter, coefficient, sampler, or
 checkpoint selection. The 16K cell has its own stronger safety-and-signal gate
 before any 46K work.
+
+## Pre-result judge transport repair
+
+The first judge transport attempt used a 32-token completion allowance. The
+provider returned `finish_reason=length`, `content=None`, and no valid A/B
+choice. Before any judge result or metric existed, the allowance was changed to
+512 tokens, matching the already-proven measurement-v4 judge transport. No
+rubric, model, prompt, side assignment, candidate artifact, threshold, or
+decision rule changed. Embeddings already materialized under the prior contract
+hash remain reusable because the repair cannot affect their inputs, models, or
+preprocessing; the old hash is explicitly bound in the machine-readable
+contract.

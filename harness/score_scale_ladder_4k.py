@@ -140,10 +140,14 @@ def score(
     for family_id in FAMILIES:
         bundle = json.loads(embedding_paths[family_id].read_text())
         config = contract["embedding_families"][family_id]
+        accepted_contract_hashes = {contract_sha}
+        transport_repair = contract.get("transport_repair") or {}
+        if transport_repair.get("embedding_outputs_reusable") is True:
+            accepted_contract_hashes.add(str(transport_repair.get("prior_contract_sha256")))
         if (
             bundle.get("artifact_schema") != "dftr.m2.scale_ladder_embeddings.v1"
             or bundle.get("status") != "completed"
-            or bundle.get("contract_sha256") != contract_sha
+            or bundle.get("contract_sha256") not in accepted_contract_hashes
             or bundle.get("family_id") != family_id
             or bundle.get("model_id") != config["model_id"]
             or bundle.get("model_revision") != config["revision"]

@@ -170,7 +170,13 @@ def judge() -> dict:
                 content = str(body["choices"][0]["message"]["content"]).strip()
                 usage = body.get("usage") or {}
                 if re.fullmatch(r"[AB]", content) is None or usage.get("cost") is None:
-                    raise RuntimeError("judge response violated the A/B or cost contract")
+                    choice = body.get("choices", [{}])[0]
+                    raise RuntimeError(
+                        "judge response violated the A/B or cost contract: "
+                        f"content={content!r}, cost={usage.get('cost')!r}, "
+                        f"finish_reason={choice.get('finish_reason')!r}, "
+                        f"usage_keys={sorted(usage)}"
+                    )
                 return {
                     "dimension": task["dimension"],
                     "prompt_id": task["prompt_id"],

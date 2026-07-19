@@ -18,6 +18,8 @@ def test_frozen_scale_ladder_contract_is_structurally_valid():
     validate_contract(contract)
     assert contract["metric_values_observed_before_binding"] is False
     assert contract["decision"]["no_hyperparameter_selection_from_this_panel"] is True
+    assert contract["judge"]["max_completion_tokens"] == 512
+    assert contract["transport_repair"]["embedding_outputs_reusable"] is True
 
 
 def test_binomial_lower_tail_is_exact_and_validated():
