@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-19T16:34:00Z",
+  "updated_at": "2026-07-19T16:47:00Z",
   "phase": "M3 — rewriting-first Qwen3-14B program",
-  "headline": "Three constructors are active; exact eval recovery has reached 206/224",
-  "summary": "Exact append-only evaluation rerun `dftr-1784476985-26ac83e5` has recovered three more identities and reached 206/224 with every gate unchanged. The surface-divergent API corpus is at least 740/2,048. Resumable 14B draft run `dftr-1784476668-e05c3c4d` is healthy at least 364/819. SHA-bound training and generation handoff materializers are committed, and the complete M3/policy/autonomy test slice passes 156/156. No scientific quality result exists yet because matched training has not started.",
+  "headline": "Final exact evaluation replay is active from 207/224",
+  "summary": "The second exact 12-attempt evaluation pass added four valid rows for `$0.452864`, reaching 207/224. One final exact replay, `dftr-1784477641-e4bb544b`, is active under a versioned stop rule: if it remains partial, stochastic replay ends and a prospective repair must target the observed literal/identity failures without replacing identities or weakening gates. The 4K API and 14B draft constructors remain healthy. No scientific quality result exists yet because matched training has not started.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 100,
@@ -26,6 +26,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "09:47",
+      "title": "Final exact evaluation replay launched under a frozen stop rule",
+      "detail": "Exact run `dftr-1784476985-26ac83e5` added four valid rows and ended at 207/224 for `$0.452864`. Amendment `m3_eval_exact_replay_cap_2026-07-19.md` authorizes one final unchanged replay because both 12-attempt passes yielded four rows at low cost. Run `dftr-1784477641-e4bb544b` is active. If it remains partial, further stochastic replay is forbidden; the artifact is preserved and any next constructor repair must be prospective and targeted at the documented literal/identity mechanism.",
+      "tone": "active"
+    },
     {
       "at": "09:34",
       "title": "Post-construction handoffs are now deterministic and fully tested",
