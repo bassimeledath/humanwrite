@@ -1,9 +1,9 @@
 {
-  "updated_at": "2026-07-19T16:47:18Z",
+  "updated_at": "2026-07-19T17:02:28Z",
   "phase": "M3 — rewriting-first Qwen3-14B program",
-  "headline": "Frozen evaluation is ready; both 4K training-data constructors are advancing",
-  "summary": "The immutable 256-row rewrite panel remains complete and uploaded at SHA `b04d85b0bcde09cfc0db2bb166a4d4ea13e967576f716dd7bd1e4843d25af25a`. Live sanctioned status now shows 1,127/2,048 accepted surface-divergent API rewrites and 461/819 four-candidate Qwen3-14B draft records. Neither job is stuck. A prospective literal- and token-aware API tail recovery is tested and frozen but will launch only if the current worker ends partial. No quality result exists yet because matched SFT14/HUMANWRITE14 training has not started.",
-  "run_state": "active",
+  "headline": "Project paused by user; all paid workers and deployments stopped",
+  "summary": "At the pause boundary, the immutable 256-row rewrite panel was complete and uploaded. Partial constructor artifacts contained 1,269 unique accepted API rewrites and 517 unique Qwen3-14B candidate rows; matched SFT14/HUMANWRITE14 training had not started, so no 14B quality result exists. Runs `dftr-1784472298-ca6141da` and `dftr-1784476668-e05c3c4d` were cancelled. The Modal gateway, reaper, and sealed evaluator were stopped, and local autonomy, audit, progress-server, and caffeinate LaunchAgents were unloaded. Artifacts and code are preserved for an explicit future resume.",
+  "run_state": "paused",
   "budget": {
     "modal_cap_usd": 100,
     "modal_committed_usd": 53.621732,
@@ -11,21 +11,27 @@
     "openrouter_spend_usd": 47.523267
   },
   "services": [
-    {"name": "GPU gateway", "detail": "Constrained launch API", "status": "online"},
-    {"name": "Reaper", "detail": "Five-minute independent enforcement", "status": "online"},
-    {"name": "Sealed evaluator", "detail": "Private endpoint and hidden split ready", "status": "online"},
-    {"name": "Progress server", "detail": "Local live dashboard", "status": "online"},
-    {"name": "Autonomy coordinator", "detail": "Zero-token 10-minute event watcher, coarse progress wakes, and 90-minute safety audit", "status": "online"}
+    {"name": "GPU gateway", "detail": "Constrained launch API", "status": "stopped"},
+    {"name": "Reaper", "detail": "Five-minute independent enforcement", "status": "stopped"},
+    {"name": "Sealed evaluator", "detail": "Private endpoint and hidden split", "status": "stopped"},
+    {"name": "Progress server", "detail": "Local live dashboard", "status": "stopped"},
+    {"name": "Autonomy coordinator", "detail": "Polling and continuation workers", "status": "stopped"}
   ],
   "milestones": [
     {"id": "setup", "label": "Setup", "detail": "Harness, sources, storage, and guardrails", "status": "complete"},
     {"id": "M0", "label": "M0", "detail": "Data pipeline and GPU contract smoke test", "status": "complete"},
     {"id": "M1", "label": "M1", "detail": "4B three-seed directional confirmation passed", "status": "complete"},
     {"id": "M2", "label": "M2", "detail": "4B reconstruction and 4K lower-variance screen completed; evidence weak and mixed", "status": "complete"},
-    {"id": "M3", "label": "M3", "detail": "Rewriting-first Qwen3-14B task construction, matched training, and fresh evaluation", "status": "active"},
+    {"id": "M3", "label": "M3", "detail": "Rewriting-first Qwen3-14B task construction, matched training, and fresh evaluation", "status": "paused"},
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "10:02",
+      "title": "Project paused; paid compute and automation stopped",
+      "detail": "User requested a full pause. Both live constructor runs were cancelled. Direct checkpoint inspection preserved 1,269 unique API rewrite rows and 517 unique 14B candidate rows. The Modal gateway, reaper, and sealed evaluator deployments were stopped; local autonomy, audit, progress-server, and caffeinate LaunchAgents were unloaded. No matched 14B fine-tuning had started. Nothing may resume without an explicit user request.",
+      "tone": "paused"
+    },
     {
       "at": "09:47",
       "title": "Both 4K constructors advancing; API tail recovery frozen",
