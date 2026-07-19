@@ -1,12 +1,12 @@
 {
-  "updated_at": "2026-07-19T13:45:58Z",
+  "updated_at": "2026-07-19T14:00:33Z",
   "phase": "M3 — rewriting-first Qwen3-14B program",
-  "headline": "Qwen3-14B weights cached; unchanged H100 training smoke relaunched",
-  "summary": "The complete 96-row rewrite artifact remains validated at SHA `51f38c80e11193d7a2b57144876d99d3d3e17f8ed39e353230f6cd52702de59c`. H100 run `dftr-1784467379-d463605f` spent 16.5 minutes downloading the 14B snapshot and then hit the container timeout before producing a training result; this is an infrastructure failure, not model evidence. All 15 snapshot files are now present in the shared cache. The exact unchanged mechanical smoke is active as `dftr-1784468746-c1ddb6b8`. In parallel, the frozen 4K scientific contract and both API/base-draft construction paths are implemented and tested, but bulk construction remains gated on this smoke.",
+  "headline": "Qwen3-14B loaded; measured prompt-cap repair is in the H100 smoke",
+  "summary": "Run `dftr-1784468746-c1ddb6b8` proved that the pinned Qwen3-14B weights load on one H100 in 11 seconds, then stopped before training because one untouched generation prompt measured 642 tokens against the 640-token cap. Exact local qualification found all 128 examples valid with a maximum complete sequence of 852/1,024 tokens. Commit `ebb76e1` prospectively raised only the prompt guard to 768; commit `1a88bd7` also completed the matched 4K SFT14/HUMANWRITE14 trainer. All 72 focused tests pass. Corrected smoke `dftr-1784469584-5ace5380` is active; bulk 4K construction remains gated only on its mechanical result.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 100,
-    "modal_committed_usd": 23.879591,
+    "modal_committed_usd": 24.097387,
     "openrouter_cap_usd": 100,
     "openrouter_spend_usd": 29.267185
   },
@@ -26,6 +26,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "07:00",
+      "title": "14B model load passed; two-token prompt-cap defect repaired and relaunched",
+      "detail": "The cached smoke loaded all eight Qwen3-14B shards in 11 seconds and failed before its first optimizer step because exactly one of 128 prompts was 642 tokens against a 640 cap. Local qualification measured prompt max 642, completion max 301, and full-sequence max 852; all remain below the 1,024-token sequence guard. The cap is now prospectively 768 with no data or optimizer change, 72 focused tests pass, and corrected run `dftr-1784469584-5ace5380` is active. The failed attempt cost `$0.217796`.",
+      "tone": "active"
+    },
     {
       "at": "06:45",
       "title": "14B cache completed; mechanical smoke relaunched without download overhead",
