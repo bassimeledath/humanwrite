@@ -7,6 +7,7 @@
   "max_codex_wakes_per_24h": 16,
   "audit_recent_continuation_seconds": 3600,
   "codex_timeout_seconds": 7200,
+  "native_goal_lease_seconds": 1800,
   "wake_policy": "once_per_new_terminal_or_coarse_progress_transition",
   "monitored_runs": [
     {

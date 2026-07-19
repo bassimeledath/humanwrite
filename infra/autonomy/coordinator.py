@@ -27,6 +27,7 @@ RUNTIME_PATH = STATE_DIR / "runtime.json"
 LIVE_PATH = STATE_DIR / "live.json"
 AUDIT_PATH = STATE_DIR / "audit.json"
 LOCK_PATH = STATE_DIR / "codex.lock"
+NATIVE_GOAL_LEASE_PATH = STATE_DIR / "native-goal.lease"
 GATEWAY_URL = "https://bassimfaizal--humanwrite-gpu-gateway-gateway.modal.run"
 KEYCHAIN_SERVICE = "humanwrite-gateway-token"
 TERMINAL = {"completed", "failed", "cancelled", "reaped", "launch_failed"}
@@ -145,6 +146,19 @@ def successful_wake_times(runtime: dict[str, Any]) -> list[float]:
     ]
 
 
+def native_goal_lease_active(control: dict[str, Any], now: float) -> bool:
+    """Prevent a fallback Codex launch while the native goal owns handoffs."""
+
+    seconds = int(control.get("native_goal_lease_seconds", 1800))
+    if seconds <= 0:
+        return False
+    try:
+        modified = NATIVE_GOAL_LEASE_PATH.stat().st_mtime
+    except OSError:
+        return False
+    return 0 <= now - modified < seconds
+
+
 def should_wake(
     *,
     control: dict[str, Any],
@@ -154,6 +168,8 @@ def should_wake(
 ) -> tuple[bool, str | None, str]:
     if control.get("enabled") is not True:
         return False, None, "disabled"
+    if native_goal_lease_active(control, now):
+        return False, None, "native_goal_lease_active"
     runs = control.get("monitored_runs")
     if not isinstance(runs, list) or not runs:
         return False, None, "no_monitored_runs"
@@ -187,6 +203,8 @@ def should_run_scheduled_audit(
 
     if control.get("enabled") is not True:
         return False, "disabled"
+    if native_goal_lease_active(control, now):
+        return False, "native_goal_lease_active"
     maximum = int(control.get("max_codex_wakes_per_24h", 8))
     wake_times = successful_wake_times(runtime)
     if not within_wake_budget(wake_times, now, maximum):

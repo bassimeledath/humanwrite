@@ -8,6 +8,7 @@ from infra.autonomy.coordinator import (
     terminal_signature,
     within_wake_budget,
 )
+import infra.autonomy.coordinator as coordinator
 
 
 def control(**overrides):
@@ -142,6 +143,30 @@ def test_disabled_or_empty_control_never_wakes():
         statuses={},
         now=0.0,
     )[2] == "no_monitored_runs"
+
+
+def test_native_goal_lease_suppresses_event_and_scheduled_wakes(tmp_path, monkeypatch):
+    lease = tmp_path / "native-goal.lease"
+    lease.write_text("native thread owns handoffs\n")
+    monkeypatch.setattr(coordinator, "NATIVE_GOAL_LEASE_PATH", lease)
+    now = lease.stat().st_mtime + 10
+    assert should_wake(
+        control=control(native_goal_lease_seconds=30),
+        runtime={},
+        statuses={"run-a": {"status": "completed"}},
+        now=now,
+    )[2] == "native_goal_lease_active"
+    assert should_run_scheduled_audit(
+        control=control(native_goal_lease_seconds=30), runtime={}, now=now
+    )[1] == "native_goal_lease_active"
+
+    later = lease.stat().st_mtime + 31
+    assert should_wake(
+        control=control(native_goal_lease_seconds=30),
+        runtime={},
+        statuses={"run-a": {"status": "completed"}},
+        now=later,
+    )[2] == "new_terminal_transition"
 
 
 def test_scheduled_audit_runs_without_recent_continuation():
