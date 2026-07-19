@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-07-19T08:31:49Z",
+  "updated_at": "2026-07-19T08:38:20Z",
   "phase": "M3 — rewriting-first Qwen3-14B program",
   "headline": "14B rewrite task-construction smoke running under autonomous control",
   "summary": "The rewriting-first Qwen3-14B protocol is frozen and deployed. Its 128-record construction smoke is generating and independently verifying 96 rewrite pairs before any GPU training spend. On success, the event-driven coordinator will validate the artifacts and continue through matched 4K and gated 16K training/evaluation without routine user prompts; a 46K extension is allowed only if the frozen 16K gate passes.",
@@ -8,7 +8,7 @@
     "modal_cap_usd": 100,
     "modal_committed_usd": 22.252709,
     "openrouter_cap_usd": 100,
-    "openrouter_spend_usd": 31.712308
+    "openrouter_spend_usd": 31.949823
   },
   "services": [
     {"name": "GPU gateway", "detail": "Constrained launch API", "status": "online"},
@@ -26,6 +26,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "01:38",
+      "title": "14B training smoke built while task synthesis resumes",
+      "detail": "The first Qwen/Claude request envelope exposed model-specific HTTP 400 responses and Qwen verifier length exits, so the run was stopped. Commit `23d15d8` removed the incompatible shared reasoning field, added bounded provider error bodies, doubled verifier headroom, and simultaneously completed the Qwen3-14B LoRA mechanical trainer, mixed 96-rewrite/32-generation task assembler, checkpointing, runner dispatch, and frozen gateway policy. All 84 focused tests pass. Resume run `dftr-1784450281-877f65a7` is active on the same validated partial artifact; API commitment is `$31.949823/$100` and GPU commitment remains `$22.252709/$100`.",
+      "tone": "active"
+    },
     {
       "at": "01:31",
       "title": "Clean Qwen/Claude task smoke launched",
@@ -649,5 +655,5 @@
     {"at": "17:46", "title": "Storage created", "detail": "Gateway state, checkpoints, sealed state, and sealed artifacts volumes are online.", "tone": "complete"},
     {"at": "17:40", "title": "Engineering checks passed", "detail": "Harness, infrastructure, and private evaluator suites are green.", "tone": "complete"}
   ],
-  "next_action": "Wait for the zero-token watcher to observe terminal state for clean Qwen/Claude run `dftr-1784449881-7370657a`; then validate all 96 rewrite artifacts and autonomously advance to the preregistered matched 4K Qwen3-14B screen."
+  "next_action": "Wait for the zero-token watcher to observe terminal state for repaired Qwen/Claude run `dftr-1784450281-877f65a7`; then validate all 96 rewrite artifacts, bind their SHA into the completed 14B LoRA mechanical-smoke config, and launch the H100 smoke automatically."
 }
