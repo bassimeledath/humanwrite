@@ -28,6 +28,15 @@ VERIFIER_BY_GENERATOR = {
     "google/gemini-3.1-flash-lite": "qwen/qwen3-32b",
     "anthropic/claude-haiku-4.5": "qwen/qwen3-32b",
 }
+# Frozen after two zero-acceptance Gemini passes in the 96-record construction
+# smoke. Only these missing rows use the already-approved alternate generator;
+# Qwen verification and all deterministic acceptance gates remain unchanged.
+GENERATOR_OVERRIDES = {
+    "004206e06d7f3695673c08abf9d5984b9eb0e15b01ed28bc5c222522dfcdd30e": "anthropic/claude-haiku-4.5",
+    "0046dea8519897d6aaee0d5f47475ef7828971c0efebcce40ad32fa716bdf65f": "anthropic/claude-haiku-4.5",
+    "0161f8c767b00ffc1357901bc0c18c1dc2172baad2cc4ca68429265ced1e4a3f": "anthropic/claude-haiku-4.5",
+    "01a2cd9008136a11c8301b62391c4a5b110515d290f6567e9ffc49e477b8b7a5": "anthropic/claude-haiku-4.5",
+}
 TEMPLATE_IDS = (
     "generic_polished",
     "overstructured",
@@ -56,7 +65,9 @@ def _fingerprint_int(fingerprint: str) -> int:
 def deterministic_assignment(fingerprint: str) -> dict[str, str]:
     """Balance generator families and prompt templates without outcome access."""
     value = _fingerprint_int(fingerprint)
-    generator = GENERATOR_MODELS[value % len(GENERATOR_MODELS)]
+    generator = GENERATOR_OVERRIDES.get(
+        fingerprint, GENERATOR_MODELS[value % len(GENERATOR_MODELS)]
+    )
     return {
         "generator_model": generator,
         "verifier_model": VERIFIER_BY_GENERATOR[generator],

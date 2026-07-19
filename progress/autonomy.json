@@ -1,18 +1,13 @@
 {
   "schema": "humanwrite.autonomy_control.v1",
-  "enabled": true,
-  "generation": 41,
+  "enabled": false,
+  "generation": 42,
+  "disabled_reason": "M3 rewrite-task construction stopped at 92/96 accepted rows under the frozen v3 provider amendment; the last four identities still fail substantively as verbatim copies, and another rerun would exceed the frozen attempt contract without new user authority.",
   "objective": "Run the preregistered M3 rewriting-first Qwen3-14B program autonomously through the 128-record task-construction smoke, matched 4K screen, gated 16K confirmation, and optional 46K extension only if the frozen 16K promotion gate passes. Diagnose and repair recoverable implementation or infrastructure failures without routine user sign-off. Stay within the existing $100 API and $100 GPU caps; do not launch Tier 3 detectors or raise either cap.",
   "poll_interval_seconds": 600,
   "max_codex_wakes_per_24h": 16,
   "audit_recent_continuation_seconds": 3600,
   "codex_timeout_seconds": 7200,
   "wake_policy": "once_per_new_terminal_transition",
-  "monitored_runs": [
-    {
-      "run_id": "dftr-1784466580-dfc451fe",
-      "comparison": "M3-rewrite-tasks-128-smoke-v3",
-      "purpose": "Fill the remaining 54 frozen identities with Gemini-generated and Qwen-verified rewrites under unchanged validators, then launch the prepared Qwen3-14B H100 mechanical smoke if all 96 tasks validate"
-    }
-  ]
+  "monitored_runs": []
 }

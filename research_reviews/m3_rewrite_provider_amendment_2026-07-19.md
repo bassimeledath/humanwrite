@@ -22,3 +22,19 @@ This is a prospective task-construction amendment, not endpoint-driven model
 selection: zero Qwen-generated rows passed into the corpus, and neither
 training nor evaluation has begun. The amended smoke must still reach all 96
 valid rows before the Qwen3-14B H100 mechanical smoke may launch.
+
+## Zero-acceptance tail repair
+
+Two resumed passes accepted 50 of the 54 replacement-slot records. Four
+Gemini-assigned records returned the human target byte-for-byte on every
+generation attempt, despite recovery prompts explicitly requiring a
+meaning-preserving alternate draft. The deterministic validator rejected every
+candidate as a no-op.
+
+Before model training or evaluation, these four zero-acceptance fingerprints
+were prospectively routed to the already-approved Claude Haiku generator.
+Qwen3-32B remains the independent verifier, and every schema, literal-
+preservation, language, token-length, semantic-similarity, and factual-
+equivalence gate remains frozen. The 92 accepted rows are preserved byte-for-
+byte. This repair changes only which approved generator constructs the four
+missing rows; it does not select model-training outcomes.

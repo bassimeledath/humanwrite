@@ -3378,3 +3378,39 @@ change the preregistered contract and requires explicit user authority.
 NEXT: Disabled autonomy. Resumption requires explicit user authority to either
 alter the frozen M3 generator/provider contract or accept this provider-capability
 stop as the negative conclusion for the current Qwen3-14B rewriting attempt.
+
+## [2026-07-19] M3 / M3-rewrite-tasks-128-smoke-v3-terminal-stop
+HYPOTHESIS: The Gemini/Claude amendment remained scientifically valid only if
+the same-config in-place rerun could finish the last unresolved identities
+without changing the frozen validator, provider, or attempt contract. If the
+remaining failures stayed substantive after the rerun, the M3 construction
+stage should stop as a defensible negative before any 14B training launch.
+SETUP: Terminal-transition continuation on Sunday, July 19, 2026 using the
+sanctioned gateway URL plus macOS Keychain token `humanwrite-gateway-token`.
+Queried sanctioned status and logs for amended run
+`dftr-1784466580-dfc451fe` and same-config rerun
+`dftr-1784466818-9d4eaf41`, both bound to config hash
+`cbfe7e5f0b5563cca62efb2d5eed83aeaa90dad37787265804520de139d2265d` and the
+same append-only output URI
+`modal-volume://humanwrite-checkpoints/data/m3-rewriting-14b-v1/rewrite-tasks-96-smoke-v2.jsonl`.
+The continuation also repaired the stale local monitor target that still
+pointed at the first failed run after the rerun had already been launched.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| First amended v3 run | PARTIAL PASS | `dftr-1784466580-dfc451fe` failed after `records_processed=48`, `records_failed=6`, and `actual_api_cost_usd=$0.064238`, advancing the canonical artifact from 42 accepted rows to output SHA `c615a1d18100bfccc9f872d35f3c79c18f4351247be5cc82eb0e8184890915d5` with 90 accepted rows total. |
+| Handoff repair | PASS | The local autonomy/status files were retargeted from stale failed run `dftr-1784466580-dfc451fe` to rerun `dftr-1784466818-9d4eaf41`, the only active same-config remote job. |
+| Same-config rerun efficacy | FAIL | `dftr-1784466818-9d4eaf41` then failed after `records_processed=2`, `records_failed=4`, `actual_api_cost_usd=$0.017115`, and output SHA `b6cf7e68b44f5c85a113039de386f40ed10d9ade50de5342830a57aebe4d1d8f`, leaving the artifact at 92 accepted rows rather than the required 96. |
+| Residual-failure characterization | FAIL | Sanctioned rerun logs show all four remaining identities failed with `RewriteTaskError: non-noop rewrite source equals target`. The earlier `json_schema finish_reason=error` identity was recovered, so the residual blocker is substantive verbatim copying, not transport or schema infrastructure. |
+| Frozen-attempt contract | PASS | Launching another rerun would exceed the prospectively frozen `max_attempts=4` logic by effectively granting extra stochastic retries on the same unresolved identities. No new infrastructure defect was evidenced that would justify such a relaunch. |
+| Budget state at stop | PASS | Sanctioned budget at `2026-07-19T13:17Z` reported Modal committed `$22.252709/$100` and OpenRouter spend `$29.256383/$100`, staying inside both hard caps while stopping before any unauthorized 14B training spend. |
+DECISION: Stop the autonomous M3 construction stage and disable autonomy. The
+prospective Gemini amendment improved the artifact from 42 to 92 accepted rows,
+but the remaining four identities still fail for substantive copy-through under
+the frozen acceptance rules and attempt cap. Under the preregistered protocol,
+there is no authorized next remote launch and no basis to start the prepared
+Qwen3-14B H100 mechanical smoke.
+NEXT: Treat this as the frozen-protocol negative for the current 14B rewriting
+attempt unless the user explicitly authorizes a new construction contract,
+provider mix, or attempt policy. Do not launch training, evaluation, 16K, or
+46K stages from this artifact.

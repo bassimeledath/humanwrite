@@ -1,14 +1,14 @@
 {
-  "updated_at": "2026-07-19T13:10:08Z",
+  "updated_at": "2026-07-19T13:17:34Z",
   "phase": "M3 — rewriting-first Qwen3-14B program",
-  "headline": "Failed Qwen generator slot prospectively replaced; Gemini/Claude smoke active",
-  "summary": "Transport is now healthy. The accepted artifact contains 42 Claude-generated, Qwen-verified rows, while the Qwen generator produced zero accepted rows across the remaining 54 identities after transport repair; its terminal failures were substantive length, protected-literal, and truncation violations. Commit `c576b7e` prospectively replaces only that zero-acceptance generator slot with Gemini 3.1 Flash Lite, retains Qwen as independent verifier, preserves all 42 valid rows and every acceptance gate, and records the amendment before any replacement row is accepted. Run `dftr-1784466580-dfc451fe` is active. The complete task-to-H100 SHA-binding handoff is checked in and preregistered.",
-  "run_state": "active",
+  "headline": "Amended rewrite smoke stopped at 92/96 valid rows; autonomy disabled",
+  "summary": "The prospective Gemini amendment improved the canonical rewrite artifact from 42 to 92 accepted rows, but it did not complete the frozen 96-row task-construction gate. Run `dftr-1784466580-dfc451fe` added 48 accepted rows before failing on six identities, and same-config rerun `dftr-1784466818-9d4eaf41` recovered only two more before ending with four residual `non-noop rewrite source equals target` failures. Those remaining misses are substantive under the frozen attempt cap, not a new transport or schema defect, so the prepared Qwen3-14B H100 mechanical smoke may not launch from this artifact.",
+  "run_state": "blocked",
   "budget": {
     "modal_cap_usd": 100,
     "modal_committed_usd": 22.252709,
     "openrouter_cap_usd": 100,
-    "openrouter_spend_usd": 32.075207
+    "openrouter_spend_usd": 29.256383
   },
   "services": [
     {"name": "GPU gateway", "detail": "Constrained launch API", "status": "online"},
@@ -26,6 +26,18 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "06:17",
+      "title": "Amended v3 rerun exhausted at 92 rows; autonomy disabled",
+      "detail": "Sanctioned status shows rerun `dftr-1784466818-9d4eaf41` recovered only two additional accepted rows before failing on four residual identities, all with `RewriteTaskError: non-noop rewrite source equals target`. The canonical artifact now stops at 92 accepted rows with SHA `b6cf7e68b44f5c85a113039de386f40ed10d9ade50de5342830a57aebe4d1d8f`. Because another launch would exceed the frozen `max_attempts=4` logic without any new infrastructure defect, autonomy is now disabled and the prepared Qwen3-14B H100 smoke remains unlaunched.",
+      "tone": "blocked"
+    },
+    {
+      "at": "06:13",
+      "title": "Amended v3 smoke advanced to 90 rows; final-six rerun launched",
+      "detail": "Sanctioned status showed amended run `dftr-1784466580-dfc451fe` failed only after adding 48 new accepted Gemini-generated, Qwen-verified rows to the existing 42-row artifact, producing canonical SHA `c615a1d18100bfccc9f872d35f3c79c18f4351247be5cc82eb0e8184890915d5` with six unresolved identities left. Same-config rerun `dftr-1784466818-9d4eaf41` was then launched to retry just those six rows against the same output URI.",
+      "tone": "active"
+    },
     {
       "at": "06:10",
       "title": "Zero-acceptance Qwen generator slot replaced prospectively",
@@ -691,5 +703,5 @@
     {"at": "17:46", "title": "Storage created", "detail": "Gateway state, checkpoints, sealed state, and sealed artifacts volumes are online.", "tone": "complete"},
     {"at": "17:40", "title": "Engineering checks passed", "detail": "Harness, infrastructure, and private evaluator suites are green.", "tone": "complete"}
   ],
-  "next_action": "Let the zero-token watcher validate amended construction run `dftr-1784466580-dfc451fe`; on a complete 96-row artifact, materialize the SHA-bound Qwen3-14B H100 config and launch automatically."
+  "next_action": "No autonomous launch remains under the frozen M3 protocol. Resumption requires explicit user authority to change the rewrite-task construction contract or to accept this 92/96 stop as the negative conclusion for the current Qwen3-14B rewriting attempt."
 }

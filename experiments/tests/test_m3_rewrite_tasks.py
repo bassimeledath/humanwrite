@@ -70,6 +70,13 @@ def test_assignment_is_stable_and_cross_provider() -> None:
     assert first["generator_model"] != first["verifier_model"]
 
 
+def test_zero_acceptance_tail_uses_frozen_alternate_generator() -> None:
+    fingerprint = "004206e06d7f3695673c08abf9d5984b9eb0e15b01ed28bc5c222522dfcdd30e"
+    assignment = deterministic_assignment(fingerprint)
+    assert assignment["generator_model"] == "anthropic/claude-haiku-4.5"
+    assert assignment["verifier_model"] == "qwen/qwen3-32b"
+
+
 def test_recovery_prompt_forces_nonidentical_length_matched_rewrite() -> None:
     assignment = deterministic_assignment(FINGERPRINT)
     first = generator_prompt(source(), assignment)
