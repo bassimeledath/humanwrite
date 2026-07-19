@@ -71,6 +71,7 @@ LOWER_VARIANCE_OUTLINE_MODEL = "openai/gpt-5-mini"
 LOWER_VARIANCE_BRIEF_CONCURRENCY = 8
 DOCUMENT_CLEANING_CONCURRENCY = 128
 M3_REWRITE_TASK_PROTOCOL = "humanwrite.m3.rewrite_tasks.v1"
+M3_SCIENTIFIC_REWRITE_PROTOCOL = "humanwrite.m3.scientific_api_rewrites.v1"
 
 state_volume = modal.Volume.from_name("humanwrite-gateway-state", create_if_missing=True)
 checkpoint_volume = modal.Volume.from_name("humanwrite-checkpoints", create_if_missing=True)
@@ -965,6 +966,13 @@ def rewrite_synthesis_worker(run_id: str, payload: dict) -> dict:
         verifier_prompt,
         verifier_response_schema,
     )
+    from data.m3_scientific_corpus import (
+        API_REWRITE_ORIGINS,
+        assemble_scientific_rewrite,
+        scientific_generator_prompt,
+        scientific_manifest,
+        validate_scientific_rewrite,
+    )
 
     config = payload["config"]
     data = config["data"]
@@ -1089,7 +1097,8 @@ def rewrite_synthesis_worker(run_id: str, payload: dict) -> dict:
                 ) from raw_exc
 
     try:
-        if api["protocol"] != PROTOCOL or PROTOCOL != M3_REWRITE_TASK_PROTOCOL:
+        protocol = str(api["protocol"])
+        if protocol not in {PROTOCOL, M3_SCIENTIFIC_REWRITE_PROTOCOL}:
             raise ValueError("M3 rewrite-task protocol mismatch")
         checkpoint_volume.reload()
         if not input_path.is_file() or _file_sha256(input_path) != data["input_sha256"]:
@@ -1101,7 +1110,19 @@ def rewrite_synthesis_worker(run_id: str, payload: dict) -> dict:
         ][: int(data["max_records"])]
         if len(all_records) != int(data["max_records"]):
             raise ValueError("M3 rewrite-task input cardinality mismatch")
-        records = rewrite_source_records(all_records)
+        manifest_by_id: dict[str, dict] = {}
+        if protocol == M3_SCIENTIFIC_REWRITE_PROTOCOL:
+            manifest = scientific_manifest(all_records)
+            manifest_by_id = {
+                str(row["fingerprint"]): row
+                for row in manifest
+                if row["origin"] in API_REWRITE_ORIGINS
+            }
+            records = [
+                row for row in all_records if str(row["fingerprint"]) in manifest_by_id
+            ]
+        else:
+            records = rewrite_source_records(all_records)
         if len(records) != int(data["target_records"]):
             raise ValueError("M3 rewrite-task target cardinality mismatch")
         source_index = {str(row["fingerprint"]): row for row in records}
@@ -1128,27 +1149,64 @@ def rewrite_synthesis_worker(run_id: str, payload: dict) -> dict:
                 fingerprint = str(row.get("fingerprint") or "")
                 if fingerprint in completed or fingerprint not in source_index:
                     raise ValueError("existing M3 rewrite output has invalid identity")
-                validate_rewrite_task(
-                    row,
-                    source=source_index[fingerprint],
-                    token_counter=token_counter,
-                    semantic_similarity_min=float(api["semantic_similarity_min"]),
-                )
+                if protocol == M3_SCIENTIFIC_REWRITE_PROTOCOL:
+                    manifest_row = manifest_by_id[fingerprint]
+                    validate_scientific_rewrite(
+                        row,
+                        source=source_index[fingerprint],
+                        origin=str(manifest_row["origin"]),
+                        token_counter=token_counter,
+                        semantic_similarity_min=float(api["semantic_similarity_min"]),
+                        expected_assignment={
+                            field: str(manifest_row[field])
+                            for field in (
+                                "generator_model",
+                                "verifier_model",
+                                "template_id",
+                            )
+                        },
+                    )
+                else:
+                    validate_rewrite_task(
+                        row,
+                        source=source_index[fingerprint],
+                        token_counter=token_counter,
+                        semantic_similarity_min=float(api["semantic_similarity_min"]),
+                    )
                 completed.add(fingerprint)
 
         def synthesize_one(source: dict) -> tuple[dict | None, Exception | None, float]:
-            assignment = deterministic_assignment(str(source["fingerprint"]))
+            if protocol == M3_SCIENTIFIC_REWRITE_PROTOCOL:
+                manifest_row = manifest_by_id[str(source["fingerprint"])]
+                assignment = {
+                    field: str(manifest_row[field])
+                    for field in ("generator_model", "verifier_model", "template_id")
+                }
+                origin = str(manifest_row["origin"])
+            else:
+                assignment = deterministic_assignment(str(source["fingerprint"]))
+                origin = ""
             record_spent = 0.0
             last_error: Exception | None = None
             for attempt in range(1, int(api["max_attempts"]) + 1):
                 try:
                     generated, generation_cost = provider_json(
                         model=assignment["generator_model"],
-                        prompt=generator_prompt(
-                            source,
-                            assignment,
-                            attempt=attempt,
-                            previous_error=str(last_error or ""),
+                        prompt=(
+                            scientific_generator_prompt(
+                                source,
+                                assignment,
+                                origin,
+                                attempt=attempt,
+                                previous_error=str(last_error or ""),
+                            )
+                            if protocol == M3_SCIENTIFIC_REWRITE_PROTOCOL
+                            else generator_prompt(
+                                source,
+                                assignment,
+                                attempt=attempt,
+                                previous_error=str(last_error or ""),
+                            )
                         ),
                         schema_name="m3_rewrite_source",
                         schema=generator_response_schema(),
@@ -1164,18 +1222,26 @@ def rewrite_synthesis_worker(run_id: str, payload: dict) -> dict:
                         max_tokens=4000,
                     )
                     record_spent += verification_cost
-                    return (
-                        assemble_rewrite_task(
+                    if protocol == M3_SCIENTIFIC_REWRITE_PROTOCOL:
+                        emitted = assemble_scientific_rewrite(
+                            source=source,
+                            origin=origin,
+                            generated=generated,
+                            verified=verified,
+                            assignment=assignment,
+                            token_counter=token_counter,
+                            semantic_similarity_min=float(api["semantic_similarity_min"]),
+                        )
+                    else:
+                        emitted = assemble_rewrite_task(
                             source=source,
                             generated=generated,
                             verified=verified,
                             assignment=assignment,
                             token_counter=token_counter,
                             semantic_similarity_min=float(api["semantic_similarity_min"]),
-                        ),
-                        None,
-                        record_spent,
-                    )
+                        )
+                    return emitted, None, record_spent
                 except Exception as exc:
                     last_error = exc
             return None, last_error, record_spent

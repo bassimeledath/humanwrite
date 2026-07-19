@@ -433,7 +433,7 @@ def test_m3_rewrite_synthesis_is_cross_provider_hash_bound_and_budgeted():
 
     value["config"]["data"]["target_records"] = 3071
     value["config_hash"] = canonical_hash(value["config"])
-    with pytest.raises(PolicyError, match="75-percent"):
+    with pytest.raises(PolicyError, match="target count"):
         validate_launch(value)
 
     value["config"]["data"]["target_records"] = 3072
@@ -443,6 +443,106 @@ def test_m3_rewrite_synthesis_is_cross_provider_hash_bound_and_budgeted():
     value["config_hash"] = canonical_hash(value["config"])
     with pytest.raises(PolicyError, match="provider contract"):
         validate_launch(value)
+
+
+def test_m3_scientific_rewrite_synthesis_accepts_exact_half_api_stratum():
+    config = {
+        "run": {
+            "comparison_id": "M3-rewriting-14b-4096-scientific-screen-v1",
+            "arm": "api-rewrite-construction",
+            "budget_class": "promo",
+            "task_kind": "rewrite_synthesis",
+        },
+        "compute": {"gpus": 1, "timeout_min": 480},
+        "data": {
+            "input_uri": "modal-volume://humanwrite-checkpoints/data/source.jsonl",
+            "output_uri": "modal-volume://humanwrite-checkpoints/data/scientific.jsonl",
+            "input_sha256": "a" * 64,
+            "max_records": 4096,
+            "target_records": 2048,
+        },
+        "api": {
+            "protocol": "humanwrite.m3.scientific_api_rewrites.v1",
+            "generator_models": [
+                "google/gemini-3.1-flash-lite",
+                "anthropic/claude-haiku-4.5",
+            ],
+            "verifier_by_generator": {
+                "google/gemini-3.1-flash-lite": "qwen/qwen3-32b",
+                "anthropic/claude-haiku-4.5": "qwen/qwen3-32b",
+            },
+            "max_cost_usd": 12.0,
+            "max_attempts": 4,
+            "semantic_similarity_min": 0.90,
+            "concurrency": 16,
+        },
+        "tokenizer": {
+            "model": "Qwen/Qwen3-14B",
+            "revision": "40c069824f4251a91eefaf281ebe4c544efd3e18",
+        },
+    }
+    payload = {
+        "config": config,
+        "config_hash": canonical_hash(config),
+        "budget_class": "promo",
+        "preregistration": {
+            "kind": "prereg",
+            "status": "open",
+            "comparison": "M3-rewriting-14b-4096-scientific-screen-v1",
+        },
+    }
+    policy = validate_launch(payload)
+    assert policy.task_kind == "rewrite_synthesis"
+    assert policy.api_reserved_cost_usd == 12.0
+
+
+def test_m3_scientific_rewrite_synthesis_rejects_75_percent_target():
+    config = {
+        "run": {
+            "comparison_id": "M3-rewriting-14b-4096-scientific-screen-v1",
+            "budget_class": "promo",
+            "task_kind": "rewrite_synthesis",
+        },
+        "compute": {"gpus": 1, "timeout_min": 480},
+        "data": {
+            "input_uri": "modal-volume://humanwrite-checkpoints/data/source.jsonl",
+            "output_uri": "modal-volume://humanwrite-checkpoints/data/scientific.jsonl",
+            "input_sha256": "a" * 64,
+            "max_records": 4096,
+            "target_records": 3072,
+        },
+        "api": {
+            "protocol": "humanwrite.m3.scientific_api_rewrites.v1",
+            "generator_models": [
+                "google/gemini-3.1-flash-lite",
+                "anthropic/claude-haiku-4.5",
+            ],
+            "verifier_by_generator": {
+                "google/gemini-3.1-flash-lite": "qwen/qwen3-32b",
+                "anthropic/claude-haiku-4.5": "qwen/qwen3-32b",
+            },
+            "max_cost_usd": 12.0,
+            "max_attempts": 4,
+            "semantic_similarity_min": 0.90,
+            "concurrency": 16,
+        },
+        "tokenizer": {
+            "model": "Qwen/Qwen3-14B",
+            "revision": "40c069824f4251a91eefaf281ebe4c544efd3e18",
+        },
+    }
+    payload = {
+        "config": config,
+        "config_hash": canonical_hash(config),
+        "budget_class": "promo",
+        "preregistration": {
+            "kind": "prereg",
+            "status": "open",
+            "comparison": "M3-rewriting-14b-4096-scientific-screen-v1",
+        },
+    }
+    with pytest.raises(PolicyError, match="target count"):
+        validate_launch(payload)
 
 
 def test_preregistered_16k_cleaning_and_brief_scales_are_allowed():

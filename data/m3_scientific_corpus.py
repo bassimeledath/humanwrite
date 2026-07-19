@@ -125,6 +125,120 @@ def render_scientific_rewrite_prompt(row: dict[str, Any], source: dict[str, Any]
     )
 
 
+def scientific_generator_prompt(
+    source: dict[str, Any],
+    assignment: dict[str, str],
+    origin: str,
+    *,
+    attempt: int = 1,
+    previous_error: str = "",
+) -> str:
+    if origin not in API_REWRITE_ORIGINS:
+        raise M3ScientificCorpusError("API generator prompt requires an API rewrite origin")
+    target = str(source.get("completion") or "").strip()
+    if not target or type(attempt) is not int or attempt < 1:
+        raise M3ScientificCorpusError("scientific generator prompt inputs are invalid")
+    if origin == "controlled_light_edit":
+        mode = (
+            "Make a restrained, realistic pre-edit draft. Preserve the paragraph order and most "
+            "wording, but introduce a small number of discourse-level weaknesses such as an "
+            "overexplicit transition, a needlessly repeated subject, or an awkward sentence join. "
+            "Do not introduce spelling errors, factual errors, a phrase blacklist, or parody."
+        )
+        instruction = (
+            "Lightly edit this passage for naturalness and flow while preserving its existing "
+            "voice and every factual detail."
+        )
+    else:
+        mode = (
+            "Create a realistic AI-written alternate draft with conventionally polished, somewhat "
+            "formulaic exposition. Change sentence structure, transitions, and unprotected wording "
+            "enough that the result is not byte-identical, while keeping it usable rather than a parody."
+        )
+        instruction = (
+            "Rewrite this draft so it reads naturally and distinctly human while preserving every "
+            "fact, name, number, date, quotation, URL, and intent."
+        )
+    recovery = ""
+    if attempt > 1:
+        error = re.sub(r"\s+", " ", previous_error or "validation failure")[:220]
+        recovery = (
+            f"\nRecovery attempt {attempt}; the prior candidate failed: {error}. Correct that exact "
+            "failure without relaxing factual or literal preservation.\n"
+        )
+    return (
+        f"{mode} Preserve every fact, name, number, date, quotation, URL, email address, language, "
+        "scope, attribution, and intent. Do not summarize, add facts, omit details, or mention this "
+        "task. Keep the source between roughly 85% and 115% of the human target token length. "
+        f"Template: {assignment['template_id']}. Repeat document_fingerprint exactly. Return "
+        "source_text plus the supplied natural rewrite_instruction."
+        f"{recovery}\n\n"
+        f"document_fingerprint: {source['fingerprint']}\n"
+        f"rewrite_instruction: {instruction}\n\nHUMAN TARGET:\n{target}"
+    )
+
+
+def assemble_scientific_rewrite(
+    *,
+    source: dict[str, Any],
+    origin: str,
+    generated: dict[str, Any],
+    verified: dict[str, Any],
+    assignment: dict[str, str],
+    token_counter: Callable[[str], int],
+    semantic_similarity_min: float = 0.90,
+) -> dict[str, Any]:
+    fingerprint = str(source.get("fingerprint") or "")
+    if origin not in CONSTRUCTED_REWRITE_ORIGINS:
+        raise M3ScientificCorpusError("scientific assembly origin is invalid")
+    if generated.get("document_fingerprint") != fingerprint:
+        raise M3ScientificCorpusError("scientific generator fingerprint mismatch")
+    if verified.get("document_fingerprint") != fingerprint:
+        raise M3ScientificCorpusError("scientific verifier fingerprint mismatch")
+    target = str(source.get("completion") or "").strip()
+    input_text = str(generated.get("source_text") or "").strip()
+    verification = {
+        field: verified[field]
+        for field in (
+            "same_language",
+            "all_target_facts_supported_by_source",
+            "no_source_fact_outside_target",
+            "names_preserved",
+            "numbers_dates_quotes_preserved",
+            "semantic_similarity",
+            "missing_facts",
+            "unsupported_source_claims",
+        )
+    }
+    row = {
+        "artifact_schema": SCIENTIFIC_REWRITE_PROTOCOL,
+        "origin": origin,
+        "fingerprint": fingerprint,
+        "source_fingerprint": str(source.get("source_fingerprint") or fingerprint),
+        "input_text": input_text,
+        "rewrite_instruction": str(generated.get("rewrite_instruction") or "").strip(),
+        "completion": target,
+        "target_length": token_counter(target),
+        "target_length_unit": "tokens",
+        "input_length": token_counter(input_text),
+        "input_length_unit": "tokens",
+        "protected_literals": list(protected_literals(target)),
+        "semantic_similarity": float(verified.get("semantic_similarity", -1)),
+        **assignment,
+        "generation_attempt": int(generated.get("generation_attempt", 1)),
+        "verification": verification,
+    }
+    validate_scientific_rewrite(
+        row,
+        source=source,
+        origin=origin,
+        token_counter=token_counter,
+        semantic_similarity_min=semantic_similarity_min,
+        expected_assignment=assignment,
+    )
+    return row
+
+
 def validate_scientific_rewrite(
     row: dict[str, Any],
     *,
@@ -285,10 +399,12 @@ __all__ = [
     "CONSTRUCTED_REWRITE_ORIGINS",
     "M3ScientificCorpusError",
     "SCIENTIFIC_REWRITE_PROTOCOL",
+    "assemble_scientific_rewrite",
     "assemble_scientific_training_corpus",
     "render_noop_prompt",
     "render_scientific_rewrite_prompt",
     "scientific_assignment",
+    "scientific_generator_prompt",
     "scientific_manifest",
     "validate_scientific_rewrite",
 ]

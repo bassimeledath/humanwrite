@@ -18,6 +18,7 @@ LOWER_VARIANCE_BRIEF_PROTOCOL = "dftr.lower_variance_briefs.two_provider.v1"
 LOWER_VARIANCE_METADATA_MODEL = "qwen/qwen3-32b"
 LOWER_VARIANCE_OUTLINE_MODEL = "openai/gpt-5-mini"
 M3_REWRITE_TASK_PROTOCOL = "humanwrite.m3.rewrite_tasks.v1"
+M3_SCIENTIFIC_REWRITE_PROTOCOL = "humanwrite.m3.scientific_api_rewrites.v1"
 M3_REWRITE_GENERATOR_MODELS = [
     "google/gemini-3.1-flash-lite",
     "anthropic/claude-haiku-4.5",
@@ -1072,15 +1073,21 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
             raise PolicyError("rewrite_synthesis requires lowercase data.input_sha256")
         max_records = data.get("max_records")
         target_records = data.get("target_records")
+        protocol = api.get("protocol")
+        expected_target = (
+            max_records // 2
+            if protocol == M3_SCIENTIFIC_REWRITE_PROTOCOL
+            else (max_records * 3) // 4
+        )
         if (
             not isinstance(max_records, int)
             or isinstance(max_records, bool)
             or max_records not in {128, 4096, 16384, 46080}
-            or target_records != (max_records * 3) // 4
+            or target_records != expected_target
         ):
-            raise PolicyError("rewrite_synthesis requires a frozen 75-percent scale")
+            raise PolicyError("rewrite_synthesis target count does not match its frozen protocol")
         if (
-            api.get("protocol") != M3_REWRITE_TASK_PROTOCOL
+            protocol not in {M3_REWRITE_TASK_PROTOCOL, M3_SCIENTIFIC_REWRITE_PROTOCOL}
             or api.get("generator_models") != M3_REWRITE_GENERATOR_MODELS
             or api.get("verifier_by_generator") != M3_REWRITE_VERIFIER_BY_GENERATOR
             or api.get("max_attempts") != 4

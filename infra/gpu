@@ -366,15 +366,24 @@ def _validate_submit(config: dict, budget_class: str) -> tuple[str, dict]:
             if data.get("input_uri") == data.get("output_uri"):
                 _die("document_cleaning input and output must be distinct")
         elif task_kind == "rewrite_synthesis":
-            if api.get("protocol") != "humanwrite.m3.rewrite_tasks.v1":
+            protocol = api.get("protocol")
+            if protocol not in {
+                "humanwrite.m3.rewrite_tasks.v1",
+                "humanwrite.m3.scientific_api_rewrites.v1",
+            }:
                 _die("rewrite_synthesis requires the frozen M3 protocol")
             if data.get("input_uri") == data.get("output_uri"):
                 _die("rewrite_synthesis input and output must be distinct")
             maximum = int(data.get("max_records", 0))
             if maximum not in {128, 4096, 16384, 46080}:
                 _die("rewrite_synthesis corpus must use a preregistered scale")
-            if int(data.get("target_records", 0)) != maximum * 3 // 4:
-                _die("rewrite_synthesis target must be exactly 75 percent")
+            expected_target = (
+                maximum // 2
+                if protocol == "humanwrite.m3.scientific_api_rewrites.v1"
+                else maximum * 3 // 4
+            )
+            if int(data.get("target_records", 0)) != expected_target:
+                _die("rewrite_synthesis target does not match the frozen protocol")
         elif api.get("protocol") == LOWER_VARIANCE_BRIEF_PROTOCOL:
             if (
                 api.get("metadata_model") != "qwen/qwen3-32b"
