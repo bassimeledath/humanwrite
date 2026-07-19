@@ -27,3 +27,14 @@ def test_structured_chat_request_preserves_optional_reasoning() -> None:
 
     assert request["reasoning"] == {"effort": "minimal", "exclude": True}
 
+
+def test_structured_chat_request_preserves_optional_plugins() -> None:
+    request = structured_chat_request(
+        model="qwen/qwen3-32b",
+        prompt="Return JSON.",
+        response_format={"type": "json_object"},
+        max_completion_tokens=256,
+        plugins=[{"id": "response-healing"}],
+    )
+
+    assert request["plugins"] == [{"id": "response-healing"}]

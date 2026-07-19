@@ -11,6 +11,7 @@ def structured_chat_request(
     response_format: dict[str, Any],
     max_completion_tokens: int,
     reasoning: dict[str, Any] | None = None,
+    plugins: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Build a chat-completions payload that requires parameter-compatible routing."""
 
@@ -23,5 +24,6 @@ def structured_chat_request(
     }
     if reasoning is not None:
         request["reasoning"] = reasoning
+    if plugins:
+        request["plugins"] = plugins
     return request
-

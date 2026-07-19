@@ -981,26 +981,55 @@ def rewrite_synthesis_worker(run_id: str, payload: dict) -> dict:
     def provider_json(
         *, model: str, prompt: str, schema_name: str, schema: dict, max_tokens: int
     ) -> tuple[dict, float]:
-        response = requests.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {os.environ['OPENROUTER_API_KEY']}",
-                "Content-Type": "application/json",
-                "HTTP-Referer": "https://github.com/bassimeledath/humanwrite",
-                "X-OpenRouter-Title": "Humanwrite M3 rewrite task construction",
-            },
-            json=structured_chat_request(
-                model=model,
-                prompt=prompt,
-                response_format=_json_schema_response_format(schema_name, schema),
-                max_completion_tokens=max_tokens,
-            ),
-            timeout=240,
+        headers = {
+            "Authorization": f"Bearer {os.environ['OPENROUTER_API_KEY']}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://github.com/bassimeledath/humanwrite",
+            "X-OpenRouter-Title": "Humanwrite M3 rewrite task construction",
+        }
+
+        def send(payload: dict) -> tuple[dict, float]:
+            response = requests.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers=headers,
+                json=payload,
+                timeout=240,
+            )
+            if not response.ok:
+                detail = re.sub(r"\s+", " ", response.text)[:600]
+                raise RuntimeError(f"provider HTTP {response.status_code}: {detail}")
+            body = response.json()
+            usage_cost = (body.get("usage") or {}).get("cost")
+            if usage_cost is None:
+                raise RuntimeError("OpenRouter response omitted usage.cost")
+            return body, float(usage_cost)
+
+        request_payload = structured_chat_request(
+            model=model,
+            prompt=prompt,
+            response_format=_json_schema_response_format(schema_name, schema),
+            max_completion_tokens=max_tokens,
         )
-        if not response.ok:
-            detail = re.sub(r"\s+", " ", response.text)[:600]
-            raise RuntimeError(f"provider HTTP {response.status_code}: {detail}")
-        body = response.json()
+        try:
+            body, usage_cost = send(request_payload)
+        except RuntimeError as exc:
+            message = str(exc)
+            if not (
+                model == "qwen/qwen3-32b"
+                and "provider HTTP 404" in message
+                and "No endpoints found that can handle the requested parameters" in message
+            ):
+                raise
+            body, usage_cost = send(
+                structured_chat_request(
+                    model=model,
+                    prompt=prompt,
+                    response_format={"type": "json_object"},
+                    max_completion_tokens=min(max_tokens, 1200),
+                    plugins=[{"id": "response-healing"}],
+                )
+            )
+
         usage_cost = (body.get("usage") or {}).get("cost")
         if usage_cost is None:
             raise RuntimeError("OpenRouter response omitted usage.cost")
