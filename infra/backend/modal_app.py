@@ -382,6 +382,17 @@ def training_worker(run_id: str, payload: dict) -> dict:
                     cache_dir="/checkpoints/hf-cache",
                     allow_patterns=["*.json", "*.model", "*.safetensors", "*.txt"],
                 )
+                representation = config.get("representation") or {}
+                embedder = str(representation.get("embedder") or "")
+                embedder_revision = str(representation.get("revision") or "")
+                if embedder and embedder_revision:
+                    snapshot_download(
+                        repo_id=embedder,
+                        revision=embedder_revision,
+                        token=hf_token,
+                        cache_dir="/checkpoints/hf-cache",
+                        allow_patterns=["*.json", "*.model", "*.safetensors", "*.txt"],
+                    )
 
         config_path = worktree / ".dftr-run-config.json"
         config_path.write_text(json.dumps(config, sort_keys=True), encoding="utf-8")

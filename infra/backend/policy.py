@@ -51,6 +51,20 @@ M3_BASELINE_DRAFT_METHOD_KEYS = (
     "data",
     "generation",
 )
+M3_REWRITE_4K_PROTOCOL = "humanwrite.m3.rewrite_train_14b_4k.v1"
+M3_REWRITE_4K_STEP = "train_m3_rewrite_4k"
+M3_REWRITE_4K_METHOD_KEYS = (
+    "artifact_schema",
+    "run",
+    "compute",
+    "model",
+    "representation",
+    "data",
+    "lora",
+    "training",
+    "objectives",
+    "generation",
+)
 LOWER_VARIANCE_TRAIN_PROTOCOL = "dftr.m2.lower_variance_three_arm.v1"
 LOWER_VARIANCE_CONFIRMATION_PROTOCOL = "dftr.m2.lower_variance_confirmation.v2"
 LOWER_VARIANCE_TRAIN_PROTOCOLS = {
@@ -702,6 +716,7 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
         "prepare_dft", "generate_dft", "generate_lower_variance", "audit_estimator", "train_lower_variance",
         M3_REWRITE_SFT_SMOKE_STEP,
         M3_BASELINE_DRAFT_STEP,
+        M3_REWRITE_4K_STEP,
     } and revision_is_unresolved(
         (config.get("model") or {}).get("revision")
     ):
@@ -963,6 +978,46 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
             or payload.get("dft_a64_readiness") is not None
         ):
             raise PolicyError("M3 baseline drafts require the frozen 14B wrapper protocol")
+    if workflow_step == M3_REWRITE_4K_STEP:
+        workflow = config.get("workflow") or {}
+        method_payload = {
+            key: config.get(key) for key in M3_REWRITE_4K_METHOD_KEYS
+        }
+        method_payload.update(
+            protocol_version=workflow.get("protocol_version"), step=workflow.get("step")
+        )
+        data = config.get("data") or {}
+        representation = config.get("representation") or {}
+        if (
+            set(config) != set(M3_REWRITE_4K_METHOD_KEYS) | {"workflow"}
+            or config.get("artifact_schema") != M3_REWRITE_4K_PROTOCOL
+            or workflow.get("protocol_version") != M3_REWRITE_4K_PROTOCOL
+            or set(workflow) != {"protocol_version", "step", "method_contract_sha256"}
+            or canonical_hash(method_payload) != workflow.get("method_contract_sha256")
+            or task_kind != "experiment"
+            or budget_class != "promo"
+            or config.get("model")
+            != {
+                "base": QWEN3_14B_MODEL,
+                "revision": QWEN3_14B_REVISION,
+                "torch_dtype": "bfloat16",
+            }
+            or config.get("compute") != {"gpu": "H100", "gpus": 1, "timeout_min": 240}
+            or (config.get("run") or {}).get("arm") not in {"SFT14", "HUMANWRITE14"}
+            or data.get("records") != 4096
+            or data.get("stage_records") != 2048
+            or not str(data.get("corpus_path") or "").startswith("/checkpoints/")
+            or not re.fullmatch(r"[0-9a-f]{64}", str(data.get("corpus_sha256") or ""))
+            or representation
+            != {
+                "embedder": "BAAI/bge-small-en-v1.5",
+                "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+                "max_length": 512,
+                "witness_subset": 512,
+            }
+            or payload.get("dft_a64_readiness") is not None
+        ):
+            raise PolicyError("M3 4K rewrite training requires the frozen 14B wrapper protocol")
     if workflow_step == "replay_equivalence":
         replay_workflow = config.get("workflow") or {}
         protocol_version = str(replay_workflow.get("protocol_version"))
