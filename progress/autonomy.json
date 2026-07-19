@@ -12,7 +12,7 @@
     {
       "run_id": "dftr-1784472298-ca6141da",
       "comparison": "M3-rewriting-14b-4096-scientific-screen-v2",
-      "progress_target": 4096,
+      "progress_target": 2048,
       "progress_milestones": [0.5, 0.75],
       "purpose": "Complete and validate 2,048 surface-divergent Gemini/Claude rewrite inputs with independent Qwen3-32B verification. Exclude the defective v1 artifact. If terminal partial, relaunch the exact v2 config and new URI without weakening the normalized-nonidentity or multi-provider <0.95 surface-similarity gates."
     },
