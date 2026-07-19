@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-19T16:06:00Z",
+  "updated_at": "2026-07-19T16:11:00Z",
   "phase": "M3 — rewriting-first Qwen3-14B program",
   "headline": "Three constructors are active; eval is 203/224 and hardened 14B draft generation has resumed",
-  "summary": "The fresh evaluation artifact has reached 203/224 unique valid rewrites and its bounded tail recovery remains active. The surface-divergent API corpus has reached at least 619/2,048. The first base-Qwen job preserved 333/819 unique draft records before one replacement-character sample aborted it; protocol v2 now skips invalid candidates deterministically, retains the same four-valid-candidate requirement, and resumed from the checkpoint as `dftr-1784476536-ce8ce759`. No scientific quality result exists yet because matched training has not started.",
+  "summary": "The fresh evaluation artifact has reached 203/224 unique valid rewrites and its bounded tail recovery remains active. The surface-divergent API corpus has reached at least 629/2,048. The first base-Qwen job preserved 333/819 unique draft records before one replacement-character sample aborted it; protocol v2 now skips invalid candidates deterministically, retains the same four-valid-candidate requirement, and is loading the 14B model in resumable run `dftr-1784476668-e05c3c4d`. No scientific quality result exists yet because matched training has not started.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 100,
@@ -29,7 +29,7 @@
     {
       "at": "09:06",
       "title": "Hardened 14B draft construction resumed from 333 valid records",
-      "detail": "Run `dftr-1784470064-bf4ab7d8` preserved 333 unique candidate rows, then aborted when one sampled candidate contained the Unicode replacement character. Before materialization or training, amendment `m3_baseline_draft_resume_amendment_2026-07-19.md` introduced protocol v2: empty or replacement-character candidates are skipped under a deterministic 12-attempt cap while four valid candidates are still required, and the observed throughput justified a 300-minute promo timeout. Focused policy and generator tests passed `63/63`; the gateway was redeployed and resumable run `dftr-1784476536-ce8ce759` launched against the unchanged output URI.",
+      "detail": "Run `dftr-1784470064-bf4ab7d8` preserved 333 unique candidate rows, then aborted when one sampled candidate contained the Unicode replacement character. Before materialization or training, amendment `m3_baseline_draft_resume_amendment_2026-07-19.md` introduced protocol v2: empty or replacement-character candidates are skipped under a deterministic 12-attempt cap while four valid candidates are still required, and the observed throughput justified a 300-minute promo timeout. Focused policy and generator tests passed `63/63`. An initial `$0.02` launch exposed a missing runner-dispatch allowlist entry; commit `69ed136` repaired it, the gateway was redeployed, and run `dftr-1784476668-e05c3c4d` is now loading the 14B model against the unchanged checkpoint URI.",
       "tone": "active"
     },
     {
