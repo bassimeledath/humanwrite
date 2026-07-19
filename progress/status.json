@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-19T16:11:00Z",
+  "updated_at": "2026-07-19T16:13:00Z",
   "phase": "M3 — rewriting-first Qwen3-14B program",
   "headline": "Three constructors are active; eval is 203/224 and hardened 14B draft generation has resumed",
-  "summary": "The fresh evaluation artifact has reached 203/224 unique valid rewrites and its bounded tail recovery remains active. The surface-divergent API corpus has reached at least 629/2,048. The first base-Qwen job preserved 333/819 unique draft records before one replacement-character sample aborted it; protocol v2 now skips invalid candidates deterministically, retains the same four-valid-candidate requirement, and is loading the 14B model in resumable run `dftr-1784476668-e05c3c4d`. No scientific quality result exists yet because matched training has not started.",
+  "summary": "The fresh evaluation artifact has reached 203/224 unique valid rewrites and its bounded tail recovery remains active. The surface-divergent API corpus has reached at least 629/2,048. The first base-Qwen job preserved 333/819 unique draft records before one replacement-character sample aborted it; protocol v2 now skips invalid candidates deterministically, retains the same four-valid-candidate requirement, and resumed successfully at 335/819 in run `dftr-1784476668-e05c3c4d`. No scientific quality result exists yet because matched training has not started.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 100,
