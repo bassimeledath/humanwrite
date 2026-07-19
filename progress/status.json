@@ -1,14 +1,14 @@
 {
-  "updated_at": "2026-07-19T13:17:34Z",
+  "updated_at": "2026-07-19T13:21:30Z",
   "phase": "M3 — rewriting-first Qwen3-14B program",
-  "headline": "Amended rewrite smoke stopped at 92/96 valid rows; autonomy disabled",
-  "summary": "The prospective Gemini amendment improved the canonical rewrite artifact from 42 to 92 accepted rows, but it did not complete the frozen 96-row task-construction gate. Run `dftr-1784466580-dfc451fe` added 48 accepted rows before failing on six identities, and same-config rerun `dftr-1784466818-9d4eaf41` recovered only two more before ending with four residual `non-noop rewrite source equals target` failures. Those remaining misses are substantive under the frozen attempt cap, not a new transport or schema defect, so the prepared Qwen3-14B H100 mechanical smoke may not launch from this artifact.",
-  "run_state": "blocked",
+  "headline": "96 rewrite pairs validated; Qwen3-14B H100 mechanical smoke active",
+  "summary": "The rewriting-task construction smoke is complete: all 96 rows pass the frozen factual, literal, language, non-identity, length, and semantic gates; the artifact has SHA `51f38c80e11193d7a2b57144876d99d3d3e17f8ed39e353230f6cd52702de59c`, contains 46 Claude-generated and 50 Gemini-generated sources, and every row is independently Qwen3-32B verified. Commit `c7da0e7` binds that exact SHA into the Qwen3-14B rank-32 LoRA mechanical-smoke config. H100 run `dftr-1784467284-5299ea0d` is active; it is an engineering check, not the human-writing result.",
+  "run_state": "active",
   "budget": {
     "modal_cap_usd": 100,
-    "modal_committed_usd": 22.252709,
+    "modal_committed_usd": 23.832389,
     "openrouter_cap_usd": 100,
-    "openrouter_spend_usd": 29.256383
+    "openrouter_spend_usd": 29.267185
   },
   "services": [
     {"name": "GPU gateway", "detail": "Constrained launch API", "status": "online"},
@@ -27,10 +27,16 @@
   ],
   "events": [
     {
-      "at": "06:17",
-      "title": "Amended v3 rerun exhausted at 92 rows; autonomy disabled",
-      "detail": "Sanctioned status shows rerun `dftr-1784466818-9d4eaf41` recovered only two additional accepted rows before failing on four residual identities, all with `RewriteTaskError: non-noop rewrite source equals target`. The canonical artifact now stops at 92 accepted rows with SHA `b6cf7e68b44f5c85a113039de386f40ed10d9ade50de5342830a57aebe4d1d8f`. Because another launch would exceed the frozen `max_attempts=4` logic without any new infrastructure defect, autonomy is now disabled and the prepared Qwen3-14B H100 smoke remains unlaunched.",
-      "tone": "blocked"
+      "at": "06:21",
+      "title": "Full rewrite smoke accepted and Qwen3-14B H100 training launched",
+      "detail": "All 96 rewrite pairs validate at SHA `51f38c80e11193d7a2b57144876d99d3d3e17f8ed39e353230f6cd52702de59c`; provider split is 46 Claude and 50 Gemini, all Qwen3-32B verified, with zero duplicate identities. The SHA-bound Qwen3-14B rank-32 LoRA config passed 59 focused tests and launched as H100 run `dftr-1784467284-5299ea0d` with a worst-case reservation of `$1.57968`.",
+      "tone": "active"
+    },
+    {
+      "at": "06:20",
+      "title": "Four-record Claude tail repair launched against the 92-row artifact",
+      "detail": "Committed tail repair `f06dc12` prospectively reroutes only the four twice-zero-acceptance fingerprints to the already-approved Claude Haiku generator, while preserving the 92 accepted rows and keeping Qwen3-32B verification plus every acceptance gate unchanged. Focused rewrite-task tests passed `13/13`, dedicated config `configs/m3/m3_rewrite_tasks_128_smoke_v3_tail_repair.yaml` was bound, and sanctioned run `dftr-1784467203-882e366c` is now active on config hash `ba6554691163d699e13dd625a2b00439533e826ce438dc67a1fecaff41c207a8`. Budget at launch is `$32.267185/$100` API and `$22.252709/$100` GPU.",
+      "tone": "active"
     },
     {
       "at": "06:13",
@@ -703,5 +709,5 @@
     {"at": "17:46", "title": "Storage created", "detail": "Gateway state, checkpoints, sealed state, and sealed artifacts volumes are online.", "tone": "complete"},
     {"at": "17:40", "title": "Engineering checks passed", "detail": "Harness, infrastructure, and private evaluator suites are green.", "tone": "complete"}
   ],
-  "next_action": "No autonomous launch remains under the frozen M3 protocol. Resumption requires explicit user authority to change the rewrite-task construction contract or to accept this 92/96 stop as the negative conclusion for the current Qwen3-14B rewriting attempt."
+  "next_action": "Validate H100 run `dftr-1784467284-5299ea0d` for finite training and deterministic artifacts; on success, automatically materialize the full matched 4K SFT14 versus HUMANWRITE14 construction and training stage."
 }
