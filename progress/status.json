@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-19T00:02:00Z",
+  "updated_at": "2026-07-19T02:38:03Z",
   "phase": "M2 — 4B data-scale ladder through 16K",
-  "headline": "4K brief artifact reached 4,096; autonomy paused before witness generation",
-  "summary": "The immutable 4,096-document corpus is now complete. Initial brief synthesis produced 4,024 valid rows; bounded retries recovered 50, then 4, then 12, and final retry `dftr-1784419062-7c7e2b47` closed the remaining six identities under the unchanged provider and validation contract. The canonical 4K brief artifact is whole with output SHA `0c35745e5a352a63fef17bee246e2c1822cf54a609e0c41e05327754db135d47`. No GPU witness generation or 4B fine-tuning was launched because `progress/autonomy.json` was externally rewritten to a user pause pending independent review of the 4K contracts, implementation, and sampled data.",
+  "headline": "Awaiting independent review; bounded two-poll continuation is armed",
+  "summary": "The immutable 4,096-document brief artifact remains complete at SHA `0c35745e5a352a63fef17bee246e2c1822cf54a609e0c41e05327754db135d47`, and no GPU witness or fine-tuning run has launched. A dedicated local watcher will check exactly twice for `~/Downloads/feedback-claude-humanwrite.md`, at approximately 30 and 60 minutes after 19:38 PDT. If found, one high-reasoning Codex continuation will independently reconcile the feedback, repair verified correctness defects, run preflight tests, and launch the approved 4K witness/training handoff only if the repaired pipeline is mechanically safe.",
   "run_state": "paused",
   "budget": {
     "modal_cap_usd": 100,
@@ -14,7 +14,8 @@
     {"name": "GPU gateway", "detail": "Constrained launch API", "status": "online"},
     {"name": "Reaper", "detail": "Five-minute independent enforcement", "status": "online"},
     {"name": "Sealed evaluator", "detail": "Private endpoint and hidden split ready", "status": "online"},
-    {"name": "Progress server", "detail": "Local live dashboard", "status": "online"}
+    {"name": "Progress server", "detail": "Local live dashboard", "status": "online"},
+    {"name": "Feedback watcher", "detail": "Exactly two checks at 30-minute cadence", "status": "online"}
   ],
   "milestones": [
     {"id": "setup", "label": "Setup", "detail": "Harness, sources, storage, and guardrails", "status": "complete"},
@@ -25,6 +26,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "19:38",
+      "title": "Two-check independent-feedback watcher armed",
+      "detail": "LaunchAgent `com.humanwrite.feedback-review` initialized with zero polls and a 1,800-second interval. It checks only for `feedback-claude-humanwrite.md`, stops permanently after at most two checks, and invokes one bounded Codex reconciliation only when the file exists. Training remains paused until that reconciliation verifies or repairs the hardcoded contracts and data-quality findings.",
+      "tone": "active"
+    },
     {
       "at": "17:01",
       "title": "Final six 4K briefs completed; autonomy paused before witness and tuning",
