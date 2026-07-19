@@ -686,6 +686,7 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
         "brief_synthesis",
         "document_cleaning",
         "rewrite_synthesis",
+        "model_cache",
         "source_materialization",
     }:
         raise PolicyError("unsupported task_kind")
@@ -989,6 +990,20 @@ def validate_launch(payload: dict[str, Any], *, backend: str = "modal") -> Launc
         if not isinstance(command, list) or command[:3] != ALLOWED_COMMAND_PREFIX:
             raise PolicyError("command is outside the allowlist")
         worst = round(timeout_seconds * GPU_USD_PER_SECOND[gpu] * 1.20, 6)
+    elif task_kind == "model_cache":
+        if set(config) != {"run", "compute", "model"}:
+            raise PolicyError("model_cache exact schema mismatch")
+        if (
+            budget_class != "promo"
+            or compute != {"gpus": 1, "timeout_min": 240}
+            or config.get("model")
+            != {
+                "base": QWEN3_14B_MODEL,
+                "revision": QWEN3_14B_REVISION,
+            }
+        ):
+            raise PolicyError("model_cache requires the pinned Qwen3-14B CPU contract")
+        worst = 0.0
     elif task_kind == "brief_synthesis":
         data = config.get("data") or {}
         api = config.get("api") or {}

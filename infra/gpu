@@ -349,6 +349,14 @@ def _validate_submit(config: dict, budget_class: str) -> tuple[str, dict]:
         command = run.get("command", ["python", "-m", "experiments.runner"])
         if not isinstance(command, list) or command[:3] != ["python", "-m", "experiments.runner"]:
             _die("run.command must begin with: python -m experiments.runner")
+    elif task_kind == "model_cache":
+        if config.get("model") != {
+            "base": "Qwen/Qwen3-14B",
+            "revision": "40c069824f4251a91eefaf281ebe4c544efd3e18",
+        }:
+            _die("model_cache requires the pinned Qwen3-14B revision")
+        if config.get("compute") != {"gpus": 1, "timeout_min": 240}:
+            _die("model_cache requires the frozen CPU timeout contract")
     elif task_kind in {"brief_synthesis", "document_cleaning", "rewrite_synthesis"}:
         api_cap = float((config.get("api") or {}).get("max_cost_usd", 0.0))
         if api_cap <= 0 or api_cap > 100:

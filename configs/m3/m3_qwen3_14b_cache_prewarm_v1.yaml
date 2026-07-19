@@ -1,0 +1,11 @@
+run:
+  comparison_id: M3-Qwen3-14B-cache-prewarm-v1
+  arm: cpu-cache-prewarm
+  budget_class: promo
+  task_kind: model_cache
+compute:
+  gpus: 1
+  timeout_min: 240
+model:
+  base: Qwen/Qwen3-14B
+  revision: 40c069824f4251a91eefaf281ebe4c544efd3e18

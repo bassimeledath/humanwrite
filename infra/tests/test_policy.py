@@ -574,6 +574,42 @@ def test_m3_baseline_draft_generation_requires_frozen_14b_contract():
         validate_launch(value)
 
 
+def test_m3_qwen14b_model_cache_is_cpu_only_and_exact():
+    config = {
+        "run": {
+            "comparison_id": "M3-Qwen3-14B-cache-prewarm-v1",
+            "arm": "cpu-cache-prewarm",
+            "budget_class": "promo",
+            "task_kind": "model_cache",
+        },
+        "compute": {"gpus": 1, "timeout_min": 240},
+        "model": {
+            "base": "Qwen/Qwen3-14B",
+            "revision": "40c069824f4251a91eefaf281ebe4c544efd3e18",
+        },
+    }
+    value = {
+        "config": config,
+        "config_hash": canonical_hash(config),
+        "budget_class": "promo",
+        "human_scaleup_approved": True,
+        "preregistration": {
+            "kind": "prereg",
+            "status": "open",
+            "comparison": "M3-Qwen3-14B-cache-prewarm-v1",
+        },
+    }
+    policy = validate_launch(value)
+    assert policy.task_kind == "model_cache"
+    assert policy.gpu == "CPU"
+    assert policy.worst_case_cost_usd == 0.0
+
+    config["compute"]["timeout_min"] = 120
+    value["config_hash"] = canonical_hash(config)
+    with pytest.raises(PolicyError, match="CPU contract"):
+        validate_launch(value)
+
+
 def test_preregistered_16k_cleaning_and_brief_scales_are_allowed():
     cleaning = payload()
     cleaning["budget_class"] = "promo"

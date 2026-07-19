@@ -1372,6 +1372,78 @@ def rewrite_synthesis_worker(run_id: str, payload: dict) -> dict:
     retries=0,
     single_use_containers=True,
 )
+def model_cache_worker(run_id: str, payload: dict) -> dict:
+    """Populate the pinned 14B snapshot on CPU before renting an accelerator."""
+    from huggingface_hub import snapshot_download
+
+    started = time.time()
+    config = payload["config"]
+    model = config["model"]
+    log_path = _log_path(run_id)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    status = "failed"
+    snapshot_path = ""
+    try:
+        snapshot_path = snapshot_download(
+            repo_id=str(model["base"]),
+            revision=str(model["revision"]),
+            token=os.environ.get("HF_TOKEN"),
+            cache_dir="/checkpoints/hf-cache",
+            allow_patterns=["*.json", "*.model", "*.safetensors", "*.txt"],
+            max_workers=16,
+        )
+        snapshot = Path(snapshot_path)
+        shards = sorted(snapshot.glob("*.safetensors"))
+        if not shards or not (snapshot / "model.safetensors.index.json").is_file():
+            raise RuntimeError("pinned Qwen3-14B cache is incomplete")
+        manifest = {
+            "artifact_schema": "humanwrite.model_cache_result.v1",
+            "run_id": run_id,
+            "base_model": str(model["base"]),
+            "revision": str(model["revision"]),
+            "snapshot_path": snapshot_path,
+            "safetensor_files": len(shards),
+            "safetensor_bytes": sum(path.stat().st_size for path in shards),
+        }
+        write_path = _artifact_dir(run_id) / "model_cache_manifest.json"
+        write_path.parent.mkdir(parents=True, exist_ok=True)
+        write_path.write_text(json.dumps(manifest, sort_keys=True), encoding="utf-8")
+        log_path.write_text(
+            f"model cache complete shards={len(shards)} bytes={manifest['safetensor_bytes']}\n",
+            encoding="utf-8",
+        )
+        checkpoint_volume.commit()
+        status = "completed"
+    except Exception as exc:
+        log_path.write_text(
+            f"model cache failure: {type(exc).__name__}: {exc}\n", encoding="utf-8"
+        )
+        checkpoint_volume.commit()
+    finally:
+        _record(
+            {
+                "kind": "run_update",
+                "run_id": run_id,
+                "status": status,
+                "finished_at": time.time(),
+                "accel_seconds": 0.0,
+                "actual_cost_usd": 0.0,
+                "artifact_dir": str(_artifact_dir(run_id)),
+                "wall_seconds": round(time.time() - started, 3),
+                "snapshot_path": snapshot_path,
+            }
+        )
+    return {"run_id": run_id, "status": status, "snapshot_path": snapshot_path}
+
+
+@app.function(
+    image=worker_image,
+    secrets=[provider_secret],
+    volumes={"/state": state_volume, CHECKPOINT_PATH: checkpoint_volume},
+    timeout=8 * 60 * 60,
+    retries=0,
+    single_use_containers=True,
+)
 def brief_synthesis_worker(run_id: str, payload: dict) -> dict:
     """Privileged fixed-code brief synthesis; never executes repository code."""
     import requests
@@ -1824,6 +1896,10 @@ def gateway():
                 ).spawn(run_id, worker_payload)
             elif policy.task_kind == "rewrite_synthesis":
                 call = rewrite_synthesis_worker.with_options(
+                    timeout=policy.timeout_seconds + 120,
+                ).spawn(run_id, worker_payload)
+            elif policy.task_kind == "model_cache":
+                call = model_cache_worker.with_options(
                     timeout=policy.timeout_seconds + 120,
                 ).spawn(run_id, worker_payload)
             elif policy.task_kind == "source_materialization":
