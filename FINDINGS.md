@@ -3123,3 +3123,46 @@ NEXT: Wait for terminal transitions of `dftr-1784436708-b6637838` and
 manifests and launch the next prospective held-out sampling/evaluation step
 only if the terminal artifacts are sound and the hard validity gates remain
 intact.
+
+## [2026-07-19] M2 / M2-scale-ladder-4b-4096-generation-v1
+HYPOTHESIS: If the matched 4K SFT and MMD-witness confirmation runs completed
+cleanly, then the next scientifically valid step is prospective held-out
+generation on the frozen 128-prompt scale-dev panel. That step should remain
+fully sanctioned and byte-bound only if the gateway exposes completed
+checkpoint identity rather than forcing ad hoc operator reconstruction.
+SETUP: Read sanctioned status for completed training runs
+`dftr-1784436708-b6637838` and `dftr-1784436736-c94a4507`, completed prompt
+brief run `dftr-1784377434-a4c6dae1`, and current budget from the fixed
+gateway URL plus macOS Keychain token `humanwrite-gateway-token`. The audit
+verified terminal artifacts and found the real pipeline gap: status exposed the
+top-level run manifest but not the lower-variance checkpoint identity needed
+for a sanctioned held-out generation launch. Repaired that surface by adding
+checkpoint manifest and adapter SHA handoff metadata, added the frozen
+`dftr.m2.lower_variance_generation.v1` worker/policy path plus focused tests,
+redeployed the gateway, materialized
+`configs/m2/m2_scale_ladder_4b_4096_sft_generation_v1.yaml` and
+`configs/m2/m2_scale_ladder_4b_4096_mmd_witness_generation_v1.yaml` from live
+status payloads, committed/pushed bridge commit `f09dc19`, preregistered
+comparison `M2-scale-ladder-4b-4096-generation-v1`, and launched both held-out
+generation arms through the sanctioned wrapper only after the pushed SHA was on
+origin.
+RESULTS:
+| item | status | notes |
+| --- | --- | --- |
+| 4K SFT terminal artifact validity | PASS | Sanctioned status confirmed `dftr-1784436708-b6637838` completed on Sunday, July 19, 2026 at `2026-07-19T05:15:25.305529Z` with `return_code=0`, `actual_cost_usd=$0.906923`, run-manifest SHA `0c544452ccf382aa042903080cf97d5af9dc27d65250147ab414aa38196c2702`, checkpoint manifest SHA `863e7d731858d997e0519b2f032461b4e7c24dc565f2358ca8302a58882ab337`, and adapter SHA `e71c14bc1ac7bd49c266a8ec489004ef3173a8d7f08c9b8ce9d4875f45335c1f`. |
+| 4K MMD-witness terminal artifact validity | PASS | Sanctioned status confirmed `dftr-1784436736-c94a4507` completed on Sunday, July 19, 2026 at `2026-07-19T05:22:22.589968Z` with `return_code=0`, `actual_cost_usd=$1.166656`, run-manifest SHA `434d0f5400d2608f2c8f5e64789f17cd4567d292e07d0b76502a5acee0f438ae`, checkpoint manifest SHA `7b12529a9ef92a8ffb1d8d76071114d2eaeec95a03f9a455873b79574fc7608b`, and adapter SHA `7e071cd770b4e328162318144523f1ccbb7d735bb3b57e72804859f2999919d6`. |
+| Missed handoff diagnosis | PASS | The blocked step was real and recoverable: before this patch, completed lower-variance status did not expose checkpoint identity for deterministic held-out generation, leaving the pipeline healthy in compute but incomplete in orchestration. |
+| Sanctioned handoff repair | PASS | Live gateway status now surfaces `arm_checkpoint_dir_path`, `arm_checkpoint_manifest_sha256`, `arm_adapter_model_sha256`, and `arm_method_contract_sha256`, which is sufficient to materialize frozen held-out generation configs without manual checkpoint reconstruction. |
+| Frozen held-out generation contract | PASS | Commit `f09dc19` added the frozen `generate_lower_variance` worker/policy path with exact 128-token raw-policy categorical sampling over the frozen 128-prompt panel, plus focused tests; direct verification passed `23/23` targeted tests in the managed harness environment. A broader focused suite also hit one unrelated pre-existing failure in `experiments/tests/test_m2_generate_dft.py::test_receipt_signing_secret_is_isolated_from_training_worker` against unchanged `modal_app.py`. |
+| Prospective panel preservation | PASS | The held-out generation configs bind only the completed 4K checkpoints and prompt-brief artifact `modal-volume://humanwrite-checkpoints/data/m2-scale-ladder-v1/scale-dev-panels/prompt_briefs-128.jsonl` with SHA `24d55ae6695930b07030fbe6c4d88b47cb24fee2bfa217d42968ce9703f278f0`; no non-training scoring, sealed evaluation, or Tier 3 detector usage was opened in this turn. |
+| Next safe async launch | PASS | Sanctioned wrapper accepted SFT-generation run `dftr-1784439725-1082f9d4` and MMD-witness-generation run `dftr-1784439725-6b6ec394`, both on `L40S` under `budget_class=screen`, each reserving `$4.68288`, with immediate `status=running` and `workflow_step=generate_lower_variance`. |
+| Budget headroom after held-out launch | PASS | Post-launch sanctioned budget reported Modal committed `$30.908785/$100` and OpenRouter spend `$28.483027/$100`, leaving the authorized 4K/16K ladder within both hard caps and still short of the unapproved 46K cell. |
+DECISION: Keep `M2-scale-ladder-4b-4096-generation-v1` active. The correct
+next step was not more training or repeated polling; it was repairing the
+missing sanctioned checkpoint-to-generation bridge, validating the completed
+4K artifacts, and launching the prospective held-out generation pair. There is
+still no scientific answer about human-likeness until these generation runs
+complete and are scored on a non-training surface.
+NEXT: Wait for terminal transitions of `dftr-1784439725-1082f9d4` and
+`dftr-1784439725-6b6ec394`. On completion, validate both generation manifests
+and only then open the next prospective non-training scoring step.
