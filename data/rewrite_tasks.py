@@ -23,9 +23,9 @@ FROZEN_STAGE_COUNTS = {
     16384: (7373, 3277, 819, 819, 4096),
     46080: (20736, 9216, 2304, 2304, 11520),
 }
-GENERATOR_MODELS = ("qwen/qwen3-32b", "anthropic/claude-haiku-4.5")
+GENERATOR_MODELS = ("google/gemini-3.1-flash-lite", "anthropic/claude-haiku-4.5")
 VERIFIER_BY_GENERATOR = {
-    "qwen/qwen3-32b": "anthropic/claude-haiku-4.5",
+    "google/gemini-3.1-flash-lite": "qwen/qwen3-32b",
     "anthropic/claude-haiku-4.5": "qwen/qwen3-32b",
 }
 TEMPLATE_IDS = (
