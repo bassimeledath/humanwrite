@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-19T16:13:00Z",
+  "updated_at": "2026-07-19T16:24:00Z",
   "phase": "M3 — rewriting-first Qwen3-14B program",
-  "headline": "Three constructors are active; eval is 203/224 and hardened 14B draft generation has resumed",
-  "summary": "The fresh evaluation artifact has reached 203/224 unique valid rewrites and its bounded tail recovery remains active. The surface-divergent API corpus has reached at least 629/2,048. The first base-Qwen job preserved 333/819 unique draft records before one replacement-character sample aborted it; protocol v2 now skips invalid candidates deterministically, retains the same four-valid-candidate requirement, and resumed successfully at 335/819 in run `dftr-1784476668-e05c3c4d`. No scientific quality result exists yet because matched training has not started.",
+  "headline": "Three constructors are active; exact eval recovery continues from 203/224",
+  "summary": "Tail protocol v2 recovered four additional valid evaluation rewrites for `$0.53` and ended at 203/224; exact append-only rerun `dftr-1784476985-26ac83e5` is retrying only the 21 remaining identities with every gate unchanged. The surface-divergent API corpus is above 668/2,048. Resumable 14B draft run `dftr-1784476668-e05c3c4d` is healthy above 338/819. No scientific quality result exists yet because matched training has not started.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 100,
@@ -26,6 +26,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "09:24",
+      "title": "Exact evaluation recovery relaunched after meaningful four-row yield",
+      "detail": "Bounded tail run `dftr-1784476178-ef679ccc` exhausted the 21 remaining identities after adding four valid rows for `$0.530209`, freezing the append-only artifact at 203/224 and SHA `1d0b42c13e9da03c12a1fcd63295c52260da9a2f08e6aecc1f352255baec40c8`. The remaining rejects are factual/protected-literal, normalized-identity, or invalid-text failures rather than infrastructure errors. Because the pass retained meaningful yield at low cost, exact config rerun `dftr-1784476985-26ac83e5` is active against the same identities and output URI with no gate changes.",
+      "tone": "active"
+    },
     {
       "at": "09:06",
       "title": "Hardened 14B draft construction resumed from 333 valid records",
