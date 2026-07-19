@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-19T14:43:07Z",
+  "updated_at": "2026-07-19T14:46:21Z",
   "phase": "M3 — rewriting-first Qwen3-14B program",
-  "headline": "Silent no-op rewrite defect caught before training; versioned repair prepared while healthy jobs continue",
-  "summary": "The 14B smoke gate remains fully passed. A live construct audit found that 231/537 accepted multi-provider inputs were identical to their human targets after whitespace normalization, which would have silently diluted the rewriting signal. The defective constructor was stopped before corpus assembly or training; its artifact is excluded. Version 2 now requires genuine surface divergence while preserving all factual and provider-verification gates and writes to a new URI. Independent base-Qwen generation remains healthy at 132/819, and fresh evaluation cleaning is healthy at 579/640. The 2,048-check quality-plus-fact evaluator remains frozen and tested. No scientific quality result exists yet.",
+  "headline": "Surface-divergent 4K repair and fresh evaluation inputs now run beside base-Qwen construction",
+  "summary": "The 14B smoke gate remains fully passed. The silent no-op API artifact is excluded, the repaired gateway is deployed, and versioned surface-divergent constructor `dftr-1784472298-ca6141da` is active against a new URI. Fresh evaluation cleaning completed exactly 640/640 at SHA `f6a0a0940338ba1f75aa70a1be5e042ea973b00e410b12d309cea4908f6c3c40`; SHA-bound 224-input constructor `dftr-1784472358-98f64c21` is active. Independent base-Qwen generation continues from checkpoints. The 2,048-check quality-plus-fact evaluator remains frozen and tested. No scientific quality result exists yet.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 100,
@@ -26,6 +26,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "07:46",
+      "title": "Versioned repair and fresh evaluation constructor launched",
+      "detail": "Gateway commit f4e20b8 or later is deployed. Surface-divergent 4K constructor `dftr-1784472298-ca6141da` now writes exclusively to `scientific-api-rewrites-4096-v2.jsonl`. Fresh cleaner `dftr-1784470455-18ab6597` completed 640/640 at SHA `f6a0a0940338ba1f75aa70a1be5e042ea973b00e410b12d309cea4908f6c3c40`; exact 224-input run `dftr-1784472358-98f64c21` launched from that immutable SHA. Base-Qwen construction remains live and checkpointed.",
+      "tone": "active"
+    },
     {
       "at": "07:43",
       "title": "Whitespace-only rewrite defect stopped before training",
