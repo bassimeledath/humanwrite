@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-19T13:23:20Z",
+  "updated_at": "2026-07-19T13:45:58Z",
   "phase": "M3 — rewriting-first Qwen3-14B program",
-  "headline": "96 rewrite pairs validated; Qwen3-14B H100 mechanical smoke active",
-  "summary": "The rewriting-task construction smoke is complete: all 96 rows pass the frozen factual, literal, language, non-identity, length, and semantic gates; the artifact has SHA `51f38c80e11193d7a2b57144876d99d3d3e17f8ed39e353230f6cd52702de59c`, contains 46 Claude-generated and 50 Gemini-generated sources, and every row is independently Qwen3-32B verified. Commit `c7da0e7` binds that exact SHA into the Qwen3-14B rank-32 LoRA mechanical-smoke config. The first authorized smoke launch was mistakenly cancelled during this audit before the tail-completion ordering was verified, then immediately relaunched unchanged as H100 run `dftr-1784467379-d463605f`; it is an engineering check, not the human-writing result.",
+  "headline": "Qwen3-14B weights cached; unchanged H100 training smoke relaunched",
+  "summary": "The complete 96-row rewrite artifact remains validated at SHA `51f38c80e11193d7a2b57144876d99d3d3e17f8ed39e353230f6cd52702de59c`. H100 run `dftr-1784467379-d463605f` spent 16.5 minutes downloading the 14B snapshot and then hit the container timeout before producing a training result; this is an infrastructure failure, not model evidence. All 15 snapshot files are now present in the shared cache. The exact unchanged mechanical smoke is active as `dftr-1784468746-c1ddb6b8`. In parallel, the frozen 4K scientific contract and both API/base-draft construction paths are implemented and tested, but bulk construction remains gated on this smoke.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 100,
@@ -26,6 +26,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "06:45",
+      "title": "14B cache completed; mechanical smoke relaunched without download overhead",
+      "detail": "Run `dftr-1784467379-d463605f` timed out only after the pinned 14B snapshot download consumed 16.5 minutes of its container lifetime. The snapshot is now complete in the shared cache. Unchanged H100 run `dftr-1784468746-c1ddb6b8` is active and will test training rather than network transfer. The CPU-only cache-prewarm repair and 4K construction machinery are committed for subsequent stages.",
+      "tone": "active"
+    },
     {
       "at": "06:21",
       "title": "Full rewrite smoke accepted and Qwen3-14B H100 training launched",
@@ -709,5 +715,5 @@
     {"at": "17:46", "title": "Storage created", "detail": "Gateway state, checkpoints, sealed state, and sealed artifacts volumes are online.", "tone": "complete"},
     {"at": "17:40", "title": "Engineering checks passed", "detail": "Harness, infrastructure, and private evaluator suites are green.", "tone": "complete"}
   ],
-  "next_action": "Validate H100 run `dftr-1784467379-d463605f` for finite training and deterministic artifacts; on success, automatically materialize the full matched 4K SFT14 versus HUMANWRITE14 construction and training stage."
+  "next_action": "Validate cached-weight H100 run `dftr-1784468746-c1ddb6b8` for finite training and deterministic artifacts; on success, deploy and launch the already-built 4K API rewrite and base-Qwen draft constructors."
 }
