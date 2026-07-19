@@ -1,0 +1,97 @@
+{
+  "artifact_schema": "dftr.m2.scale_ladder_scoring_contract.v1",
+  "status": "frozen_before_metric_computation",
+  "comparison_id": "M2-scale-ladder-4b-4096-scoring-v1",
+  "candidate_outputs_existed_before_binding": true,
+  "metric_values_observed_before_binding": false,
+  "decision_rule_source": "research_reviews/mmd_witness_scale_ladder_preregistration_2026-07-17.md#4096-gate",
+  "artifacts": {
+    "prompt_briefs": {
+      "path": "/checkpoints/data/m2-scale-ladder-v1/scale-dev-panels/prompt_briefs-128.jsonl",
+      "sha256": "24d55ae6695930b07030fbe6c4d88b47cb24fee2bfa217d42968ce9703f278f0",
+      "rows": 128
+    },
+    "distribution_references": {
+      "path": "/checkpoints/data/m2-scale-ladder-v1/scale-dev-panels/distribution_references.jsonl",
+      "sha256": "58d8538d7e598a194afacc282e1102aa14341acec6a164670bdb92f1ab28aae2",
+      "rows": 256
+    },
+    "human_floor_a": {
+      "path": "/checkpoints/data/m2-scale-ladder-v1/scale-dev-panels/human_floor_a.jsonl",
+      "sha256": "8bff7c3adf8d312bbef7c8f0b92b211aa888b4bc6c234c505cba45e867f1e07d",
+      "rows": 128
+    },
+    "human_floor_b": {
+      "path": "/checkpoints/data/m2-scale-ladder-v1/scale-dev-panels/human_floor_b.jsonl",
+      "sha256": "353d6e8c78e5afc6f42d17b145f751eb4755cbaaf8479cdf9dec3186adb04da5",
+      "rows": 128
+    },
+    "SFT": {
+      "path": "/checkpoints/runs/dftr-1784440682-c648bc57/outputs.jsonl",
+      "sha256": "bf91a2418b681e892885f15f5cd05030534cab8c373e66fb1de89f7c8535bdac",
+      "rows": 128
+    },
+    "MMD_WITNESS": {
+      "path": "/checkpoints/runs/dftr-1784440682-36bfe848/outputs.jsonl",
+      "sha256": "abedf64c30740b16d28aebaf8ad57d3241b9f91ff96d3c61f8d6e90257588efb",
+      "rows": 128
+    }
+  },
+  "embedding_families": {
+    "bge-small-v1": {
+      "model_id": "BAAI/bge-small-en-v1.5",
+      "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+      "prompt_name": null,
+      "max_tokens": 512
+    },
+    "nemotron-8b-v1": {
+      "model_id": "nvidia/llama-embed-nemotron-8b",
+      "revision": "aa3b43a495a9b280d1bdb716da37c54bb495d630",
+      "prompt_name": "document",
+      "max_tokens": 512
+    }
+  },
+  "tokenizer": {
+    "model_id": "Qwen/Qwen3-4B",
+    "revision": "1cfa9a7208912126459214e8b04321603b3df60c",
+    "add_special_tokens": false
+  },
+  "statistics": {
+    "permutation_draws": 9999,
+    "bootstrap_draws": 10000,
+    "master_seed": 104001,
+    "alpha": 0.05
+  },
+  "validity": {
+    "empty_rate_max": 0.0,
+    "replacement_character_rate_max": 0.0,
+    "unexpected_non_latin_rate_max": 0.15,
+    "unique_fraction_min": 0.80
+  },
+  "judge": {
+    "model": "openai/gpt-5.4-mini",
+    "dimensions": {
+      "human_style": "Choose the response that reads more like careful human-authored prose. Favor natural variation, specific development, and context-appropriate phrasing; penalize formulaic structure, canned transitions, repetition, and conspicuous model-like artifacts.",
+      "overall_quality": "Choose the response with better writing quality while following the assignment. Favor clear, coherent, specific, engaging prose over generic, repetitive, awkward, or unsupported writing."
+    },
+    "randomization": {
+      "algorithm": "sha256(master_seed:dimension:prompt_id).parity.v1",
+      "master_seed": 104101
+    },
+    "temperature": 0.0,
+    "max_completion_tokens": 32,
+    "concurrency": 8,
+    "retry_attempts": 3,
+    "cost_cap_usd": 2.5
+  },
+  "decision": {
+    "four_k_role": "diagnostic_gate",
+    "unlock_16k_unless": [
+      "artifact_or_nonfinite_failure",
+      "MMD_WITNESS_hard_validity_failure",
+      "overall_quality_significantly_worse_one_sided_p_le_0.05",
+      "both_embedding_family_effects_worse_and_human_style_win_rate_below_0.50"
+    ],
+    "no_hyperparameter_selection_from_this_panel": true
+  }
+}
