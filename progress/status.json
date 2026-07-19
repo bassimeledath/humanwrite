@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-19T12:58:17Z",
+  "updated_at": "2026-07-19T13:01:36Z",
   "phase": "M3 — rewriting-first Qwen3-14B program",
   "headline": "False provider stop overturned; corrected Qwen transport rerun active",
-  "summary": "The prior autonomous stop was incorrect. OpenRouter advertises Qwen3-32B structured output and `max_tokens`, but the shared request helper sent the OpenAI-specific `max_completion_tokens` while requiring parameter-compatible routing. That guaranteed the observed no-endpoint response, including every fallback. Commit `7c2cea4` corrected the transport field, 88 focused tests passed, the gateway was redeployed, and rerun `dftr-1784465875-9957cfca` is active on the same frozen identities and 42-row validated partial artifact. Autonomy is re-enabled; a complete 96-row result will advance directly to the already-built Qwen3-14B H100 mechanical training smoke.",
+  "summary": "The prior autonomous stop was incorrect. Commit `7c2cea4` fixed the nonportable token-limit field and proved Qwen routing reaches a real endpoint. That exposed a second transport-only issue: Claude's structured-output implementation rejects numeric range keywords in the verifier schema. Commit `6317995` removes those schema keywords while enforcing the identical `[0,1]` bound after decoding, and focused tests pass. Rerun `dftr-1784466066-bc38cdab` is active on the same frozen identities and validated 42-row partial artifact. A complete 96-row result will advance directly to the already-built Qwen3-14B H100 mechanical training smoke.",
   "run_state": "active",
   "budget": {
     "modal_cap_usd": 100,
@@ -26,6 +26,12 @@
     {"id": "M4", "label": "M4", "detail": "Promotion runs and sealed validation", "status": "queued"}
   ],
   "events": [
+    {
+      "at": "06:01",
+      "title": "Portable verifier schema deployed; rewrite smoke resumed",
+      "detail": "The corrected `max_tokens` request reached Qwen successfully and moved the failure into Claude verifier schema parsing. Claude rejected numeric `minimum`/`maximum` schema keywords, so commit `6317995` removed only those transport-level keywords and added an explicit post-decode `[0,1]` validation, preserving the acceptance rule. Run `dftr-1784466066-bc38cdab` is active on the unchanged identities and output artifact; API commitment is `$32.079969/$100` and GPU commitment remains `$22.252709/$100`.",
+      "tone": "active"
+    },
     {
       "at": "05:58",
       "title": "Incorrect provider stop overturned; Qwen rerun active",
@@ -673,5 +679,5 @@
     {"at": "17:46", "title": "Storage created", "detail": "Gateway state, checkpoints, sealed state, and sealed artifacts volumes are online.", "tone": "complete"},
     {"at": "17:40", "title": "Engineering checks passed", "detail": "Harness, infrastructure, and private evaluator suites are green.", "tone": "complete"}
   ],
-  "next_action": "Let the zero-token watcher validate corrected transport run `dftr-1784465875-9957cfca`; on a complete 96-row artifact, bind its SHA into the prepared Qwen3-14B H100 mechanical-smoke config and launch automatically."
+  "next_action": "Let the zero-token watcher validate portable-schema run `dftr-1784466066-bc38cdab`; on a complete 96-row artifact, bind its SHA into the prepared Qwen3-14B H100 mechanical-smoke config and launch automatically."
 }
