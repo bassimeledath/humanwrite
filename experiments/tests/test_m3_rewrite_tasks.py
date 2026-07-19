@@ -119,6 +119,7 @@ def test_assemble_and_render_valid_pair() -> None:
         (lambda g, v: g.update(source_text=g["source_text"] + " 中文"), "non-Latin"),
         (lambda g, v: v.update(unsupported_source_claims=["invented"]), "factual mismatch"),
         (lambda g, v: v.update(semantic_similarity=0.50), "semantic similarity"),
+        (lambda g, v: v.update(semantic_similarity=1.50), "within \\[0, 1\\]"),
     ],
 )
 def test_rejects_invalid_pairs(mutation, message: str) -> None:

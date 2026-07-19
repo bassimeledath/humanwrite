@@ -163,7 +163,11 @@ def verifier_response_schema() -> dict[str, Any]:
             "no_source_fact_outside_target": {"type": "boolean"},
             "names_preserved": {"type": "boolean"},
             "numbers_dates_quotes_preserved": {"type": "boolean"},
-            "semantic_similarity": {"type": "number", "minimum": 0, "maximum": 1},
+            # Some otherwise compatible structured-output providers reject
+            # numeric range keywords. The same [0, 1] bound is enforced after
+            # decoding by assemble_rewrite_task, so portability does not relax
+            # acceptance.
+            "semantic_similarity": {"type": "number"},
             "missing_facts": {"type": "array", "items": {"type": "string"}, "maxItems": 12},
             "unsupported_source_claims": {
                 "type": "array",
@@ -281,6 +285,8 @@ def assemble_rewrite_task(
     if verified.get("missing_facts") or verified.get("unsupported_source_claims"):
         raise RewriteTaskError("provider reported factual mismatch")
     similarity = float(verified.get("semantic_similarity", -1))
+    if not 0.0 <= similarity <= 1.0:
+        raise RewriteTaskError("semantic similarity must be within [0, 1]")
     if similarity < semantic_similarity_min:
         raise RewriteTaskError("semantic similarity is below the frozen minimum")
     return {
